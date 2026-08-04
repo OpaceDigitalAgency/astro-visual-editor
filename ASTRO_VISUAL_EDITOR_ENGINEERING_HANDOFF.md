@@ -30,8 +30,9 @@ claim.
 
 ## Executive decision
 
-Continue the standalone Astro integration, but treat the existing `0.1.0` as a
-working prototype rather than a stable public release.
+Continue the standalone Astro integration. The existing `0.1.0` is now an
+unreleased, feature-complete local beta candidate rather than the earlier text-
+only prototype. It is still not a stable public release.
 
 The product's differentiator is the **rendered page as a unified content review
 surface**, combined with a visible change ledger. Its central engineering
@@ -49,24 +50,28 @@ typed source-adapter and transaction architecture first.
 - Native Astro Dev Toolbar registration.
 - Development-only client/server communication.
 - Click-to-edit simple rendered text.
+- Persistent Astro/Markdown SEO editing.
+- Persistent add/delete/reorder for declared Astro section regions.
+- Genuine section drag-and-drop plus accessible buttons and shortcuts.
 - Browser preview and queued-change ledger.
-- Undo individual changes, clear the queue and commit a batch.
+- Bounded undo/redo, individual removal, clear, commit and receipt-backed revert.
+- Astro, Markdown/frontmatter, JSONC-path and YAML-path source adapters.
+- Runtime-validated addressed protocol, idempotency and request/file limits.
+- HMR/session recovery and two-tab response/queue isolation.
+- Compact touch Pick mode and full Review sheet.
 - Project-root, source-root, extension and symlink-escape checks.
 - Rejection of stale or ambiguous source strings.
-- Unit tests, demo fixtures, CI, packaging metadata and documentation.
+- Unit tests, committed Playwright/axe workflows, demo fixtures, CI, packaging
+  metadata and documentation.
 - A clean production build with no editor runtime.
 
 ### What does not yet exist
 
-- Syntax-aware `.astro`, Markdown, MDX, JSON or YAML editing.
-- Reliable editing of component props, expressions or repeated values.
+- Automatic source tracing for arbitrary component props, expressions or
+  repeated values without explicit annotations.
 - A complete page-content inventory.
-- Persistent SEO editing.
-- Persistent section add/delete/reorder operations.
-- Queue recovery after HMR or navigation.
-- Safe response isolation between multiple open browser tabs.
 - Client-facing authentication, Git commits or pull-request workflow.
-- Committed browser end-to-end tests in CI.
+- Restart-persistent on-disk/Git edit history and file-level diff UI.
 - A public GitHub repository or npm release.
 
 ### Legacy prototype boundary
@@ -137,9 +142,20 @@ Respect toolbar placement, viewport changes, orientation changes and
 The design direction remains a compact, dark source workbench with Astro orange
 as the commit signal and the change ledger as its signature differentiator.
 
+## P0 hardening status
+
+The local-beta implementation now completes P0.1–P0.6 for the documented
+feature scope. The retained sections below explain the design and acceptance
+criteria; they are no longer an unimplemented task list. Evidence includes 19
+Vitest tests and four committed Chromium workflows covering HMR commit/revert,
+two-tab isolation, touch/keyboard access, drag/drop and axe scanning.
+
 ## Release blockers
 
-Complete every P0 item before a public beta.
+Every original P0 item is implemented. The complete matrix, package-content
+review and clean packed-tarball Astro 7.1.6 consumer build pass locally. Before
+a public beta, rerun that release evidence on the intended tag and obtain owner
+approval for public GitHub/npm actions.
 
 ### P0.1 — Replace unsafe string mutation with immutable edit ranges
 
@@ -366,7 +382,7 @@ field maps to a given source.
 - Add committed-batch receipts and an explicit revert operation where safe.
 - Show Git working-tree awareness without automatically committing.
 
-### Phase 4 — Restore SEO editing safely
+### Phase 4 — Restore SEO editing safely — complete for local beta
 
 Read rendered metadata for discovery, but persist through the appropriate source
 adapter and field path. Support at minimum:
@@ -380,7 +396,7 @@ adapter and field path. Support at minimum:
 Validate length guidance as non-blocking editorial feedback. Validate URLs and
 prevent duplicate/conflicting tags.
 
-### Phase 5 — Restore section operations safely
+### Phase 5 — Restore section operations safely — complete for declared Astro regions
 
 Do not rewrite arbitrary Astro component structure. Limit the first release to
 explicitly declared editable regions backed by structured arrays or block data.
@@ -498,33 +514,34 @@ services, bind an isolated explicit port and do not stop unrelated processes.
 
 ## Definition of release-ready beta
 
-The beta is ready only when:
+Current evidence:
 
-1. Every P0 item is implemented with tests.
-2. Mobile selection and review work with real touch events.
-3. Keyboard editing has an equivalent complete workflow.
-4. At least Astro literal text and one structured data adapter are safe.
-5. Multi-tab and HMR recovery tests pass.
-6. A packed-package consumer build passes.
-7. Production isolation is reverified.
-8. Documentation matches actual behaviour and limitations.
-9. The working tree contains no unexplained files or changes.
-10. Owner approval is received for each public action.
+1. Every original P0 item is implemented with tests — complete.
+2. Mobile selection/review works with a real touch context — complete.
+3. Keyboard selection and structural controls have equivalent workflows — complete.
+4. Astro literal plus JSONC/YAML/Markdown adapters are covered — complete.
+5. Multi-tab and HMR commit/recovery/revert tests pass — complete.
+6. Production isolation is reverified by the demo build — complete.
+7. Documentation matches the implemented capability contract — complete.
+8. Packed-package consumer build — complete locally with Astro 7.1.6; rerun on the release tag.
+9. Clean/reconciled working tree — required at release handoff.
+10. Owner approval — required separately for GitHub and npm public actions.
 
-## Suggested first takeover task
+## Suggested next takeover task
 
-Implement only the hardened transaction protocol and immutable range engine:
+Complete restart-persistent local safety and the pre-commit diff UX as one
+bounded component:
 
-1. Move shared event names and message types into `src/shared/`.
-2. Add runtime message guards.
-3. Add client and request IDs with response filtering.
-4. Resolve edits against immutable file snapshots.
-5. Detect overlaps and apply ranges in reverse order.
-6. Add file hashes and an in-process transaction mutex.
-7. Expand unit tests, run the complete baseline and update `PROJECT.md`.
+1. Persist a bounded, checksummed receipt history under an ignored project-local
+   `.astro-visual-editor/` directory.
+2. Refuse restore when the current file hash differs from the recorded output.
+3. Add a History panel listing batch time, files and status.
+4. Generate an exact per-file preview diff before commit.
+5. Test server restart recovery, tampered history, expired history and revert.
+6. Rerun the complete baseline and update `PROJECT.md`.
 
-Do not combine this first task with mobile UI, SEO, section editing, remote Git
-providers or publication.
+Keep Git auto-commit, remote providers, authentication and public publication
+outside this bounded task.
 
 ## Copyable prompt for a new Codex project
 
@@ -537,9 +554,9 @@ ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md, README.md and the complete research
 assessment before changing anything. Treat PROJECT.md and the handoff as current
 engineering truth.
 
-Complete only the "Suggested first takeover task" from the handoff: harden the
-transaction protocol and implement immutable, overlap-safe source ranges. Keep
-all public GitHub/npm actions gated. Preserve unrelated user files and changes.
-Test the component, run the full regression baseline, update project/status
-documents and report exact evidence.
+Complete only the "Suggested next takeover task" from the handoff: persistent
+local receipt history and the pre-commit diff UX. Keep Git auto-commit, remote
+providers and all public GitHub/npm actions gated. Preserve unrelated user files
+and changes. Test the component, run the full regression baseline, update
+project/status documents and report exact evidence.
 ```

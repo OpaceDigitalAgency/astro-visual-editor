@@ -15,3 +15,12 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Fail-closed source-file validation and path traversal protection.
 - Workspace demo, fixture pages, unit tests and package validation.
 - Explicit desktop-editing support boundary for Astro's narrow-screen toolbar.
+- Full legacy parity: text, SEO and persistent section add/delete/reorder modes.
+- Genuine section drag-and-drop with button and keyboard alternatives.
+- Default and configurable section template registry.
+- Syntax-aware Astro, Markdown/frontmatter, JSONC and YAML source adapters.
+- Runtime-validated, bounded, client-addressed and idempotent toolbar protocol.
+- Session/HMR recovery, multi-tab isolation and retry-safe receipts.
+- Atomic writes, stale hashes, remote-dev protection and safe last-batch revert.
+- Compact touch Pick/Review workflow.
+- Committed Playwright and axe browser regression suite.

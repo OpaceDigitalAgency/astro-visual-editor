@@ -1,5 +1,13 @@
 # Astro Visual Editor — Strategic Product Review
 
+> **Historical strategy snapshot:** The claims below about missing adapters,
+> SEO, section persistence, P0 hardening and browser tests describe the earlier
+> text-only prototype. Those capabilities were implemented and tested on
+> 4 August 2026. Current truth is in `PROJECT.md`, `README.md` and
+> `FEATURE_PARITY.md`; the remaining strategic recommendations about automatic
+> attribution, Editability Setup, persistent/Git history and remote client
+> access are still relevant.
+
 **Date:** 4 August 2026  
 **Scope:** Product strategy, functionality improvements, and third-party integration opportunities
 

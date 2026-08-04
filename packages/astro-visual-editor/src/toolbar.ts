@@ -815,6 +815,18 @@ export default defineToolbarApp({
 
     server.on(CONFIG_EVENT, (next: ClientEditorConfig) => {
       config = { ...defaultConfig, ...next }; configReady = true;
+      try {
+        for (const selector of [...config.editableSelectors, ...config.excludeSelectors, ...Object.keys(config.selectorMappings)]) {
+          document.querySelector(selector);
+        }
+      } catch (error) {
+        config.writeEnabled = false;
+        const detail = error instanceof Error ? error.message : 'invalid CSS selector';
+        setConnection('Editor configuration is invalid.', 'error');
+        showMessage(`Editing is disabled until the CSS selector configuration is fixed: ${detail}`, 'error');
+        renderQueue();
+        return;
+      }
       if (config.writeEnabled) setConnection('Connected. Changes remain local until committed.', config.remoteWarning ? 'warning' : 'ready');
       else setConnection(config.remoteWarning ?? 'Source writes are unavailable.', 'error');
       if (config.remoteWarning) showMessage(config.remoteWarning, config.writeEnabled ? 'warning' : 'error');

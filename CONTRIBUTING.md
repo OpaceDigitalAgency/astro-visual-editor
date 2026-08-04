@@ -20,6 +20,7 @@ npm run test:all
 ```
 
 Pull requests should include or update tests, documentation and the changelog
-when behaviour changes. Source-writing changes must retain fail-closed path and
-ambiguity checks.
-
+when behaviour changes. Source-writing changes must retain fail-closed path,
+hash, ambiguity, adapter, request-boundary and conflict checks. Changes to text,
+SEO, sections, recovery, toolbar focus or responsive behaviour require
+corresponding Playwright coverage.

@@ -21,9 +21,12 @@ export async function applyChangeWithAdapter(
     throw new Error(`SEO editing is not supported for ${extension} files.`);
   }
 
-  if (extension === '.astro') return applyAstroText(source, change);
+  if (extension === '.astro') return applyAstroText(source, change, options.allowUnsafeSourceText);
   if (extension === '.json' || extension === '.jsonc') return applyJsonText(source, change);
   if (extension === '.yaml' || extension === '.yml') return applyYamlText(source, change);
+  if (extension === '.mdx' && !change.sourcePath) {
+    throw new Error('MDX body edits require a structured data-astro-edit-path; expression-safe body editing is not enabled.');
+  }
   if (extension === '.md' || extension === '.mdx') return applyMarkdownText(source, change);
   throw new Error(`No source adapter is available for ${extension} files.`);
 }

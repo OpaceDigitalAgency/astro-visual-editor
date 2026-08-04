@@ -16,7 +16,12 @@ discovered by Astro's integrations directory after an approved npm release.
 - The editor is a standalone package with no dependency on the original site.
 - It uses Astro's supported Integration and Dev Toolbar APIs.
 - It is present only during `astro dev` and adds no production editor endpoint.
-- Users can preview, queue, undo, clear and commit simple text changes.
+- Users can preview, queue, undo/redo, clear and commit text, SEO and declared
+  section changes.
+- Section add/delete/reorder works through accessible controls and genuine
+  drag-and-drop, and persists to validated Astro source.
+- The complete user-facing legacy feature set is accounted for in
+  [FEATURE_PARITY.md](./FEATURE_PARITY.md).
 - Server writes fail closed for unsafe, stale, ambiguous or out-of-root edits.
 - Package metadata meets Astro integration discovery requirements.
 - A real demo, automated tests, clean build, package inspection and browser
@@ -25,23 +30,28 @@ discovered by Astro's integrations directory after an approved npm release.
 
 ## Current status
 
-Version `0.1.0` is locally implemented and validated as a prototype but
-unreleased. A subsequent engineering review identified P0 hardening work that
-must be completed before a public beta.
+Version `0.1.0` is locally implemented and validated as an unreleased beta
+candidate. The legacy interface is now feature-complete and its unfinished
+write paths have been replaced by source adapters and hardened transactions.
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
 | Standalone workspace | Complete | Package and independent demo workspaces |
 | Astro API conformance | Complete | Integration factory, `astro:config:setup`, `astro:server:setup`, Dev Toolbar app |
-| Unit and safety tests | Complete | Vitest suite covers configuration, integration hooks and file-write boundaries |
+| Unit and safety tests | Complete | 19 Vitest tests cover configuration, protocol, adapters, transactions and file boundaries |
 | Type and demo checks | Complete | TypeScript and `astro check` |
 | Production isolation | Complete | Demo production build contains no editor or toolbar runtime |
-| Desktop browser workflow | Complete | Selection, preview, queue and source commit verified against the demo fixture |
-| Narrow-layout check | Complete with boundary | Ledger has no horizontal overflow; touch selection is unsupported under Astro's mobile toolbar overlay |
-| Mobile solution proof | Complete | Compact Pick mode allowed a real page tap and opened the editor at 390 × 844 |
-| Public-beta hardening | Pending | Transaction protocol, immutable ranges, source adapters, HMR and multi-tab recovery |
+| Desktop browser workflow | Complete | Playwright covers text, SEO, section controls, templates, delete, undo/redo and genuine drag/drop |
+| Source commit/revert | Complete | Real commit, HMR receipt recovery and conflict-protected revert pass in the demo |
+| Narrow/mobile workflow | Complete | Real touch Pick mode, Review sheet, keyboard section move and zero horizontal overflow at 390 × 844 |
+| Accessibility browser gate | Complete | axe reports no critical/serious toolbar violations in the tested mobile state |
+| Transaction hardening | Complete for local beta | Runtime guards, bounded requests/files, hashes, idempotency, atomic writes, rollback and receipts |
+| Syntax-aware source adapters | Complete for documented scope | Astro literals/head/regions, Markdown/frontmatter, JSONC paths and YAML paths |
+| HMR and multi-tab isolation | Complete | Committed Playwright workflows preserve addressed queues/responses across two tabs |
+| Browser tests in CI | Complete | Four Chromium workflows run after unit/type/build/package checks |
 | Editability setup/admin UX | **Urgent enhancement pending** | Site owners currently need to change selectors or source annotations in code; the planned owner-controlled setup mode is defined in the engineering handoff |
 | npm package inspection | Complete | `npm pack --dry-run` |
+| Clean packed-package consumer | Complete | Installed the generated tarball with Astro 7.1.6 in a fresh external fixture and completed a production build |
 | Dependency audit | Complete | `npm audit` reports zero known vulnerabilities |
 | GitHub publication | Pending approval | Public repository has not been created |
 | npm publication | Pending approval | Package has not been published |
@@ -49,9 +59,9 @@ must be completed before a public beta.
 
 ## Release gates
 
-Do not publish the current commit as a stable `0.1.0`. Complete the P0 work and
-definition of beta readiness in the engineering handoff first. The recommended
-first public version is `0.1.0-beta.1`.
+Do not publish the current commit as stable `0.1.0`. The recommended first
+public version remains `0.1.0-beta.1`, followed by owner acceptance. The clean
+packed-package consumer test is complete; public actions remain gated below.
 
 Publishing the GitHub repository or npm package is a public external action and
 requires explicit owner approval. After approval:
@@ -67,12 +77,16 @@ requires explicit owner approval. After approval:
 
 ## Known boundaries
 
-- Simple textual source values only; structural Astro/HTML edits remain code
-  changes.
+- Text editing is limited to literal Astro/Markdown values or explicitly mapped
+  structured fields; arbitrary expressions remain code changes.
 - Editable versus non-editable content is currently determined by developer
   configuration and source annotations. There is no owner-facing setup/admin
   interface yet; this is an urgent enhancement request.
 - Explicit source annotations are recommended for components and dynamic routes.
 - Duplicate source text is rejected rather than guessed.
-- Post-validation filesystem failures use best-effort rollback.
-- Desktop browsers are the supported editing surface.
+- Section operations require a declared contiguous Astro region with stable
+  section IDs.
+- Post-validation multi-file failures use best-effort rollback.
+- Commit receipts survive HMR but not a complete dev-server restart; persistent
+  Git/disk history remains roadmap work.
+- The local editor now supports desktop and compact touch workflows.

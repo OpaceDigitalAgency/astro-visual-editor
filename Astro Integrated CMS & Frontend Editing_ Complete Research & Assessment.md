@@ -295,11 +295,13 @@ Unlike every other tool researched, this editor works with the **rendered page i
 5. On "Save All," changes are sent to local Astro API routes that perform text find-and-replace in the source files.
 6. Astro's dev server hot-reloads the page with the updated content.
 
-**Current extracted-package status:** The safe text preview, queue, undo, clear
-and commit workflow has been rebuilt as a standalone integration. Experimental
-section manipulation and SEO persistence were deliberately not carried forward
-because their regex-based write paths were incomplete. They belong in a later
-phase after syntax-aware source adapters exist.
+**Current extracted-package status — updated 4 August 2026:** The standalone
+integration now contains the complete user-facing legacy feature set: text,
+SEO, section add/delete/reorder, templates, queue review, undo/redo, commit and
+safe revert. Genuine drag-and-drop has been added even though the legacy source
+only implemented move buttons. The old unfinished section/SEO persistence has
+been replaced by typed transactions and Astro/Markdown/JSONC/YAML adapters. See
+[FEATURE_PARITY.md](./FEATURE_PARITY.md) for the exact evidence matrix.
 
 **Why this remains a promising approach for multi-file sites:**
 
@@ -313,8 +315,9 @@ value to a source file plus a structured path or source range.
 
 **Current concept and package strengths:**
 
-- Can support varied Astro architectures through explicit mappings and future
-  source adapters; the current implementation is not universal
+- Supports varied Astro architectures through explicit file/path mappings and
+  Astro, Markdown/frontmatter, JSONC and YAML adapters; automatic attribution is
+  not universal
 - No migration, no database, no external service
 - The rendered page provides a unified discovery and review view
 - Batch queue with review/undo before committing
@@ -326,12 +329,12 @@ value to a source file plus a structured path or source range.
 | Concern | Detail | Severity |
 |---------|--------|----------|
 | **No editability administration** | Site owners must currently change selectors or add source annotations in code to determine what can and cannot be selected. The toolbar does not inventory blocked content or explain eligibility decisions. | **High / urgent enhancement** |
-| **Source file detection** | Uses heuristics (route mapping, DOM context) to guess which `.astro` file to edit. Will fail for content that actually lives in JSON data files or shared component files. | High |
-| **No JSON write support** | The write mechanism does text find-and-replace in `.astro` files. Cannot currently locate and update a value inside a `.json` data file. | High |
-| **SEO persistence incomplete** | The SEO panel UI exists but reading/writing meta tags from `.md` frontmatter is not fully wired up. | Medium |
-| **Ambiguous text matches** | If the same text appears in multiple places in a file, the find-and-replace may edit the wrong occurrence. | Medium |
-| **Section editing experimental** | Visual reordering works in the browser but persistent write-back for section moves is incomplete. | Medium |
-| **Nested markup flattening** | Editing text that contains inline formatting (bold, links) may lose that formatting. | Low-Medium |
+| **Automatic source attribution incomplete** | Component props, imported data and non-conventional routes still need explicit file/path annotations or mappings. | High |
+| **Structured paths require annotation** | JSONC/YAML writing works by exact path, but the editor does not yet infer every path from Astro imports. | Medium |
+| **SEO scope is page-level** | Astro head and Markdown/MDX frontmatter persistence works; bulk cross-page SEO inventory is not built. | Medium |
+| **Ambiguous text matches** | Duplicate literal source text is rejected rather than guessed; authors should add a structured path or edit ID. | Low / fail-closed |
+| **Section regions are explicit** | Add/delete/reorder persists only for declared contiguous Astro regions with stable section IDs. Arbitrary component trees are not rewritten. | Medium / deliberate boundary |
+| **Restart-persistent history missing** | Safe receipts survive HMR but not a complete dev-server restart; durable Git/disk history remains planned. | Medium |
 | **Localhost only** | Only works during `npm run dev`. Clients and non-technical users cannot access it on a deployed site. | **Critical** |
 
 **Urgent product requirement identified during prototype testing:** add an
@@ -369,10 +372,10 @@ The most practical path is **Approach A or B**: deploy the site with an SSR adap
 
 **Verdict for your problem:** This is the strongest custom direction found in
 the original research because it uses the composed page as the editing surface.
-It still needs reliable source adapters, transaction hardening and broader
-content coverage before it can claim architecture-independent editing. A
-client-facing version would additionally require authentication and a Git-based
-write/review layer.
+It now has reliable adapters and hardened transactions for its documented local
+scope. Broader automatic source tracing is still required before it can claim
+architecture-independent attribution. A client-facing version would
+additionally require authentication and a Git-based write/review layer.
 
 ---
 

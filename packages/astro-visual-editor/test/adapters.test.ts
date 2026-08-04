@@ -65,4 +65,34 @@ describe('source adapters', () => {
     expect(result).not.toContain('data-section="hero"');
     expect(result).toContain('Section heading');
   });
+
+  it('refuses stale SEO state and unstructured MDX expression editing', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(page, '<html><head><title>Current title</title></head><body /></html>');
+    await expect(applyChangeBatch(root, src, [{
+      kind: 'seo', id: 'stale-seo', filePath: 'src/pages/index.astro', route: '/',
+      before: { ...emptySeo, title: 'Stale title' },
+      after: { ...emptySeo, title: 'Replacement title' },
+    }], normalizeOptions())).rejects.toThrow('changed before commit');
+    expect(await readFile(page, 'utf8')).toContain('Current title');
+
+    const mdx = join(src, 'pages', 'example.mdx');
+    await writeFile(mdx, '---\ntitle: Example\n---\n\n# {dynamicHeading}\n');
+    await expect(applyChangeBatch(root, src, [{
+      kind: 'text', id: 'mdx', filePath: 'src/pages/example.mdx', route: '/example',
+      oldText: 'dynamicHeading', newText: 'changedExpression',
+    }], normalizeOptions())).rejects.toThrow('structured data-astro-edit-path');
+  });
+
+  it('keeps raw Astro markup behind the explicit unsafe option', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(page, '<p>Plain copy</p>');
+    await applyChangeBatch(root, src, [{
+      kind: 'text', id: 'unsafe', filePath: 'src/pages/index.astro', route: '/',
+      oldText: 'Plain copy', newText: '<strong>Structured copy</strong>',
+    }], normalizeOptions({ allowUnsafeSourceText: true }));
+    expect(await readFile(page, 'utf8')).toBe('<p><strong>Structured copy</strong></p>');
+  });
 });

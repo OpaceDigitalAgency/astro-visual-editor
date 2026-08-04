@@ -1,5 +1,11 @@
 # Astro Visual Editor — Full Project Review
 
+> **Historical review snapshot:** This review was written against the earlier
+> text-only prototype. Its P0, SEO, section, mobile and browser-test gaps were
+> subsequently implemented on 4 August 2026. Use `PROJECT.md`, `README.md` and
+> `FEATURE_PARITY.md` for current engineering truth; retain this file for the
+> original findings and longer-term recommendations only.
+
 **Date:** 4 August 2026  
 **Reviewer:** Antigravity (Claude Opus 4.6)  
 **Scope:** All documentation (7 docs) and all application code (15 source files, 3 test files, 2 config files, 1 CI workflow)

@@ -76,7 +76,11 @@ function quotedReplacement(source: string, range: SourceRange, value: string): s
   return next;
 }
 
-export async function applyAstroText(source: string, change: TextEditorChange): Promise<string> {
+export async function applyAstroText(
+  source: string,
+  change: TextEditorChange,
+  allowUnsafeSourceText = false,
+): Promise<string> {
   const ast = await parseAstro(source);
   const range = uniqueRange(source, change.oldText, `${change.filePath} (${change.selector ?? 'text'})`);
   let isLiteralText = false;
@@ -98,7 +102,11 @@ export async function applyAstroText(source: string, change: TextEditorChange): 
         'Add a structured data-astro-edit-path mapping or edit the source directly.',
     );
   }
-  range.replacement = isLiteralText ? escapeHtmlText(change.newText) : quoted!;
+  range.replacement = isLiteralText
+    ? allowUnsafeSourceText
+      ? change.newText
+      : escapeHtmlText(change.newText)
+    : quoted!;
   const next = applyRanges(source, [range]);
   await validateAstro(next, change.filePath);
   return next;

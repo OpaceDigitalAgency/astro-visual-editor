@@ -24,4 +24,17 @@ describe('TransactionManager', () => {
     expect(reverted.success).toBe(true);
     expect(await readFile(page, 'utf8')).toBe('<h1>Old heading</h1>');
   });
+
+  it('rejects an oversized compatibility batch before reading source', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ave-transaction-'));
+    const src = join(root, 'src');
+    await mkdir(join(src, 'pages'), { recursive: true });
+    const manager = new TransactionManager(root, src, normalizeOptions({ maxChanges: 1 }));
+    const response = await manager.save({ clientId: 'tab', requestId: 'too-many', changes: [
+      { kind: 'text', id: 'one', filePath: 'src/pages/missing.astro', route: '/', oldText: 'a', newText: 'b' },
+      { kind: 'text', id: 'two', filePath: 'src/pages/missing.astro', route: '/', oldText: 'c', newText: 'd' },
+    ] });
+    expect(response.success).toBe(false);
+    expect(response.error).toContain('more than 1');
+  });
 });

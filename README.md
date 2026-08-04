@@ -14,8 +14,10 @@ editor and replaces that prototype's unfinished save endpoints with typed,
 syntax-aware transactions.
 
 > **Release status:** feature-complete against the legacy editor and validated
-> locally, but not published. GitHub creation, npm publication and the public
-> Astro directory listing remain explicit owner-approval gates.
+> locally. The source repository is public on
+> [GitHub](https://github.com/OpaceDigitalAgency/astro-visual-editor); npm
+> publication and the Astro directory listing remain separate owner-approval
+> gates.
 
 ## What it does
 
@@ -89,6 +91,33 @@ The integration follows Astro's documented integration and Dev Toolbar APIs:
 - [Integration API](https://docs.astro.build/en/reference/integrations-reference/)
 - [Dev Toolbar App API](https://docs.astro.build/en/reference/dev-toolbar-app-reference/)
 - [Creating a Dev Toolbar app](https://docs.astro.build/en/recipes/making-toolbar-apps/)
+
+## Try the repository demo
+
+From this repository, start the standalone fixture on an explicit loopback
+port:
+
+```bash
+npm install
+npm run dev --workspace astro-visual-editor-demo -- --host 127.0.0.1 --port 4322
+```
+
+Open [http://127.0.0.1:4322/](http://127.0.0.1:4322/), expand Astro's developer
+toolbar and select **Astro Visual Editor**.
+
+Suggested review path:
+
+1. In **Text**, edit the hero heading and queue it without committing.
+2. Undo and redo the queued preview, then inspect the Review ledger.
+3. In **Sections**, drag a card by its handle, use a move button, insert a
+   template and undo the structural changes.
+4. In **SEO**, change a field and inspect its queued preview.
+5. Commit only when you intentionally want to modify `demo/src/pages/index.astro`;
+   use **Revert last commit** immediately afterwards to test safe restoration.
+6. Narrow the viewport to exercise compact Pick mode and the Review sheet.
+
+Port 4322 is only a documented demo choice; any free loopback port works. Source
+writes are disabled by default when the dev server is exposed beyond loopback.
 
 ## Editor modes
 
@@ -412,6 +441,8 @@ qualifying npm packages. Publication remains gated in [<removed internal documen
 - [<removed internal document>](./<removed internal document>) — exact legacy-to-package comparison.
 - [<removed internal document>](./<removed internal document>) — remaining roadmap.
 - [Complete research and assessment](./Astro%20Integrated%20CMS%20%26%20Frontend%20Editing_%20Complete%20Research%20%26%20Assessment.md) — market context.
+- [Current engineering review](./<removed internal review>) — code-quality assessment.
+- [Strategic product review](./<removed internal review>) — product priorities and recommendation changes.
 - [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
 
 ## Licence

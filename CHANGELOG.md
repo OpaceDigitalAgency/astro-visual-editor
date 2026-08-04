@@ -14,7 +14,6 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Explicit `data-astro-edit-file` source mapping and safe route fallbacks.
 - Fail-closed source-file validation and path traversal protection.
 - Workspace demo, fixture pages, unit tests and package validation.
-- Explicit desktop-editing support boundary for Astro's narrow-screen toolbar.
 - Full legacy parity: text, SEO and persistent section add/delete/reorder modes.
 - Genuine section drag-and-drop with button and keyboard alternatives.
 - Default and configurable section template registry.
@@ -24,3 +23,5 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Atomic writes, stale hashes, remote-dev protection and safe last-batch revert.
 - Compact touch Pick/Review workflow.
 - Committed Playwright and axe browser regression suite.
+- Automated production-output isolation assertion.
+- Reconciled engineering and strategic reviews plus an explicit local demo/test guide.

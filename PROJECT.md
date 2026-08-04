@@ -2,6 +2,9 @@
 
 This document is the release source of truth for Astro Visual Editor.
 
+The implementation roadmap and takeover instructions are maintained in
+[ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md](./ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md).
+
 ## Bounded objective
 
 Extract the website-specific localhost editor into an independent Astro
@@ -22,7 +25,9 @@ discovered by Astro's integrations directory after an approved npm release.
 
 ## Current status
 
-Version `0.1.0` is locally implemented and validated but unreleased.
+Version `0.1.0` is locally implemented and validated as a prototype but
+unreleased. A subsequent engineering review identified P0 hardening work that
+must be completed before a public beta.
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
@@ -33,6 +38,8 @@ Version `0.1.0` is locally implemented and validated but unreleased.
 | Production isolation | Complete | Demo production build contains no editor or toolbar runtime |
 | Desktop browser workflow | Complete | Selection, preview, queue and source commit verified against the demo fixture |
 | Narrow-layout check | Complete with boundary | Ledger has no horizontal overflow; touch selection is unsupported under Astro's mobile toolbar overlay |
+| Mobile solution proof | Complete | Compact Pick mode allowed a real page tap and opened the editor at 390 × 844 |
+| Public-beta hardening | Pending | Transaction protocol, immutable ranges, source adapters, HMR and multi-tab recovery |
 | npm package inspection | Complete | `npm pack --dry-run` |
 | Dependency audit | Complete | `npm audit` reports zero known vulnerabilities |
 | GitHub publication | Pending approval | Public repository has not been created |
@@ -40,6 +47,10 @@ Version `0.1.0` is locally implemented and validated but unreleased.
 | Astro directory appearance | Pending npm release | Astro refreshes qualifying npm packages automatically |
 
 ## Release gates
+
+Do not publish the current commit as a stable `0.1.0`. Complete the P0 work and
+definition of beta readiness in the engineering handoff first. The recommended
+first public version is `0.1.0-beta.1`.
 
 Publishing the GitHub repository or npm package is a public external action and
 requires explicit owner approval. After approval:

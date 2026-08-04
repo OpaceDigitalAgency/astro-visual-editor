@@ -340,9 +340,11 @@ for a custom avatar or listing override.
 ## Project status
 
 See [PROJECT.md](./PROJECT.md) for the evidence-backed release checklist and
+[ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md](./ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md)
+for the implementation roadmap and takeover brief. See
 [CHANGELOG.md](./CHANGELOG.md) for release history. Version `0.1.0` remains
-unreleased until its public GitHub and npm release gates are explicitly
-approved.
+unreleased while the documented beta-hardening work and public GitHub/npm gates
+remain incomplete.
 
 ## Contributing
 

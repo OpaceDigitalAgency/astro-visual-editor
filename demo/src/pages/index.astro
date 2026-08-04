@@ -3,7 +3,7 @@ const title = 'Edit Astro where you can see it';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-astro-edit-file="src/pages/index.astro" data-astro-edit-seo-file="src/pages/index.astro">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
@@ -18,33 +18,35 @@ const title = 'Edit Astro where you can see it';
       h1 { max-width: 820px; margin: 18px 0; font-size: clamp(3rem, 8vw, 7rem); line-height: .92; letter-spacing: -.07em; }
       .lead { max-width: 650px; color: #b8bec4; font-size: clamp(1.1rem, 2vw, 1.35rem); line-height: 1.65; }
       .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 56px; }
-      article { padding: 24px; background: #191c1f; border: 1px solid #30353a; border-radius: 14px; }
-      article strong { display: block; margin-bottom: 8px; color: #ff9f69; font: 700 12px/1.2 ui-monospace, monospace; }
-      article p { margin: 0; color: #d2d6da; line-height: 1.6; }
+      .card { min-height: 190px; padding: 24px; background: #191c1f; border: 1px solid #30353a; border-radius: 14px; }
+      .card strong { display: block; margin-bottom: 8px; color: #ff9f69; font: 700 12px/1.2 ui-monospace, monospace; }
+      .card p { margin: 0; color: #d2d6da; line-height: 1.6; }
+      .ave-hero, .ave-features, .ave-text { grid-column: 1 / -1; padding: 28px; background: #191c1f; border: 1px solid #ff8a4c; border-radius: 14px; }
+      .ave-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
       @media (max-width: 720px) { main { padding-top: 64px; } .grid { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
     <main>
       <p class="tag" data-demo-banner data-astro-editable>Development-only source workbench</p>
-      <h1 data-astro-edit-file="src/pages/index.astro">{title}</h1>
-      <p class="lead" data-astro-edit-file="src/pages/index.astro">
+      <h1 data-astro-edit-id="hero-title">{title}</h1>
+      <p class="lead" data-astro-edit-id="hero-lead">
         Click rendered text, preview the result, and commit a reviewed batch directly to your Astro source files.
       </p>
-      <section class="grid" aria-label="Editor principles">
-        <article>
+      <div class="grid" aria-label="Editor principles" data-astro-edit-region="home-principles">
+        <section class="card" data-section="preview">
           <strong>01 / PREVIEW</strong>
           <p>Every edit appears in the browser before the source file changes.</p>
-        </article>
-        <article>
+        </section>
+        <section class="card" data-section="review">
           <strong>02 / REVIEW</strong>
           <p>A visible ledger shows the old text, new text and expected file.</p>
-        </article>
-        <article>
+        </section>
+        <section class="card" data-section="commit">
           <strong>03 / COMMIT</strong>
           <p>One deliberate action writes an all-or-nothing batch to disk.</p>
-        </article>
-      </section>
+        </section>
+      </div>
     </main>
   </body>
 </html>

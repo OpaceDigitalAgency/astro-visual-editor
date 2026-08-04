@@ -17,7 +17,7 @@ await Promise.all([
     platform: 'node',
     target: 'node22',
     sourcemap: true,
-    external: ['astro'],
+    external: ['astro', '@astrojs/compiler', 'jsonc-parser', 'yaml'],
   }),
   build({
     entryPoints: ['src/toolbar.ts'],
@@ -36,4 +36,3 @@ await execute(process.execPath, [
   '--project',
   'tsconfig.build.json',
 ]);
-

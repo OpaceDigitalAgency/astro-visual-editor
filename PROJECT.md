@@ -54,7 +54,7 @@ write paths have been replaced by source adapters and hardened transactions.
 | Clean packed-package consumer | Complete | Installed the generated tarball with Astro 7.1.6 in a fresh external fixture and completed a production build |
 | Dependency audit | Complete | `npm audit` reports zero known vulnerabilities |
 | GitHub repository | Complete | Public repository: `OpaceDigitalAgency/astro-visual-editor` |
-| GitHub Actions run | Pending first push | The workflow is configured; record remote CI separately after it runs |
+| GitHub Actions run | Complete | Node 22.12 and 24 passed on `ecdc2e5` ([run #2](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/30910382857)) |
 | npm publication | Pending approval | Package has not been published |
 | Astro directory appearance | Pending npm release | Astro refreshes qualifying npm packages automatically |
 

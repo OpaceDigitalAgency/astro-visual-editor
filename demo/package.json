@@ -1,0 +1,19 @@
+{
+  "name": "astro-visual-editor-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build",
+    "check": "astro check && astro build",
+    "dev": "astro dev"
+  },
+  "dependencies": {
+    "astro": "^7.1.6",
+    "astro-visual-editor": "0.1.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^5.9.0"
+  }
+}

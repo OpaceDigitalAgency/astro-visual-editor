@@ -131,6 +131,12 @@ function classifySeoNode(node: AstroNode): SeoField | undefined {
   return undefined;
 }
 
+function currentSeoValue(node: AstroNode, field: SeoField): string {
+  if (field === 'title') return (node.children ?? []).map((child) => child.value ?? '').join('').trim();
+  if (field === 'canonical') return attribute(node, 'href') ?? '';
+  return attribute(node, 'content') ?? '';
+}
+
 function seoMarkup(field: SeoField, value: string): string {
   const escaped = escapeHtmlAttribute(value);
   switch (field) {
@@ -166,6 +172,15 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
   for (const field of Object.keys(change.after) as SeoField[]) {
     if (change.after[field] === change.before[field]) continue;
     const node = existing.get(field);
+    if (node) {
+      const current = currentSeoValue(node, field);
+      const comparableCanonical = field !== 'canonical' || /^https?:\/\//u.test(current);
+      if (comparableCanonical && current !== change.before[field]) {
+        throw new Error(`SEO field changed before commit in ${change.filePath}: ${field}.`);
+      }
+    } else if (change.before[field]) {
+      throw new Error(`SEO field disappeared before commit in ${change.filePath}: ${field}.`);
+    }
     if (node?.position) {
       ranges.push({
         start: node.position.start.offset,

@@ -167,35 +167,159 @@ Recommend it in the documentation as the companion tool for structured/bulk edit
 
 ---
 
+### 8. 🔥 Editability Controls — Visual Configuration for Admins
+
+**The problem:** Right now the only way to control what's editable is through code — `editableSelectors` in `astro.config.mjs` and `data-astro-*` attributes scattered across templates. A site owner can't look at the live page and say "make this editable" or "lock this down" without editing source code.
+
+**What currently exists:**
+
+| Control | How it works | Who can use it |
+|---|---|---|
+| `editableSelectors: ['h1', 'p', ...]` | Config array of CSS selectors that defines which HTML tags are clickable | Developer only (code) |
+| `excludeSelectors: ['pre', 'code', ...]` | Config array of CSS selectors that are never editable | Developer only (code) |
+| `data-astro-editable` | Force any element to be editable regardless of tag | Developer only (template HTML) |
+| `data-astro-edit-ignore` | Exclude a specific element from editing | Developer only (template HTML) |
+| `data-astro-edit-file="..."` | Tell the editor which source file owns this element | Developer only (template HTML) |
+| `data-astro-edit-path="hero.title"` | Map rendered text to a JSON/YAML property path | Developer only (template HTML) |
+| Smart leaf-node filtering | Elements with child elements are auto-excluded unless explicitly marked `data-astro-editable` | Automatic |
+
+**What's completely missing:**
+
+1. **No visual editability UI** — an admin should be able to hold Shift (or enter an "admin mode"), click any element, and toggle it editable/ignored. This should write the corresponding `data-astro-editable` or `data-astro-edit-ignore` attribute back to the source template.
+
+2. **No feedback when something isn't editable** — if you click a `<span>` or a `<div>` and nothing happens, there's no indication *why*. The toolbar should show: "This element is not editable because: `<span>` is not in editableSelectors" or "This element has child elements — add `data-astro-editable` to force it".
+
+3. **No role-based permissions** — there's no concept of "editors can change body text but not navigation" or "only admins can edit SEO fields". Every authenticated user gets the same access.
+
+4. **No per-region locking** — you can't say "the hero section is editable but the pricing table isn't" without manually adding `data-astro-edit-ignore` to every element in the excluded area. There's no region-level on/off switch.
+
+5. **No editable content audit** — there's no panel showing "here's everything on this page that IS editable, and here's everything that ISN'T, and here's why". This is critical for site handover to clients.
+
+**What it should do:**
+
+- **Admin mode**: A toolbar toggle that overlays every element with a colour-coded indicator — green for editable, red for excluded, grey for not matched by selectors
+- **Click-to-configure**: In admin mode, clicking an element opens a config panel: "Make editable / Exclude / Set source file / Set property path"
+- **Changes persist to source**: The admin mode writes `data-astro-*` attributes back to the template file using the same adapter pipeline
+- **Role matrix**: A simple permission config — `roles: { editor: ['text'], admin: ['text', 'seo', 'sections'] }` — so different users see different editing capabilities
+- **Editability report**: A panel listing all elements on the page, grouped by status (editable / excluded / unmatched), with the reason and source file
+
+> [!IMPORTANT]
+> This is the feature that makes the tool usable for site handovers. Without it, every new Astro site requires the developer to manually annotate templates before a client can use the editor. That's the exact bottleneck this tool is supposed to eliminate.
+
+---
+
+### 9. 🔥 Safety Net — Guaranteed Revert After Broken Edits
+
+**The problem you experienced:** An edit looks fine in the preview, you click save, but the actual source file change breaks something — CSS stops applying because an attribute got corrupted, a JS expression breaks because of an apostrophe, a closing tag gets eaten by the string replacement. The page looks destroyed and there's no way to undo it.
+
+**What currently exists for safety:**
+
+| Protection | Status | Limitation |
+|---|---|---|
+| **Pre-save validation** (`validateAstro`) | ✅ Runs `@astrojs/compiler` transform on the output before writing | Only catches parse errors, not visual breakage |
+| **Ambiguity rejection** | ✅ Refuses edits where `oldText` appears more than once | Good, but doesn't prevent wrong-location matches |
+| **Unsafe character blocking** | ✅ Blocks `<`, `>`, `{`, `}` in new text unless `allowUnsafeSourceText` is enabled | Prevents some structural damage |
+| **Atomic writes** | ✅ Uses temp file + rename so partial writes can't corrupt files | Good |
+| **Batch rollback** | ✅ If any file in a multi-file batch fails to write, already-written files are restored | Good |
+| **In-memory revert** | ✅ `TransactionManager` stores pre-edit file snapshots and can revert the last commit via receipt ID | Only survives until the dev server restarts |
+| **Hash-based stale detection** | ✅ Checks file hash hasn't changed between read and write | Prevents overwriting concurrent edits |
+
+**What's critically missing:**
+
+1. **No persistent undo history** — the in-memory revert is lost when the dev server restarts or HMR cycles. If you save a bad edit, close the browser, and come back — it's gone. The only undo is manually reverting the file with your code editor or Git.
+
+2. **No visual validation** — the compiler check (`validateAstro`) only catches syntax errors. An edit that produces valid Astro but visually destroys the page (e.g., replacing text inside a `class` attribute, or breaking a CSS custom property) passes validation and gets written.
+
+3. **No Git integration** — there's no automatic commit before/after edits. If the tool writes a bad change to disk, the only recovery is hoping you had uncommitted changes you can `git checkout -- .` to restore, or that you committed recently enough to `git diff` your way back.
+
+4. **No deployed site protection** — when the tool moves to client-accessible SSR mode, a bad edit committed via the GitHub API and auto-deployed to Netlify/Vercel will take the live site down. There's no rollback mechanism beyond manually reverting the Git commit.
+
+> [!CAUTION]
+> **This is a trust-destroying failure mode.** If a client uses the editor, clicks save, and the site breaks — they will never trust the tool again. This happened in the earliest version and is the reason development was paused. Any production release MUST have a bulletproof revert path.
+
+**What MUST be built:**
+
+**A. Git-backed edit history (non-negotiable for production)**
+
+Every edit batch should create a Git commit — either locally via `simple-git` or remotely via Octokit. This gives you:
+
+- `git log` showing exactly what changed, when, and who did it
+- `git revert <commit>` to undo any specific edit batch
+- `git diff HEAD~1` to see exactly what the editor changed
+- Full history even if the dev server crashes, the browser closes, or the machine restarts
+
+For the GitHub provider (Phase B), this is automatic — every edit is a commit on a branch. For local dev mode, it should be opt-in: `visualEditor({ gitCommit: true })` wraps every save batch in `git add . && git commit -m "visual-editor: edited 3 files"`.
+
+**B. Pre-deploy preview gate (for client-accessible mode)**
+
+When edits go through GitHub:
+1. Edit creates a commit on a `content-edits/[timestamp]` branch
+2. Auto-PR is created with a diff summary
+3. Netlify/Vercel auto-builds a **deploy preview** from that branch
+4. Editor sees: "Your changes are ready for review → [Preview link]"
+5. Developer (or the editor themselves) can verify the preview looks correct before merging
+6. If the preview is broken → close the PR, changes never reach production
+
+This is the exact workflow Keystatic and Decap CMS use. It's proven and it eliminates the "edit → deploy → site breaks" failure mode entirely.
+
+**C. One-click revert in the toolbar (for local dev mode)**
+
+- Persist revert receipts to disk (a `.astro-visual-editor/history/` directory) so they survive server restarts
+- Show a history panel: "Last 10 edit batches" with timestamps, file lists, and a "Revert" button
+- For Git-backed mode: the revert button runs `git revert --no-edit <commit>` so the undo itself is tracked
+
+**D. Visual regression check (stretch goal)**
+
+- After applying edits but before writing to disk, render the changed file in a headless browser (Playwright) and compare a screenshot against the pre-edit state
+- Flag visually significant changes: "The layout of this section changed significantly — review before saving"
+- This catches the class of bugs where valid Astro produces broken visual output
+
+**Open-source tools:**
+
+| Tool | Purpose | Licence |
+|---|---|---|
+| [simple-git](https://github.com/steveukx/git-js) | Local Git commits for every edit batch | MIT |
+| [Octokit](https://github.com/octokit) + `octokit-plugin-create-pull-request` | GitHub commits + auto-PR for deployed mode | MIT |
+| [Playwright](https://playwright.dev) | Visual regression screenshots (already a devDependency) | Apache-2.0 |
+| [pixelmatch](https://github.com/mapbox/pixelmatch) | Pixel-level image comparison for visual regression | ISC |
+
+---
+
 ## Prioritised Roadmap (Product-First)
 
-### Phase A — Make it actually useful for the stated goal (~2 weeks)
+### Phase A — Make it safe and actually useful (~2-3 weeks)
 
-1. **Wire up the JSON/YAML adapters** that already exist in `structured.ts`
-2. **Build basic source tracing** — follow `.astro` file imports to find which JSON/YAML files contribute data
-3. **SEO meta panel** — read rendered meta tags, map them to frontmatter sources
-4. **Visual diff** before commit using `jsdiff` + `diff2html`
+1. **Git-backed edit history** — every save batch creates a local Git commit via `simple-git` with `visualEditor({ gitCommit: true })`. Non-negotiable before any wider use.
+2. **Persistent revert history** — write revert receipts to `.astro-visual-editor/history/` so they survive server restarts. Show a history panel in the toolbar.
+3. **Wire up the JSON/YAML adapters** that already exist in `structured.ts`
+4. **Build basic source tracing** — follow `.astro` file imports to find which JSON/YAML files contribute data
+5. **SEO meta panel** — read rendered meta tags, map them to frontmatter sources
+6. **Visual diff** before commit using `jsdiff` + `diff2html`
 
-### Phase B — Make it client-accessible (~3-4 weeks)
+### Phase B — Make it client-accessible with guaranteed safety (~3-4 weeks)
 
-5. **GitHub provider package** — replace `fs.writeFile()` with Octokit commits → auto-PR
-6. **Authentication** with Better Auth — protect the editor behind login
-7. **SSR deployment mode** — Astro middleware for authenticated editing on deployed sites
-8. **Branch/PR workflow** — edits go to a branch, developer reviews, merge deploys
+7. **GitHub provider package** — replace `fs.writeFile()` with Octokit commits → auto-PR
+8. **Branch/PR workflow with deploy previews** — edits go to a branch, auto-build a preview, developer reviews, merge deploys. Bad edits never reach production.
+9. **Authentication** with Better Auth — protect the editor behind login
+10. **SSR deployment mode** — Astro middleware for authenticated editing on deployed sites
+11. **One-click revert via Git** — revert button in the toolbar runs `git revert` (local) or closes the PR (GitHub mode)
 
-### Phase C — Make it intelligent (~2-3 weeks)
+### Phase C — Make it configurable and intelligent (~2-3 weeks)
 
-9. **Content schema awareness** — read Zod schemas, validate edits, show field metadata
-10. **Page content inventory** — list all text on the page with source attribution and editability status
-11. **Editability setup mode** — let owners configure what's editable through the toolbar, not code
-12. **Shared-content warnings** — detect when editing a value that appears on multiple pages
+12. **Editability admin mode** — visual overlay showing what's editable/excluded/unmatched, with click-to-configure
+13. **Editability audit panel** — list all elements on the page with their status and reasoning
+14. **Role-based permissions** — `roles: { editor: ['text'], admin: ['text', 'seo', 'sections'] }`
+15. **Content schema awareness** — read Zod schemas, validate edits, show field metadata
+16. **Page content inventory** — list all text on the page with source attribution
+17. **Shared-content warnings** — detect when editing a value that appears on multiple pages
 
 ### Phase D — Make it production-grade (~2 weeks)
 
-13. **Audit logging** — who edited what, when, and where
-14. **Multi-user safety** — conflict detection when two editors change the same content
-15. **Bulk operations** — edit the same field across multiple pages (e.g., update a shared tagline)
-16. **Keystatic integration** — share content registry, deep link between visual editor and admin panel
+18. **Audit logging** — who edited what, when, and where
+19. **Multi-user safety** — conflict detection when two editors change the same content
+20. **Visual regression checks** — Playwright screenshot comparison before writing (stretch goal)
+21. **Bulk operations** — edit the same field across multiple pages
+22. **Keystatic integration** — share content registry, deep link between visual editor and admin panel
 
 ---
 
@@ -218,9 +342,12 @@ This tool has genuine commercial value for an agency like Opace if Phases A and 
 | Category | What | Time |
 |---|---|---|
 | **Fix now** | The 6 red bugs from the code review | < 1 hour |
-| **Build first** | Wire up existing adapters + source tracing + SEO panel + diffs | ~2 weeks |
-| **Build next** | GitHub provider + Better Auth + SSR deployment | ~3-4 weeks |
-| **Build after** | Schema awareness + content inventory + editability setup | ~2-3 weeks |
-| **Don't build yet** | Section manipulation, remote collaboration, desktop app | Later |
+| **Build first** | Git-backed safety net + persistent reverts + adapters + source tracing + SEO panel + diffs | ~2-3 weeks |
+| **Build next** | GitHub provider + branch/PR workflow + deploy previews + authentication | ~3-4 weeks |
+| **Build after** | Editability admin mode + role permissions + schema awareness + content inventory | ~2-3 weeks |
+| **Don't build yet** | Visual regression, remote collaboration, desktop app | Later |
 
-The 6 bugs are small code fixes. The real work is Phases A and B — and they're what determine whether this project matters or not.
+> [!WARNING]
+> **The safety net (Git-backed history + persistent reverts) must come before any other feature work.** The earliest version of this tool destroyed pages, which killed confidence and halted development. If that happens again — especially with client-facing access — the tool is dead. Every edit must be revertable, always, even after server restarts, browser closes, or deployment.
+
+The code bugs are mostly fixed. The real work is Phases A and B — safety + client access — and they're what determine whether this project matters or not.

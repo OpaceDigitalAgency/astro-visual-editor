@@ -76,11 +76,15 @@ communicate the operation clearly enough.
 - The dependency audit reports zero known vulnerabilities.
 - The canonical product presence is implemented inside Opace's existing site at
   `/tools/astro/visual-editor/`, with a parent `/tools/` directory and normal
-  site navigation. It is not a duplicate GitHub Pages marketing site;
-  deployment and live verification remain separate.
+  site navigation. Both routes are now deployed and rendered-verified at
+  desktop, tablet and mobile widths. It is not a duplicate GitHub Pages
+  marketing site.
+- GitHub discovery now includes a visual landing README, support/community
+  templates, a canonical About link, 16 focused topics and a verified social
+  preview image.
 
-These are local and repository-level facts. They do not imply npm publication,
-Astro directory appearance, deployed-site verification or owner acceptance.
+These facts do not imply npm publication, Astro directory appearance or owner
+acceptance; those remain separate gates.
 
 ## Product value
 

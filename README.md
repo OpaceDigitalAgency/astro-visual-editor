@@ -27,8 +27,8 @@ team](https://opace.agency/services/web-design/astro-development/). If you need
 a wider website project, see [Opace web design](https://opace.agency/services/web-design/)
 or [get in touch](https://opace.agency/get-in-touch/).
 
-> **Release status:** feature-complete against the legacy editor and validated
-> locally and in public CI. The package identity is
+> **Release status:** feature-complete against the legacy editor, validated
+> locally and in public CI, with its canonical Opace product page live. The package identity is
 > `@opacedev/astro-visual-editor`; npm publication and Astro directory discovery
 > remain separate release gates. Exact evidence is maintained in
 > [PROJECT.md](./PROJECT.md).

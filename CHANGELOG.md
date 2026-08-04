@@ -25,3 +25,5 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Committed Playwright and axe browser regression suite.
 - Automated production-output isolation assertion.
 - Reconciled engineering and strategic reviews plus an explicit local demo/test guide.
+- Functional desktop collapse/expand, dialog backdrop dismissal and section-control tooltips.
+- Semantic structural ledger summaries with labelled before/after order.

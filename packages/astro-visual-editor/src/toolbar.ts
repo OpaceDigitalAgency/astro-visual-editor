@@ -119,17 +119,33 @@ function setSeoPreview(values: SeoValues): void {
   }
 }
 
-function summary(change: EditorChange): { oldText: string; newText: string } {
-  if (change.kind === 'text') return { oldText: change.oldText, newText: change.newText };
+function summary(change: EditorChange): { title: string; oldText: string; newText: string } {
+  if (change.kind === 'text') return { title: 'Text replacement', oldText: change.oldText, newText: change.newText };
   if (change.kind === 'seo') {
     const changed = (Object.keys(change.after) as SeoField[]).filter(
       (field) => change.after[field] !== change.before[field],
     );
-    return { oldText: `${changed.length} existing field${changed.length === 1 ? '' : 's'}`, newText: changed.join(', ') };
+    return {
+      title: `Changed ${changed.length} SEO field${changed.length === 1 ? '' : 's'}`,
+      oldText: 'Existing rendered metadata',
+      newText: changed.join(', '),
+    };
   }
+  const beforeIds = change.before.map((item) => item.id);
+  const afterIds = change.after.map((item) => item.id);
+  const added = afterIds.filter((id) => !beforeIds.includes(id));
+  const removed = beforeIds.filter((id) => !afterIds.includes(id));
+  const title = added.length && !removed.length
+    ? `Added ${added.length} section${added.length === 1 ? '' : 's'} in ${change.regionId}`
+    : removed.length && !added.length
+      ? `Removed ${removed.length} section${removed.length === 1 ? '' : 's'} from ${change.regionId}`
+      : !added.length && !removed.length
+        ? `Reordered ${afterIds.length} sections in ${change.regionId}`
+        : `Changed section structure in ${change.regionId}`;
   return {
-    oldText: change.before.map((item) => item.id).join(' → ') || 'Empty region',
-    newText: change.after.map((item) => item.id).join(' → ') || 'Empty region',
+    title,
+    oldText: beforeIds.join(' → ') || 'Empty region',
+    newText: afterIds.join(' → ') || 'Empty region',
   };
 }
 
@@ -181,7 +197,7 @@ export default defineToolbarApp({
         <div><p class="eyebrow">Local source workbench</p><h2>Visual Editor</h2>
           <p class="status" data-state="warning"><span class="status-dot" aria-hidden="true"></span><span class="status-copy">Connecting to Astro…</span></p>
         </div>
-        <button class="icon-button minimize" type="button" aria-label="Minimise editor">−</button>
+        <button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button>
       </header>
       <div class="mode-tabs" role="tablist" aria-label="Editing mode">
         <button class="mode-tab" role="tab" data-mode="text" aria-selected="true">Text</button>
@@ -203,7 +219,7 @@ export default defineToolbarApp({
       </footer>`;
 
     const picker = createElement('div', { class: 'picker', 'data-open': 'false' });
-    picker.innerHTML = `<span class="picker-label">Tap content to edit</span><button class="secondary picker-review" type="button">Review 0</button><button class="icon-button picker-close" type="button" aria-label="Disable Visual Editor">×</button>`;
+    picker.innerHTML = `<span class="picker-label">Tap content to edit</span><button class="secondary picker-review" type="button" title="Expand editor and review queued changes">Review 0</button><button class="icon-button picker-close" type="button" aria-label="Disable Visual Editor" title="Disable Visual Editor">×</button>`;
 
     const textDialog = createElement('dialog', { 'aria-labelledby': 'ave-text-title', 'aria-describedby': 'ave-text-file' });
     textDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Preview before writing</p><h2 id="ave-text-title">Edit text</h2><p id="ave-text-file" class="dialog-file"></p><label for="ave-text-value">Replacement text</label><textarea id="ave-text-value" required></textarea><p class="field-help">The owning adapter validates syntax before any source file is written.</p><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary queue-text" type="button">Queue change</button></div></form>`;
@@ -242,6 +258,19 @@ export default defineToolbarApp({
     const pickerLabel = picker.querySelector<HTMLElement>('.picker-label')!;
     const pickerReview = picker.querySelector<HTMLButtonElement>('.picker-review')!;
     const templateGrid = templateDialog.querySelector<HTMLElement>('.template-grid')!;
+    const minimizeButton = panel.querySelector<HTMLButtonElement>('.minimize')!;
+
+    function enableLightDismiss(dialog: HTMLDialogElement, onClose?: () => void): void {
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) dialog.close('cancel');
+      });
+      if (onClose) dialog.addEventListener('close', onClose);
+    }
+
+    enableLightDismiss(textDialog);
+    enableLightDismiss(seoDialog);
+    enableLightDismiss(templateDialog, () => { addTarget = null; });
+    enableLightDismiss(confirmDialog, () => { deleteTarget = null; });
 
     function serializableQueue(): EditorChange[] {
       return [...queue.values()];
@@ -288,14 +317,17 @@ export default defineToolbarApp({
           const file = createElement('div', { class: 'file', title: change.filePath });
           file.textContent = change.filePath;
           const values = summary(change);
+          const summaryLine = createElement('div', { class: 'change-summary' });
+          summaryLine.textContent = values.title;
           const diff = createElement('div', { class: 'diff' });
           const oldText = createElement('span', { class: 'old' });
           const newText = createElement('span', { class: 'new' });
-          oldText.textContent = values.oldText;
-          newText.textContent = values.newText;
+          oldText.textContent = `Before: ${values.oldText}`;
+          newText.textContent = `After: ${values.newText}`;
           diff.append(oldText, newText);
-          copy.append(type, file, diff);
-          const remove = createElement('button', { class: 'icon-button', type: 'button', 'aria-label': `Undo ${change.kind} change in ${change.filePath}` });
+          copy.append(type, file, summaryLine, diff);
+          const removeLabel = `Undo ${change.kind} change in ${change.filePath}`;
+          const remove = createElement('button', { class: 'icon-button', type: 'button', 'aria-label': removeLabel, title: removeLabel });
           remove.textContent = '×';
           remove.addEventListener('click', () => mutate(() => queue.delete(key)));
           row.append(copy, remove);
@@ -311,7 +343,10 @@ export default defineToolbarApp({
       undoButton.disabled = !history.canUndo || saveInFlight;
       redoButton.disabled = !history.canRedo || saveInFlight;
       revertButton.disabled = !lastReceiptId || saveInFlight || !config.writeEnabled;
-      pickerReview.textContent = `Review ${queue.size}`;
+      pickerReview.textContent = queue.size ? `Review ${queue.size}` : 'Expand';
+      pickerReview.title = queue.size
+        ? `Expand editor and review ${queue.size} queued change${queue.size === 1 ? '' : 's'}`
+        : 'Expand editor';
       app.toggleNotification({ state: queue.size > 0, level: 'info' });
       persist();
     }
@@ -566,7 +601,7 @@ export default defineToolbarApp({
     }
 
     function addControl(controls: HTMLElement, label: string, text: string, action: () => void): HTMLButtonElement {
-      const button = createElement('button', { type: 'button', 'aria-label': label });
+      const button = createElement('button', { type: 'button', 'aria-label': label, title: label, 'data-tooltip': label });
       button.textContent = text;
       button.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); action(); });
       controls.append(button);
@@ -722,7 +757,11 @@ export default defineToolbarApp({
     }
 
     function setMinimized(value: boolean): void {
-      minimized = value; panel.dataset.minimized = String(value); picker.dataset.open = String(active && value);
+      minimized = value;
+      panel.dataset.minimized = String(value);
+      picker.dataset.open = String(active && value);
+      minimizeButton.setAttribute('aria-label', value ? 'Expand editor' : 'Collapse editor');
+      minimizeButton.title = value ? 'Expand editor' : 'Collapse editor';
     }
 
     function activate(): void {
@@ -791,8 +830,11 @@ export default defineToolbarApp({
     }
 
     panel.querySelectorAll<HTMLButtonElement>('.mode-tab').forEach((tab) => tab.addEventListener('click', () => setMode(tab.dataset.mode as EditorMode)));
-    panel.querySelector<HTMLButtonElement>('.minimize')!.addEventListener('click', () => setMinimized(true));
-    pickerReview.addEventListener('click', () => { setMinimized(false); setMode('review'); });
+    minimizeButton.addEventListener('click', () => setMinimized(true));
+    pickerReview.addEventListener('click', () => {
+      setMinimized(false);
+      if (queue.size) setMode('review');
+    });
     picker.querySelector<HTMLButtonElement>('.picker-close')!.addEventListener('click', () => app.toggleState({ state: false }));
     textDialog.querySelector<HTMLButtonElement>('.queue-text')!.addEventListener('click', queueText);
     seoDialog.querySelector<HTMLButtonElement>('.queue-seo')!.addEventListener('click', queueSeo);

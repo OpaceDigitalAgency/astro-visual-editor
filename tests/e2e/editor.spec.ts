@@ -40,6 +40,15 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(workbench).toBeVisible();
   await expect(toolbar.getByText('Connected. Changes remain local until committed.')).toBeVisible();
 
+  await workbench.getByRole('button', { name: 'Collapse editor' }).click();
+  await expect(workbench).toBeHidden();
+  const picker = toolbar.locator('.picker');
+  await expect(picker).toBeVisible();
+  await picker.getByRole('button', { name: 'Expand' }).click();
+  await expect(workbench).toBeVisible();
+  await expect(workbench.getByRole('tab', { name: 'Text' })).toHaveAttribute('aria-selected', 'true');
+  await workbench.getByRole('tab', { name: 'Text' }).click();
+
   const lead = page.locator('[data-astro-edit-id="hero-lead"]');
   const originalLead = (await lead.textContent())!.trim();
   await lead.click();
@@ -54,6 +63,8 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
 
   await workbench.getByRole('tab', { name: 'Sections' }).click();
   const source = page.getByRole('button', { name: 'Drag preview to reorder' });
+  await expect(source).toHaveAttribute('title', 'Drag preview to reorder');
+  await expect(source).toHaveAttribute('data-tooltip', 'Drag preview to reorder');
   const target = page.locator('[data-section="review"]');
   const sourceBox = (await source.boundingBox())!;
   const targetBox = (await target.boundingBox())!;
@@ -62,7 +73,12 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await page.mouse.move(targetBox.x + 40, targetBox.y + targetBox.height - 10, { steps: 14 });
   await page.mouse.up();
   await expect(page.locator('[data-astro-edit-region="home-principles"] > section').first()).toHaveAttribute('data-section', 'review');
+  await workbench.getByRole('tab', { name: 'Review' }).click();
+  await expect(workbench.locator('.change-summary')).toHaveText('Reordered 3 sections in home-principles');
+  await expect(workbench.locator('.diff')).toContainText('Before: preview → review → commit');
+  await expect(workbench.locator('.diff')).toContainText('After: review → preview → commit');
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
+  await workbench.getByRole('tab', { name: 'Sections' }).click();
 
   await page.getByRole('button', { name: 'Add section after preview' }).click();
   await toolbar.locator('dialog').filter({ hasText: 'Add a section' }).getByRole('button', { name: /Text/ }).click();
@@ -75,7 +91,12 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
 
   await workbench.getByRole('tab', { name: 'SEO' }).click();
-  const seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
+  let seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
+  await expect(seoDialog).toBeVisible();
+  await page.mouse.click(5, 5);
+  await expect(seoDialog).toBeHidden();
+  await workbench.getByRole('tab', { name: 'SEO' }).click();
+  seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
   await seoDialog.locator('[name="title"]').fill('Queued browser SEO title');
   await seoDialog.getByRole('button', { name: 'Queue SEO change' }).click();
   await expect(page).toHaveTitle('Queued browser SEO title');
@@ -143,7 +164,10 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
     await expect(workbenchA.getByRole('button', { name: 'Revert last commit' })).toBeEnabled({ timeout: 15_000 });
     await clickRevertWhenStable(pageA);
     await expect.poll(async () => readFile(demoSource, 'utf8')).toBe(originalSource);
-    await pageB.locator('astro-dev-toolbar').locator('.workbench').getByRole('button', { name: 'Clear' }).click();
+    const toolbarB = pageB.locator('astro-dev-toolbar');
+    const workbenchB = toolbarB.locator('.workbench');
+    if (!(await workbenchB.isVisible())) await toolbarB.getByRole('button', { name: 'Visual Editor' }).click();
+    await workbenchB.getByRole('button', { name: 'Clear' }).click();
   } finally {
     if ((await readFile(demoSource, 'utf8')) !== originalSource) await writeFile(demoSource, originalSource);
     await context.close();
@@ -164,7 +188,7 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   await expect(textDialog).toBeVisible();
   await expect(textDialog.locator('textarea')).toBeFocused();
   await textDialog.getByRole('button', { name: 'Cancel' }).click();
-  await picker.getByRole('button', { name: 'Review 0' }).click();
+  await picker.getByRole('button', { name: 'Expand' }).click();
   await workbench.getByRole('tab', { name: 'Sections' }).click();
   const move = page.getByRole('button', { name: 'Move preview down' });
   await move.focus();

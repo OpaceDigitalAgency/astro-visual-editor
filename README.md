@@ -38,6 +38,10 @@ The old editor documented drag-and-drop but only implemented up/down buttons.
 This package provides both genuine drag-and-drop and accessible button/keyboard
 alternatives.
 
+The workbench can be collapsed to a compact picker on desktop or mobile. Icon
+controls expose visible hover/focus tooltips and accessible names, and dialogs
+close through Cancel, Escape or a click on the backdrop.
+
 ## Safety difference from the original
 
 The original `/api/update-sections` route returned success without modifying
@@ -148,6 +152,13 @@ The editable sections must be contiguous direct children of the region. This
 lets the Astro adapter preserve each complete source block while safely
 reordering, deleting or inserting it.
 
+Dragging an existing section moves it only within that declared region; it does
+not duplicate the section or drop arbitrary markup elsewhere on the page. New
+sections are inserted from the validated template registry with **Add before**
+or **Add after**. A future block-palette workflow may drag templates into
+explicit compatible drop zones, but unrestricted page-wide drops would bypass
+the source ownership contract.
+
 Available controls:
 
 - add before or after;
@@ -192,6 +203,10 @@ The ledger groups all queued changes by type and source file. It supports:
 - a single validated commit;
 - idempotent retry if the response is delayed;
 - revert the latest successful receipt while its files remain unchanged.
+
+Structural rows use semantic summaries such as **Reordered 3 sections** or
+**Added 1 section**, followed by labelled Before/After region order, so a drag
+operation is reviewable before commit.
 
 Shortcuts: `Cmd/Ctrl+S` saves, `Cmd/Ctrl+Z` undoes and
 `Cmd/Ctrl+Shift+Z` or `Cmd/Ctrl+Y` redoes.
@@ -391,6 +406,8 @@ Astro integration (development command only)
   shared data and non-conventional routes.
 - It does not rewrite arbitrary Astro component structure; section operations
   require declared, contiguous regions with stable IDs.
+- Existing sections cannot be moved across unrelated regions, and templates
+  cannot be dropped onto arbitrary page locations.
 - It does not infer every import/data dependency or provide the planned full
   page-content inventory.
 - Receipt reversion survives HMR but is held in the dev-server process; restart-

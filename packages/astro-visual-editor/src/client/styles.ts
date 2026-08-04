@@ -10,6 +10,7 @@ export const toolbarStyles = String.raw`
     font: 14px/1.45 Inter, ui-sans-serif, system-ui, sans-serif;
   }
   .workbench[data-open="true"] { display: grid; grid-template-rows: auto auto auto minmax(0,1fr) auto auto; }
+  .workbench[data-open="true"][data-minimized="true"] { display: none; }
   .masthead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 17px 18px 13px; border-bottom: 1px solid #2a2e32; }
   .eyebrow { margin: 0 0 5px; color: #ff9a65; font: 750 10px/1.2 ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; }
   h2, h3 { margin: 0; letter-spacing: -.025em; }
@@ -30,6 +31,7 @@ export const toolbarStyles = String.raw`
   .change { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; padding: 12px; margin-bottom: 8px; background: #1e2124; border: 1px solid #30353a; border-radius: 12px; }
   .change-type { display: inline-flex; width: fit-content; margin-bottom: 6px; padding: 2px 7px; color: #ffd3bc; background: #472b1f; border-radius: 999px; font: 700 10px/1.5 ui-monospace, monospace; text-transform: uppercase; }
   .file { overflow: hidden; color: #ffab7a; font: 600 11px/1.4 ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
+  .change-summary { margin-top: 8px; color: #f7f5f2; font-size: 12px; font-weight: 760; }
   .diff { display: grid; gap: 3px; margin-top: 7px; font-size: 12px; overflow-wrap: anywhere; }
   .old { color: #959da5; text-decoration: line-through; } .new { color: #f7f5f2; }
   .message { display: none; margin: 0 12px 10px; padding: 10px 12px; border-radius: 10px; font-size: 12px; }
@@ -64,12 +66,11 @@ export const toolbarStyles = String.raw`
   .seo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
   .seo-grid .wide { grid-column: 1 / -1; }
   .picker { display: none; align-items: center; gap: 8px; min-height: 48px; padding: 6px; color: #fff; background: #151719; border: 1px solid #3a4046; border-radius: 999px; box-shadow: 0 12px 35px rgba(0,0,0,.45); font: 12px/1.2 Inter,system-ui,sans-serif; }
+  .picker[data-open="true"] { display: flex; }
   .picker-label { padding-left: 9px; font-weight: 700; white-space: nowrap; }
   .picker button { min-height: 36px; min-width: 36px; border-radius: 999px; }
   @media (max-width: 640px) {
     .workbench { width: calc(100vw - 12px); max-height: min(72vh, 680px); border-radius: 16px 16px 8px 8px; }
-    .workbench[data-open="true"][data-minimized="true"] { display: none; }
-    .picker[data-open="true"] { display: flex; }
     .template-grid { grid-template-columns: 1fr; } .seo-grid { grid-template-columns: 1fr; }
     .seo-grid .wide { grid-column: auto; } .actions { grid-template-columns: 1fr auto; }
     .revert { grid-column: 1 / -1; }
@@ -87,8 +88,15 @@ export const pageSectionStyles = String.raw`
   [data-astro-ve-dragging="true"] { opacity: .55 !important; }
   [data-astro-ve-ui] { box-sizing: border-box; }
   .astro-ve-section-controls { position: absolute !important; z-index: 2147483000 !important; top: 10px !important; right: 10px !important; display: flex !important; gap: 4px !important; padding: 5px !important; color: #fff !important; background: rgba(18,20,22,.96) !important; border: 1px solid #515860 !important; border-radius: 11px !important; box-shadow: 0 8px 24px rgba(0,0,0,.38) !important; font: 700 12px/1 system-ui,sans-serif !important; }
-  .astro-ve-section-controls button { width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important; padding: 0 !important; color: inherit !important; background: #292e33 !important; border: 1px solid #454c53 !important; border-radius: 8px !important; cursor: pointer !important; font: inherit !important; }
+  .astro-ve-section-controls button { position: relative !important; width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important; padding: 0 !important; color: inherit !important; background: #292e33 !important; border: 1px solid #454c53 !important; border-radius: 8px !important; cursor: pointer !important; font: inherit !important; }
   .astro-ve-section-controls button:hover, .astro-ve-section-controls button:focus-visible { background: #3a4147 !important; outline: 3px solid #ffb08a !important; outline-offset: 1px !important; }
+  .astro-ve-section-controls button::after { position: absolute !important; z-index: 2147483647 !important; top: calc(100% + 8px) !important; left: 50% !important; width: max-content !important; max-width: min(240px, 70vw) !important; padding: 7px 9px !important; color: #fff !important; background: #090b0c !important; border: 1px solid #5b6269 !important; border-radius: 7px !important; box-shadow: 0 8px 22px rgba(0,0,0,.48) !important; content: attr(data-tooltip) !important; font: 600 12px/1.35 system-ui,sans-serif !important; opacity: 0 !important; pointer-events: none !important; transform: translateX(-50%) translateY(-2px) !important; transition: opacity .12s ease, transform .12s ease !important; white-space: normal !important; }
+  .astro-ve-section-controls button:hover::after, .astro-ve-section-controls button:focus-visible::after { opacity: 1 !important; transform: translateX(-50%) translateY(0) !important; }
+  .astro-ve-section-controls button:first-child::after { left: 0 !important; transform: translateY(-2px) !important; }
+  .astro-ve-section-controls button:first-child:hover::after, .astro-ve-section-controls button:first-child:focus-visible::after { transform: translateY(0) !important; }
+  .astro-ve-section-controls button:last-child::after { right: 0 !important; left: auto !important; transform: translateY(-2px) !important; }
+  .astro-ve-section-controls button:last-child:hover::after, .astro-ve-section-controls button:last-child:focus-visible::after { transform: translateY(0) !important; }
   .astro-ve-drag-handle { cursor: grab !important; }
+  @media (prefers-reduced-motion: reduce) { .astro-ve-section-controls button::after { transition: none !important; } }
   @media (max-width: 640px) { .astro-ve-section-controls { position: sticky !important; top: 6px !important; margin: 6px !important; width: fit-content !important; } }
 `;

@@ -1,14 +1,18 @@
 {
-  "name": "astro-visual-editor",
-  "version": "0.1.0",
-  "description": "A development-only visual editor for Astro with text and SEO editing, section drag-and-drop, a change ledger, and validated source writes.",
+  "name": "@opacedev/astro-visual-editor",
+  "version": "0.1.0-beta.1",
+  "description": "Astro Visual Editor for front-end text and SEO editing, section drag-and-drop, reviewed changes and validated source writes from the Dev Toolbar.",
   "type": "module",
   "license": "MIT",
-  "author": "Opace Digital Agency",
-  "homepage": "https://github.com/OpaceDigitalAgency/astro-visual-editor#readme",
+  "author": {
+    "name": "Opace Digital Agency",
+    "url": "https://opace.agency/"
+  },
+  "homepage": "https://opace.agency/tools/astro/visual-editor/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OpaceDigitalAgency/astro-visual-editor.git"
+    "url": "git+https://github.com/OpaceDigitalAgency/astro-visual-editor.git",
+    "directory": "packages/astro-visual-editor"
   },
   "bugs": {
     "url": "https://github.com/OpaceDigitalAgency/astro-visual-editor/issues"
@@ -16,18 +20,28 @@
   "keywords": [
     "astro-integration",
     "withastro",
+    "astro",
+    "astrojs",
     "devtools",
     "dev-toolbar",
     "dev-overlay",
     "visual-editor",
+    "inline-editing",
+    "wysiwyg",
     "content-editing",
+    "content-management",
+    "cms",
     "seo",
+    "optimization",
     "drag-and-drop",
     "page-builder",
     "static-site-editing",
     "tooling",
+    "developer-tools",
+    "open-source",
     "ui"
   ],
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -70,6 +84,7 @@
   },
   "publishConfig": {
     "access": "public",
-    "provenance": true
+    "provenance": true,
+    "tag": "beta"
   }
 }

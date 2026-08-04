@@ -6,9 +6,9 @@
 
 **Current branch:** `main`
 
-**Current package version:** `0.1.0`, unreleased
+**Current package version:** `0.1.0-beta.1` release candidate
 
-**Intended package name:** `astro-visual-editor`
+**Package name:** `@opacedev/astro-visual-editor`
 
 ## Start here
 
@@ -120,10 +120,10 @@ model.
 
 A live Playwright proof at `390 × 844` established:
 
-| State | Hit-test result over page text |
-| --- | --- |
+| State                  | Hit-test result over page text         |
+| ---------------------- | -------------------------------------- |
 | Current full workbench | `ASTRO-DEV-TOOLBAR` intercepts the tap |
-| Compact selection UI | The underlying `P` receives the tap |
+| Compact selection UI   | The underlying `P` receives the tap    |
 
 The original proof changed only the browser DOM. The compact solution is now
 implemented in repository code and covered by the committed mobile Chromium
@@ -150,7 +150,7 @@ as the commit signal and the change ledger as its signature differentiator.
 
 The local-beta implementation now completes P0.1–P0.6 for the documented
 feature scope. The retained sections below explain the design and acceptance
-criteria; they are no longer an unimplemented task list. Evidence includes 19
+criteria; they are no longer an unimplemented task list. Evidence includes 20
 Vitest tests and four committed Chromium workflows covering HMR commit/revert,
 two-tab isolation, touch/keyboard access, drag/drop and axe scanning.
 
@@ -419,9 +419,9 @@ explicitly declared editable regions backed by structured arrays or block data.
 Keep remote editing separate from the local core, for example:
 
 ```text
-astro-visual-editor                 local development core
-@astro-visual-editor/git-provider   provider interface
-@astro-visual-editor/github         GitHub branch/commit/PR implementation
+@opacedev/astro-visual-editor          local development core
+@opacedev/astro-visual-editor-provider provider interface
+@opacedev/astro-visual-editor-github   GitHub branch/commit/PR implementation
 ```
 
 Remote scope requires separate approval and threat modelling:
@@ -487,17 +487,19 @@ scripts are evidence during development, not a lasting regression suite.
 
 ## Release engineering
 
+Implemented release engineering includes formatting/linting checks, Dependabot,
+the Node 22.12/24 CI matrix, production-isolation and package-content checks, a
+clean packed-tarball consumer test, and an OIDC trusted-publishing workflow.
+
 Before the first public beta:
 
-- Add formatting and linting checks.
-- Add dependency and GitHub Actions update automation.
-- Run CI on Node 22.12 and 24.
-- Test the lowest supported Astro version and current Astro version.
-- Install the packed tarball into a clean external fixture.
-- Run `npm audit` and inspect `npm pack --dry-run`.
-- Add a GitHub Actions trusted-publishing workflow with OIDC.
-- Publish from a public GitHub-hosted runner so npm provenance is generated.
-- Use a prerelease version until the P0 test matrix is stable.
+- rerun the full matrix on the intended release commit;
+- test the lowest supported Astro version and current Astro version;
+- rerun `npm audit`, inspect `npm pack --dry-run`, and install that exact tarball
+  in a clean external fixture;
+- bootstrap the npm package and bind the implemented trusted publisher;
+- publish from the public GitHub-hosted runner so provenance is generated; and
+- use a prerelease version until owner acceptance is complete.
 
 Recommended initial public version: `0.1.0-beta.1`, not stable `0.1.0`.
 
@@ -514,7 +516,7 @@ npm ci
 npm run dev
 npm run test:all
 npm audit --audit-level=low
-npm pack --workspace astro-visual-editor --dry-run
+npm pack --workspace @opacedev/astro-visual-editor --dry-run
 ```
 
 The demo normally uses Astro's default port. When testing alongside other local

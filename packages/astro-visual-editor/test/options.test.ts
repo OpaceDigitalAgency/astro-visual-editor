@@ -8,7 +8,11 @@ describe('normalizeOptions', () => {
     expect(options.allowedExtensions).toContain('.astro');
     expect(options.allowUnsafeSourceText).toBe(false);
     expect(options.allowRemoteDev).toBe(false);
-    expect(options.sectionTemplates.map((template) => template.id)).toEqual(['hero', 'features', 'text']);
+    expect(options.sectionTemplates.map((template) => template.id)).toEqual([
+      'hero',
+      'features',
+      'text',
+    ]);
     expect(toClientConfig(options)).not.toHaveProperty('allowedExtensions');
   });
 
@@ -23,10 +27,16 @@ describe('normalizeOptions', () => {
   });
 
   it('rejects unsafe mapping and duplicate template configuration', () => {
-    expect(() => normalizeOptions({ fileMappings: { '/': '/tmp/page.astro' } })).toThrow('project-relative');
-    expect(() => normalizeOptions({ sectionTemplates: [
-      { id: 'hero', name: 'One', description: '', markup: '<section></section>' },
-      { id: 'hero', name: 'Two', description: '', markup: '<section></section>' },
-    ] })).toThrow('duplicated');
+    expect(() => normalizeOptions({ fileMappings: { '/': '/tmp/page.astro' } })).toThrow(
+      'project-relative',
+    );
+    expect(() =>
+      normalizeOptions({
+        sectionTemplates: [
+          { id: 'hero', name: 'One', description: '', markup: '<section></section>' },
+          { id: 'hero', name: 'Two', description: '', markup: '<section></section>' },
+        ],
+      }),
+    ).toThrow('duplicated');
   });
 });

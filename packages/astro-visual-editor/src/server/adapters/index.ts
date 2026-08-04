@@ -11,7 +11,8 @@ export async function applyChangeWithAdapter(
   options: NormalizedOptions,
 ): Promise<string> {
   if (change.kind === 'sections') {
-    if (extension !== '.astro') throw new Error('Section operations currently require an .astro owner file.');
+    if (extension !== '.astro')
+      throw new Error('Section operations currently require an .astro owner file.');
     return applyAstroSections(source, change, options.sectionTemplates);
   }
 
@@ -25,7 +26,9 @@ export async function applyChangeWithAdapter(
   if (extension === '.json' || extension === '.jsonc') return applyJsonText(source, change);
   if (extension === '.yaml' || extension === '.yml') return applyYamlText(source, change);
   if (extension === '.mdx' && !change.sourcePath) {
-    throw new Error('MDX body edits require a structured data-astro-edit-path; expression-safe body editing is not enabled.');
+    throw new Error(
+      'MDX body edits require a structured data-astro-edit-path; expression-safe body editing is not enabled.',
+    );
   }
   if (extension === '.md' || extension === '.mdx') return applyMarkdownText(source, change);
   throw new Error(`No source adapter is available for ${extension} files.`);

@@ -4,7 +4,7 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
-## 0.1.0 - Unreleased
+## 0.1.0-beta.1 - 2026-08-04
 
 ### Added
 
@@ -27,3 +27,11 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Reconciled engineering and strategic reviews plus an explicit local demo/test guide.
 - Functional desktop collapse/expand, dialog backdrop dismissal and section-control tooltips.
 - Semantic structural ledger summaries with labelled before/after order.
+- Scoped public package identity: `@opacedev/astro-visual-editor`.
+- Canonical product page within Opace's `/tools/` directory; technical docs
+  remain versioned in the GitHub repository.
+- Trusted-publishing, formatting, linting and dependency-update automation.
+- Astro directory metadata, category keywords and product avatar asset.
+- Compiler-validated matching for formatted multiline Astro literal text.
+- Resilient pending-receipt polling and integration-lifetime transaction state
+  across source HMR.

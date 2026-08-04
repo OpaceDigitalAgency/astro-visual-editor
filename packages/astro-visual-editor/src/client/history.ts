@@ -40,7 +40,8 @@ export class ChangeHistory {
 }
 
 export function changeKey(change: EditorChange): string {
-  if (change.kind === 'text') return `text:${change.filePath}:${change.selector ?? change.sourcePath ?? change.id}`;
+  if (change.kind === 'text')
+    return `text:${change.filePath}:${change.selector ?? change.sourcePath ?? change.id}`;
   if (change.kind === 'seo') return `seo:${change.filePath}`;
   return `sections:${change.filePath}:${change.regionId}`;
 }

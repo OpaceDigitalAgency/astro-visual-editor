@@ -27,33 +27,33 @@ adding production authentication, GitHub tokens or broad Git automation.
 
 ## Current product truth
 
-| Area | Current status | Remaining boundary |
-| --- | --- | --- |
-| Text editing | Complete for literal Astro/Markdown values and explicitly mapped structured fields | Arbitrary expressions are intentionally refused |
-| SEO editing | Complete for title, description, keywords, canonical, Open Graph title/description and robots | No bulk cross-page SEO inventory |
-| Section editing | Complete for declared contiguous Astro regions | Arbitrary component trees are not rewritten |
-| Section drag-and-drop | Genuine pointer drag/drop plus buttons and keyboard alternatives | Regions require stable section IDs |
-| Source formats | Astro, Markdown/frontmatter, JSON/JSONC paths and YAML paths | Unstructured MDX expressions are refused |
-| Queue/review | Mixed typed ledger, individual removal, undo/redo, clear and idempotent commit | No exact file-level diff view yet |
-| Revert | Receipt-backed, hash-protected revert survives HMR | Receipt history does not survive a complete server restart |
-| Safety | Runtime guards, limits, hashes, atomic writes, rollback, compiler validation and path/symlink controls | Post-validation multi-file rollback remains best effort |
-| Browser resilience | HMR recovery, navigation state and two-tab request isolation | No multi-user collaboration model |
-| Mobile/accessibility | Touch Pick/Review flow, keyboard controls, reduced motion, forced colours and axe gate | Broader assistive-technology coverage can grow |
-| Production isolation | No production editor runtime or public write route | Therefore no deployed client access |
-| Editability administration | Developer selectors, mappings and source annotations | No owner-facing setup/inventory UI |
+| Area                       | Current status                                                                                                                   | Remaining boundary                                         |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Text editing               | Complete for literal Astro/Markdown values, including source-wrapped multiline literals, and explicitly mapped structured fields | Arbitrary expressions are intentionally refused            |
+| SEO editing                | Complete for title, description, keywords, canonical, Open Graph title/description and robots                                    | No bulk cross-page SEO inventory                           |
+| Section editing            | Complete for declared contiguous Astro regions                                                                                   | Arbitrary component trees are not rewritten                |
+| Section drag-and-drop      | Genuine pointer drag/drop plus buttons and keyboard alternatives                                                                 | Regions require stable section IDs                         |
+| Source formats             | Astro, Markdown/frontmatter, JSON/JSONC paths and YAML paths                                                                     | Unstructured MDX expressions are refused                   |
+| Queue/review               | Mixed typed ledger, individual removal, undo/redo, clear and idempotent commit                                                   | No exact file-level diff view yet                          |
+| Revert                     | Receipt-backed, hash-protected revert survives HMR                                                                               | Receipt history does not survive a complete server restart |
+| Safety                     | Runtime guards, limits, hashes, atomic writes, rollback, compiler validation and path/symlink controls                           | Post-validation multi-file rollback remains best effort    |
+| Browser resilience         | HMR recovery, navigation state and two-tab request isolation                                                                     | No multi-user collaboration model                          |
+| Mobile/accessibility       | Touch Pick/Review flow, keyboard controls, reduced motion, forced colours and axe gate                                           | Broader assistive-technology coverage can grow             |
+| Production isolation       | No production editor runtime or public write route                                                                               | Therefore no deployed client access                        |
+| Editability administration | Developer selectors, mappings and source annotations                                                                             | No owner-facing setup/inventory UI                         |
 
 ## Interaction findings from owner review
 
 An owner review on 4 August 2026 identified five concrete interaction issues.
 They should not be conflated with unrestricted page-builder scope.
 
-| Finding | Classification | Product decision |
-| --- | --- | --- |
-| Desktop collapse control did nothing | Bug | Fixed: every viewport collapses to the compact picker and can expand into Review |
-| Section icon meanings were unclear | Usability/accessibility bug | Fixed: visible hover/focus tooltips plus existing accessible names |
-| Clicking a dialog backdrop did not close it | Usability defect | Fixed for text, SEO, template and confirmation dialogs; Escape/Cancel remain |
-| A reorder was difficult to identify in the ledger | Clarity bug | Fixed: semantic structural summary with labelled Before/After order |
-| Drag a new block anywhere on the page | Enhancement | Do not allow arbitrary drops; design a template palette with explicit compatible destination regions |
+| Finding                                           | Classification              | Product decision                                                                                     |
+| ------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Desktop collapse control did nothing              | Bug                         | Fixed: every viewport collapses to the compact picker and can expand into Review                     |
+| Section icon meanings were unclear                | Usability/accessibility bug | Fixed: visible hover/focus tooltips plus existing accessible names                                   |
+| Clicking a dialog backdrop did not close it       | Usability defect            | Fixed for text, SEO, template and confirmation dialogs; Escape/Cancel remain                         |
+| A reorder was difficult to identify in the ledger | Clarity bug                 | Fixed: semantic structural summary with labelled Before/After order                                  |
+| Drag a new block anywhere on the page             | Enhancement                 | Do not allow arbitrary drops; design a template palette with explicit compatible destination regions |
 
 The screenshot already contained a queued `SECTIONS` row, so the reorder was
 not absent from state. The real defect was that an unlabeled ID sequence did not
@@ -70,10 +70,14 @@ communicate the operation clearly enough.
 - Unsupported, ambiguous, stale, oversized or out-of-root edits fail closed.
 - Four committed Chromium workflows cover desktop, mobile, HMR commit/revert,
   two-tab isolation, keyboard controls, drag/drop and axe scanning.
-- Nineteen Vitest tests cover configuration, protocol, source adapters,
+- Twenty Vitest tests cover configuration, protocol, source adapters,
   transactions, paths and revert.
 - A generated npm tarball installs and builds in a clean Astro 7.1.6 consumer.
 - The dependency audit reports zero known vulnerabilities.
+- The canonical product presence is implemented inside Opace's existing site at
+  `/tools/astro/visual-editor/`, with a parent `/tools/` directory and normal
+  site navigation. It is not a duplicate GitHub Pages marketing site;
+  deployment and live verification remain separate.
 
 These are local and repository-level facts. They do not imply npm publication,
 Astro directory appearance, deployed-site verification or owner acceptance.
@@ -184,16 +188,27 @@ fail-closed write model.
 
 ### Priority 4 — maintainability and release engineering
 
-- Split the 866-line toolbar entry point into store, selection, transaction,
+- Split the 1,200-plus-line toolbar entry point into store, selection, transaction,
   persistence and UI modules.
-- Add formatting/linting and dependency-update automation.
+- Keep the implemented formatting, linting, CI, release and dependency-update
+  automation green across supported Node/Astro versions.
 - Expand browser states to error/conflict, view transitions and additional
   viewport/accessibility combinations.
-- Add an npm trusted-publishing workflow only when the repository and npm
-  package are ready for public release.
+- Configure the implemented npm trusted-publishing workflow against the real
+  npm package only after the package has been bootstrapped and approved.
 - Release a prerelease before declaring stable `0.1.0`.
 
-### Priority 5 — optional remote editorial product
+### Priority 5 — distribution and measurable discovery
+
+- Deploy and verify the canonical Opace product page and `/tools/` directory.
+- Keep GitHub and npm metadata pointed at that canonical page; do not maintain
+  a duplicate GitHub Pages marketing site.
+- After npm publication, verify `astro add`, Astro's scheduled directory import,
+  the custom avatar request and every final listing link.
+- Add privacy-conscious product-page conversion and outbound-install tracking
+  so roadmap decisions use adoption evidence rather than page impressions.
+
+### Priority 6 — optional remote editorial product
 
 - Define a provider contract before selecting an authentication library or Git
   implementation.

@@ -26,7 +26,11 @@ export function applyJsonText(source: string, change: TextEditorChange): string 
   return applyEdits(
     source,
     modify(source, path, change.newText, {
-      formattingOptions: { insertSpaces: true, tabSize: 2, eol: source.includes('\r\n') ? '\r\n' : '\n' },
+      formattingOptions: {
+        insertSpaces: true,
+        tabSize: 2,
+        eol: source.includes('\r\n') ? '\r\n' : '\n',
+      },
     }),
   );
 }
@@ -36,7 +40,8 @@ export function applyYamlText(source: string, change: TextEditorChange): string 
     throw new Error(`YAML edits require data-astro-edit-path for ${change.filePath}.`);
   }
   const document = parseDocument(source, { keepSourceTokens: true });
-  if (document.errors.length > 0) throw new Error(`YAML source is invalid: ${document.errors[0]!.message}`);
+  if (document.errors.length > 0)
+    throw new Error(`YAML source is invalid: ${document.errors[0]!.message}`);
   const path = pathParts(change.sourcePath);
   const current = document.getIn(path, true);
   if (String(current ?? '') !== change.oldText) {

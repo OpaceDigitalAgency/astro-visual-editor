@@ -24,12 +24,12 @@ To find a plugin, add-on, or integrated tool for Astro that allows you to:
 
 A typical Astro service page has its content distributed across multiple files for valid architectural reasons:
 
-| File | Contains | Why It's Separate |
-|------|----------|-------------------|
-| `page-x.md` (frontmatter) | SEO meta title, description, schema, slug | Standard Astro Content Collection pattern |
-| `scraped-pages.json` | Body/paragraph content for the page | Structured data source, possibly shared or imported |
-| `why-choose-data.json` | Reasons, timelines, feature lists | Reusable structured data referenced by multiple pages |
-| Layout/component files | Visual structure, section ordering | Separation of concerns (design vs content) |
+| File                      | Contains                                  | Why It's Separate                                     |
+| ------------------------- | ----------------------------------------- | ----------------------------------------------------- |
+| `page-x.md` (frontmatter) | SEO meta title, description, schema, slug | Standard Astro Content Collection pattern             |
+| `scraped-pages.json`      | Body/paragraph content for the page       | Structured data source, possibly shared or imported   |
+| `why-choose-data.json`    | Reasons, timelines, feature lists         | Reusable structured data referenced by multiple pages |
+| Layout/component files    | Visual structure, section ordering        | Separation of concerns (design vs content)            |
 
 **Why this architecture is valid:**
 
@@ -327,16 +327,16 @@ value to a source file plus a structured path or source range.
 
 **Current limitations and concerns:**
 
-| Concern | Detail | Severity |
-|---------|--------|----------|
-| **No editability administration** | Site owners must currently change selectors or add source annotations in code to determine what can and cannot be selected. The toolbar does not inventory blocked content or explain eligibility decisions. | **High / urgent enhancement** |
-| **Automatic source attribution incomplete** | Component props, imported data and non-conventional routes still need explicit file/path annotations or mappings. | High |
-| **Structured paths require annotation** | JSONC/YAML writing works by exact path, but the editor does not yet infer every path from Astro imports. | Medium |
-| **SEO scope is page-level** | Astro head and Markdown/MDX frontmatter persistence works; bulk cross-page SEO inventory is not built. | Medium |
-| **Ambiguous text matches** | Duplicate literal source text is rejected rather than guessed; authors should add a structured path or edit ID. | Low / fail-closed |
-| **Section regions are explicit** | Add/delete/reorder persists only for declared contiguous Astro regions with stable section IDs. Arbitrary component trees are not rewritten. | Medium / deliberate boundary |
-| **Restart-persistent history missing** | Safe receipts survive HMR but not a complete dev-server restart; durable Git/disk history remains planned. | Medium |
-| **Localhost only** | Only works during `npm run dev`. Clients and non-technical users cannot access it on a deployed site. | **Critical** |
+| Concern                                     | Detail                                                                                                                                                                                                       | Severity                      |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
+| **No editability administration**           | Site owners must currently change selectors or add source annotations in code to determine what can and cannot be selected. The toolbar does not inventory blocked content or explain eligibility decisions. | **High / urgent enhancement** |
+| **Automatic source attribution incomplete** | Component props, imported data and non-conventional routes still need explicit file/path annotations or mappings.                                                                                            | High                          |
+| **Structured paths require annotation**     | JSONC/YAML writing works by exact path, but the editor does not yet infer every path from Astro imports.                                                                                                     | Medium                        |
+| **SEO scope is page-level**                 | Astro head and Markdown/MDX frontmatter persistence works; bulk cross-page SEO inventory is not built.                                                                                                       | Medium                        |
+| **Ambiguous text matches**                  | Duplicate literal source text is rejected rather than guessed; authors should add a structured path or edit ID.                                                                                              | Low / fail-closed             |
+| **Section regions are explicit**            | Add/delete/reorder persists only for declared contiguous Astro regions with stable section IDs. Arbitrary component trees are not rewritten.                                                                 | Medium / deliberate boundary  |
+| **Restart-persistent history missing**      | Safe receipts survive HMR but not a complete dev-server restart; durable Git/disk history remains planned.                                                                                                   | Medium                        |
+| **Localhost only**                          | Only works during `npm run dev`. Clients and non-technical users cannot access it on a deployed site.                                                                                                        | **Critical**                  |
 
 **Urgent product requirement identified during prototype testing:** add an
 owner-controlled Editability Setup mode. It should inventory visible content,
@@ -362,12 +362,12 @@ solve every source format or the client handoff problem.
 
 To transform this from a dev tool into a client-facing editing solution on Netlify or similar, the architecture would need to shift from "edit local files" to "edit via Git API":
 
-| Approach | How It Would Work | Complexity |
-|----------|-------------------|------------|
-| **A) SSR Admin Route with GitHub API** | Deploy the site in SSR mode (Astro + adapter). Add a protected `/admin/edit` route that loads the visual editor. Instead of writing to local files, the save action commits changes via the GitHub API (like Keystatic, Sveltia, and Decap do). Add authentication (OAuth, password, or magic link) to protect the route. | Medium-High |
-| **B) Hybrid: Editor on a staging branch** | Deploy a separate "editing" instance of the site (e.g., `edit.yoursite.com`) that runs in SSR mode with the editor enabled. Saves commit to a `staging` branch via GitHub API. A PR is auto-created for review. Merging to `main` triggers the production build. | Medium |
-| **C) Cloudflare Workers / Edge Function proxy** | Keep the site static but add an edge function at `/admin/*` that serves the editor UI and proxies write operations to the GitHub API. The editor script loads only when authenticated at the `/admin` path. | Medium |
-| **D) Desktop app / Electron wrapper** | Package the dev server + editor into a desktop app (like Astro Editor does for Markdown). Client installs it, opens their project, edits visually, and the app handles Git commits. | High (but good UX) |
+| Approach                                        | How It Would Work                                                                                                                                                                                                                                                                                                         | Complexity         |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| **A) SSR Admin Route with GitHub API**          | Deploy the site in SSR mode (Astro + adapter). Add a protected `/admin/edit` route that loads the visual editor. Instead of writing to local files, the save action commits changes via the GitHub API (like Keystatic, Sveltia, and Decap do). Add authentication (OAuth, password, or magic link) to protect the route. | Medium-High        |
+| **B) Hybrid: Editor on a staging branch**       | Deploy a separate "editing" instance of the site (e.g., `edit.yoursite.com`) that runs in SSR mode with the editor enabled. Saves commit to a `staging` branch via GitHub API. A PR is auto-created for review. Merging to `main` triggers the production build.                                                          | Medium             |
+| **C) Cloudflare Workers / Edge Function proxy** | Keep the site static but add an edge function at `/admin/*` that serves the editor UI and proxies write operations to the GitHub API. The editor script loads only when authenticated at the `/admin` path.                                                                                                               | Medium             |
+| **D) Desktop app / Electron wrapper**           | Package the dev server + editor into a desktop app (like Astro Editor does for Markdown). Client installs it, opens their project, edits visually, and the app handles Git commits.                                                                                                                                       | High (but good UX) |
 
 The most practical path is **Approach A or B**: deploy the site with an SSR adapter (Netlify, Vercel, Cloudflare), protect an `/admin` route with simple auth, and replace the local file-write API with GitHub API commits. This is essentially what Keystatic and Decap CMS already do for their write layer — but your visual editor would provide the superior "click on the page" editing experience on top.
 
@@ -382,11 +382,11 @@ additionally require authentication and a Git-based write/review layer.
 
 ### Category 6: Commercial/Hosted Solutions Worth Noting
 
-| Tool | What It Does | Multi-File Support | Cost |
-|------|-------------|-------------------|------|
-| **Zero CMS** ([zerocms.io](https://www.zerocms.io)) | Claims to auto-read your `.astro` components and schemas to build a matching editing UI | Potentially the closest to your need — reads actual component structure | $79/month per site |
-| **Builder.io** ([builder.io](https://www.builder.io/m/astro-cms)) | Visual drag-and-drop CMS with Astro integration | Database-backed; each page is one entry with all content | Free tier available; commercial |
-| **WebcoreUI Builder** ([webcoreui.dev/build](https://webcoreui.dev/build)) | Visual component builder for Astro — prototype component combinations visually | Component assembly tool, not a content editor | Free (Beta) |
+| Tool                                                                       | What It Does                                                                            | Multi-File Support                                                      | Cost                            |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------- |
+| **Zero CMS** ([zerocms.io](https://www.zerocms.io))                        | Claims to auto-read your `.astro` components and schemas to build a matching editing UI | Potentially the closest to your need — reads actual component structure | $79/month per site              |
+| **Builder.io** ([builder.io](https://www.builder.io/m/astro-cms))          | Visual drag-and-drop CMS with Astro integration                                         | Database-backed; each page is one entry with all content                | Free tier available; commercial |
+| **WebcoreUI Builder** ([webcoreui.dev/build](https://webcoreui.dev/build)) | Visual component builder for Astro — prototype component combinations visually          | Component assembly tool, not a content editor                           | Free (Beta)                     |
 
 ---
 
@@ -394,12 +394,12 @@ additionally require authentication and a Git-based write/review layer.
 
 ### What Exists vs What You Need
 
-| What You Need | What Currently Exists |
-|---------------|----------------------|
+| What You Need                                                                                                                                 | What Currently Exists                                                                             |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | A unified view showing ALL content for a single page (meta + body + sections + component data) regardless of how many source files contribute | Tools that show content **per-file** or **per-collection**, requiring you to jump between entries |
-| Support for pages composed from multiple data sources (JSON, YAML, MD frontmatter) assembled at build time | Tools that assume **one content entry = one page** |
-| Works across different Astro site architectures without major restructuring | Tools that require a specific content architecture to function |
-| Bulk review/editing of multiple pages' meta tags, URLs, and key content | Tools focused on editing one entry at a time |
+| Support for pages composed from multiple data sources (JSON, YAML, MD frontmatter) assembled at build time                                    | Tools that assume **one content entry = one page**                                                |
+| Works across different Astro site architectures without major restructuring                                                                   | Tools that require a specific content architecture to function                                    |
+| Bulk review/editing of multiple pages' meta tags, URLs, and key content                                                                       | Tools focused on editing one entry at a time                                                      |
 
 ### Why This Gap Exists
 

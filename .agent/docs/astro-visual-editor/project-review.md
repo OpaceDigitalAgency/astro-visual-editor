@@ -48,23 +48,23 @@ demo is a real Astro workspace rather than a mocked host.
 
 ## Completed capability review
 
-| Capability | Review result |
-| --- | --- |
-| Text preview/queue/commit | Implemented and browser-tested |
-| SEO read/edit/persist | Implemented for Astro head and Markdown/MDX frontmatter |
-| Section add/delete/reorder | Implemented for declared Astro regions |
-| Genuine drag/drop | Implemented with button and keyboard equivalents |
-| Default/custom templates | Implemented with server-owned markup validation |
-| Undo/redo/clear/individual removal | Implemented |
-| HMR recovery | Implemented with bounded server receipts and session state |
-| Multi-tab isolation | Implemented with client/request addressing |
-| Commit revert | Implemented and refuses to overwrite newer source |
-| Structured sources | JSON/JSONC and YAML exact paths implemented |
-| Runtime protocol guards | Implemented with byte/change/text limits |
-| Network exposure protection | Writes fail closed unless explicitly opted in |
-| Mobile workflow | Compact Pick/Review model implemented and touch-tested |
-| Accessibility | Keyboard, focus, forced-colour/reduced-motion support plus axe gate |
-| Production isolation | Production demo contains no editor/toolbar runtime |
+| Capability                         | Review result                                                       |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| Text preview/queue/commit          | Implemented and browser-tested                                      |
+| SEO read/edit/persist              | Implemented for Astro head and Markdown/MDX frontmatter             |
+| Section add/delete/reorder         | Implemented for declared Astro regions                              |
+| Genuine drag/drop                  | Implemented with button and keyboard equivalents                    |
+| Default/custom templates           | Implemented with server-owned markup validation                     |
+| Undo/redo/clear/individual removal | Implemented                                                         |
+| HMR recovery                       | Implemented with bounded server receipts and session state          |
+| Multi-tab isolation                | Implemented with client/request addressing                          |
+| Commit revert                      | Implemented and refuses to overwrite newer source                   |
+| Structured sources                 | JSON/JSONC and YAML exact paths implemented                         |
+| Runtime protocol guards            | Implemented with byte/change/text limits                            |
+| Network exposure protection        | Writes fail closed unless explicitly opted in                       |
+| Mobile workflow                    | Compact Pick/Review model implemented and touch-tested              |
+| Accessibility                      | Keyboard, focus, forced-colour/reduced-motion support plus axe gate |
+| Production isolation               | Production demo contains no editor/toolbar runtime                  |
 
 Exact legacy comparison is in [`FEATURE_PARITY.md`](../../../FEATURE_PARITY.md).
 
@@ -85,7 +85,7 @@ Exact legacy comparison is in [`FEATURE_PARITY.md`](../../../FEATURE_PARITY.md).
 
 ### 1. Toolbar maintainability
 
-`src/toolbar.ts` is 866 lines and still owns substantial UI construction,
+`src/toolbar.ts` is more than 1,200 lines and still owns substantial UI construction,
 interaction state and lifecycle coordination. Some concerns have already moved
 into `client/`, but the entry point should be decomposed before adding
 Editability Setup, history or remote-provider UI.
@@ -129,7 +129,7 @@ reviewed policy without bypassing adapter validation.
 
 ### 5. Test matrix expansion
 
-The current 19 unit tests and four browser workflows cover the critical beta
+The current 20 unit tests and four browser workflows cover the critical beta
 path. Further release hardening should add:
 
 - browser conflict/error and failed-HMR recovery states;
@@ -141,10 +141,10 @@ path. Further release hardening should add:
 
 ### 6. Repository quality automation
 
-TypeScript checking and tests are strong, but the repository still lacks a
-dedicated formatter/linter, dependency-update automation and a trusted npm
-publishing workflow. These are release-engineering gaps rather than functional
-editor defects.
+Formatting, linting, Dependabot, the Node 22.12/24 CI matrix and a trusted npm
+publishing workflow are now present. The remaining release-engineering work is
+external configuration and evidence: bootstrap the npm package, bind its trusted
+publisher, rerun the full release commit in public CI and verify provenance.
 
 ## Security review
 
@@ -168,7 +168,7 @@ separate security design and must not reuse local trust assumptions.
 
 Current local evidence:
 
-- 6 Vitest files, 19 passing tests;
+- 6 Vitest files, 20 passing tests;
 - 4 passing Chromium end-to-end workflows;
 - TypeScript and `astro check` clean;
 - demo production build clean;
@@ -176,9 +176,9 @@ Current local evidence:
 - tarball installed and built in a fresh Astro 7.1.6 consumer;
 - dependency audit reports zero known vulnerabilities.
 
-CI is configured for Node 22.12 and 24 with Chromium installation. A configured
-workflow is not the same as a completed public GitHub Actions run; record that
-separately after the first push.
+CI is configured for Node 22.12 and 24 with Chromium installation, and both jobs
+have passed publicly on the current prerelease lineage. The release commit must
+still pass again after the remaining documentation and website changes land.
 
 ## Recommended next task
 

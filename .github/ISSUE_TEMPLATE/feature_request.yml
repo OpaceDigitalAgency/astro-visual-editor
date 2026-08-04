@@ -1,0 +1,65 @@
+name: Feature request
+description: Propose a focused improvement to the editor or its source-aware workflow.
+title: '[Feature]: '
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explain the editing problem before prescribing an implementation. Astro Visual Editor deliberately fails closed when ownership or a source rewrite cannot be proven safe.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Who encounters the problem, and in which Astro authoring workflow?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed experience
+      description: Describe the visible editor behaviour and the expected source-file result.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Product area
+      options:
+        - Text editing
+        - Sections and templates
+        - SEO
+        - Review, history or Git workflow
+        - Source adapters and mapping
+        - Editability setup or content inventory
+        - Accessibility or responsive interaction
+        - Documentation or integration ecosystem
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Source ownership and safety
+      description: How should the integration identify the owning file/path, reject ambiguity and preserve recovery?
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include current workarounds or related Astro integrations where relevant.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: I understand this is a local development editor, not an authenticated production CMS.
+          required: true
+        - label: I searched existing issues and the documented roadmap before filing.
+          required: true

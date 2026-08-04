@@ -13,9 +13,20 @@ describe('TransactionManager', () => {
     const page = join(src, 'pages', 'index.astro');
     await writeFile(page, '<h1>Old heading</h1>');
     const manager = new TransactionManager(root, src, normalizeOptions());
-    const request = { clientId: 'tab', requestId: 'same', changes: [{
-      kind: 'text' as const, id: 'one', filePath: 'src/pages/index.astro', route: '/', oldText: 'Old heading', newText: 'New heading',
-    }] };
+    const request = {
+      clientId: 'tab',
+      requestId: 'same',
+      changes: [
+        {
+          kind: 'text' as const,
+          id: 'one',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          oldText: 'Old heading',
+          newText: 'New heading',
+        },
+      ],
+    };
     const first = await manager.save(request);
     const replay = await manager.save(request);
     expect(replay).toEqual(first);
@@ -30,10 +41,28 @@ describe('TransactionManager', () => {
     const src = join(root, 'src');
     await mkdir(join(src, 'pages'), { recursive: true });
     const manager = new TransactionManager(root, src, normalizeOptions({ maxChanges: 1 }));
-    const response = await manager.save({ clientId: 'tab', requestId: 'too-many', changes: [
-      { kind: 'text', id: 'one', filePath: 'src/pages/missing.astro', route: '/', oldText: 'a', newText: 'b' },
-      { kind: 'text', id: 'two', filePath: 'src/pages/missing.astro', route: '/', oldText: 'c', newText: 'd' },
-    ] });
+    const response = await manager.save({
+      clientId: 'tab',
+      requestId: 'too-many',
+      changes: [
+        {
+          kind: 'text',
+          id: 'one',
+          filePath: 'src/pages/missing.astro',
+          route: '/',
+          oldText: 'a',
+          newText: 'b',
+        },
+        {
+          kind: 'text',
+          id: 'two',
+          filePath: 'src/pages/missing.astro',
+          route: '/',
+          oldText: 'c',
+          newText: 'd',
+        },
+      ],
+    });
     expect(response.success).toBe(false);
     expect(response.error).toContain('more than 1');
   });

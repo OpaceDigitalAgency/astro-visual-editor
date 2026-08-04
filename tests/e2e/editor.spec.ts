@@ -15,7 +15,10 @@ async function clickRevertWhenStable(page: import('@playwright/test').Page): Pro
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const revert = page.locator('astro-dev-toolbar').last().locator('.workbench .revert').last();
     try {
-      if (await revert.count() && await revert.evaluate((button: HTMLButtonElement) => !button.disabled)) {
+      if (
+        (await revert.count()) &&
+        (await revert.evaluate((button: HTMLButtonElement) => !button.disabled))
+      ) {
         // Dispatch synchronously inside the toolbar's shadow DOM. A normal
         // locator click can succeed and then reject when the resulting source
         // write immediately replaces the toolbar during Astro HMR.
@@ -34,7 +37,9 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('previews text, undo/redo, section drag/drop, templates, deletion and SEO', async ({ page }) => {
+test('previews text, undo/redo, section drag/drop, templates, deletion and SEO', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 980 });
   const { toolbar, workbench } = await enableEditor(page);
   await expect(workbench).toBeVisible();
@@ -46,7 +51,10 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(picker).toBeVisible();
   await picker.getByRole('button', { name: 'Expand' }).click();
   await expect(workbench).toBeVisible();
-  await expect(workbench.getByRole('tab', { name: 'Text' })).toHaveAttribute('aria-selected', 'true');
+  await expect(workbench.getByRole('tab', { name: 'Text' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   await workbench.getByRole('tab', { name: 'Text' }).click();
 
   const lead = page.locator('[data-astro-edit-id="hero-lead"]');
@@ -72,16 +80,24 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await page.mouse.down();
   await page.mouse.move(targetBox.x + 40, targetBox.y + targetBox.height - 10, { steps: 14 });
   await page.mouse.up();
-  await expect(page.locator('[data-astro-edit-region="home-principles"] > section').first()).toHaveAttribute('data-section', 'review');
+  await expect(
+    page.locator('[data-astro-edit-region="home-principles"] > section').first(),
+  ).toHaveAttribute('data-section', 'review');
   await workbench.getByRole('tab', { name: 'Review' }).click();
-  await expect(workbench.locator('.change-summary')).toHaveText('Reordered 3 sections in home-principles');
+  await expect(workbench.locator('.change-summary')).toHaveText(
+    'Reordered 3 sections in home-principles',
+  );
   await expect(workbench.locator('.diff')).toContainText('Before: preview → review → commit');
   await expect(workbench.locator('.diff')).toContainText('After: review → preview → commit');
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
   await workbench.getByRole('tab', { name: 'Sections' }).click();
 
   await page.getByRole('button', { name: 'Add section after preview' }).click();
-  await toolbar.locator('dialog').filter({ hasText: 'Add a section' }).getByRole('button', { name: /Text/ }).click();
+  await toolbar
+    .locator('dialog')
+    .filter({ hasText: 'Add a section' })
+    .getByRole('button', { name: /Text/ })
+    .click();
   await expect(page.locator('[data-section^="text-"]')).toHaveCount(1);
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
 
@@ -121,20 +137,27 @@ test('commits through HMR and reverts from a durable receipt', async ({ page }) 
 
     toolbar = page.locator('astro-dev-toolbar');
     workbench = toolbar.locator('.workbench');
-    if (!(await workbench.isVisible())) await toolbar.getByRole('button', { name: 'Visual Editor' }).click();
-    await expect(workbench.getByRole('button', { name: 'Revert last commit' })).toBeEnabled({ timeout: 15_000 });
+    if (!(await workbench.isVisible()))
+      await toolbar.getByRole('button', { name: 'Visual Editor' }).click();
+    await expect(workbench.getByRole('button', { name: 'Revert last commit' })).toBeEnabled({
+      timeout: 15_000,
+    });
     await clickRevertWhenStable(page);
     await expect(lead).toHaveText(originalText, { timeout: 15_000 });
     await expect.poll(async () => readFile(demoSource, 'utf8')).toBe(originalSource);
   } finally {
-    if ((await readFile(demoSource, 'utf8')) !== originalSource) await writeFile(demoSource, originalSource);
+    if ((await readFile(demoSource, 'utf8')) !== originalSource)
+      await writeFile(demoSource, originalSource);
   }
 });
 
 test('isolates save responses and queues between two browser tabs', async ({ browser }) => {
   test.setTimeout(60_000);
   const originalSource = await readFile(demoSource, 'utf8');
-  const context = await browser.newContext({ baseURL: 'http://localhost:4357', viewport: { width: 1440, height: 980 } });
+  const context = await browser.newContext({
+    baseURL: 'http://localhost:4357',
+    viewport: { width: 1440, height: 980 },
+  });
   const pageA = await context.newPage();
   const pageB = await context.newPage();
   try {
@@ -154,28 +177,49 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
     await expect(editorB.workbench.getByRole('button', { name: /Commit 1 change/ })).toBeEnabled();
 
     await editorA.workbench.getByRole('button', { name: /Commit 1 change/ }).click();
-    await expect(pageA.locator('[data-demo-banner]')).toHaveText('Committed only from tab A', { timeout: 15_000 });
-    await expect(pageB.locator('[data-astro-edit-id="hero-title"]')).toHaveText('Queued only in tab B');
-    await expect(pageB.locator('astro-dev-toolbar').locator('.workbench').getByRole('button', { name: /Commit 1 change/ })).toBeEnabled();
+    await expect(pageA.locator('[data-demo-banner]')).toHaveText('Committed only from tab A', {
+      timeout: 15_000,
+    });
+    await expect(pageB.locator('[data-astro-edit-id="hero-title"]')).toHaveText(
+      'Queued only in tab B',
+    );
+    await expect(
+      pageB
+        .locator('astro-dev-toolbar')
+        .locator('.workbench')
+        .getByRole('button', { name: /Commit 1 change/ }),
+    ).toBeEnabled();
 
     const toolbarA = pageA.locator('astro-dev-toolbar');
     const workbenchA = toolbarA.locator('.workbench');
-    if (!(await workbenchA.isVisible())) await toolbarA.getByRole('button', { name: 'Visual Editor' }).click();
-    await expect(workbenchA.getByRole('button', { name: 'Revert last commit' })).toBeEnabled({ timeout: 15_000 });
+    if (!(await workbenchA.isVisible()))
+      await toolbarA.getByRole('button', { name: 'Visual Editor' }).click();
+    await expect(workbenchA.getByRole('button', { name: 'Revert last commit' })).toBeEnabled({
+      timeout: 15_000,
+    });
     await clickRevertWhenStable(pageA);
     await expect.poll(async () => readFile(demoSource, 'utf8')).toBe(originalSource);
     const toolbarB = pageB.locator('astro-dev-toolbar');
     const workbenchB = toolbarB.locator('.workbench');
-    if (!(await workbenchB.isVisible())) await toolbarB.getByRole('button', { name: 'Visual Editor' }).click();
+    if (!(await workbenchB.isVisible()))
+      await toolbarB.getByRole('button', { name: 'Visual Editor' }).click();
     await workbenchB.getByRole('button', { name: 'Clear' }).click();
   } finally {
-    if ((await readFile(demoSource, 'utf8')) !== originalSource) await writeFile(demoSource, originalSource);
+    if ((await readFile(demoSource, 'utf8')) !== originalSource)
+      await writeFile(demoSource, originalSource);
     await context.close();
   }
 });
 
-test('supports mobile pick mode, keyboard section controls and WCAG-critical states', async ({ browser }) => {
-  const context = await browser.newContext({ baseURL: 'http://localhost:4357', viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+test('supports mobile pick mode, keyboard section controls and WCAG-critical states', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: 'http://localhost:4357',
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
   const page = await context.newPage();
   await page.goto('/');
   const { toolbar, workbench } = await enableEditor(page);
@@ -193,12 +237,16 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   const move = page.getByRole('button', { name: 'Move preview down' });
   await move.focus();
   await move.press('Enter');
-  await expect(page.locator('[data-astro-edit-region="home-principles"] > section').first()).toHaveAttribute('data-section', 'review');
+  await expect(
+    page.locator('[data-astro-edit-region="home-principles"] > section').first(),
+  ).toHaveAttribute('data-section', 'review');
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   const results = await new AxeBuilder({ page }).include('astro-dev-toolbar').analyze();
-  expect(results.violations.filter((item) => item.impact === 'critical' || item.impact === 'serious')).toEqual([]);
+  expect(
+    results.violations.filter((item) => item.impact === 'critical' || item.impact === 'serious'),
+  ).toEqual([]);
   await context.close();
 });

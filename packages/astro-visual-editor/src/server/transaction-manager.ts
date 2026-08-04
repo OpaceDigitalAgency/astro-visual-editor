@@ -118,7 +118,13 @@ export class TransactionManager {
     before: Receipt['before'],
     afterHashes: Receipt['afterHashes'],
   ): void {
-    this.receipts.set(key, { createdAt: Date.now(), response, before, afterHashes, reverted: false });
+    this.receipts.set(key, {
+      createdAt: Date.now(),
+      response,
+      before,
+      afterHashes,
+      reverted: false,
+    });
     this.receiptOrder.push(key);
     this.prune();
   }
@@ -134,11 +140,13 @@ export class TransactionManager {
     }
     for (const change of changes) {
       if (change.kind === 'text') {
-        if (!change.oldText || !change.newText) throw new Error('Text changes require oldText and newText.');
+        if (!change.oldText || !change.newText)
+          throw new Error('Text changes require oldText and newText.');
         if (change.newText.length > this.options.maxTextLength) {
           throw new Error(`Edited text exceeds the ${this.options.maxTextLength}-character limit.`);
         }
-        if (change.newText.includes('\0')) throw new Error('Edited text cannot contain a null byte.');
+        if (change.newText.includes('\0'))
+          throw new Error('Edited text cannot contain a null byte.');
       }
     }
     const byPath = new Map<string, EditorChange[]>();
@@ -173,7 +181,9 @@ export class TransactionManager {
     for (const snapshot of snapshots.values()) {
       const latest = await readFile(snapshot.fullPath, 'utf8');
       if (hashSource(latest) !== snapshot.hash) {
-        throw new Error(`Source changed during validation: ${snapshot.displayPath}. Retry the batch.`);
+        throw new Error(
+          `Source changed during validation: ${snapshot.displayPath}. Retry the batch.`,
+        );
       }
     }
 
@@ -184,7 +194,9 @@ export class TransactionManager {
         written.push(snapshot);
       }
     } catch (error) {
-      await Promise.allSettled(written.map((snapshot) => atomicWrite(snapshot.fullPath, snapshot.source)));
+      await Promise.allSettled(
+        written.map((snapshot) => atomicWrite(snapshot.fullPath, snapshot.source)),
+      );
       throw error;
     }
 
@@ -207,17 +219,17 @@ export class TransactionManager {
     };
   }
 
-  async revert(
-    clientId: string,
-    requestId: string,
-    receiptId: string,
-  ): Promise<RevertResponse> {
+  async revert(clientId: string, requestId: string, receiptId: string): Promise<RevertResponse> {
     const responseBase = { clientId, requestId, receiptId };
     const receipt = [...this.receipts.values()].find(
       (item) => item.response.receiptId === receiptId && item.response.clientId === clientId,
     );
     if (!receipt || !receipt.response.success) {
-      return { ...responseBase, success: false, error: 'Commit receipt is unavailable or expired.' };
+      return {
+        ...responseBase,
+        success: false,
+        error: 'Commit receipt is unavailable or expired.',
+      };
     }
     if (receipt.reverted) {
       return { ...responseBase, success: false, error: 'This commit has already been reverted.' };
@@ -228,7 +240,8 @@ export class TransactionManager {
         return {
           ...responseBase,
           success: false,
-          error: 'A committed file changed after this receipt. Revert was refused to protect newer work.',
+          error:
+            'A committed file changed after this receipt. Revert was refused to protect newer work.',
         };
       }
     }

@@ -23,30 +23,30 @@ drag event implementation and used move-up/down buttons.
 
 ## Feature matrix
 
-| Legacy capability | Standalone implementation | Validation |
-| --- | --- | --- |
-| Toggle editor from development UI | Native Astro Dev Toolbar app | Integration unit test and real demo |
-| Click visible text | Text mode with stable selector/source resolution | Playwright desktop/touch workflows |
-| Modal text editing | Native labelled modal dialog | Playwright focus and queue tests |
-| Browser preview before save | DOM preview separated from source transaction | Playwright text workflow |
-| Queue multiple changes | Typed mixed-change ledger | Unit and browser tests |
-| Remove one queued change | Per-row undo control | Browser workflow |
-| Undo last / undo all | Bounded undo/redo plus Clear | Browser workflow |
-| Keyboard save/undo | Cmd/Ctrl+S, Z, Shift+Z and Y | Client implementation |
-| Save all | Runtime-validated idempotent batch transaction | Unit, adapter and HMR commit tests |
-| Server connectivity status | Connecting/ready/warning/error states | Browser workflow |
-| Section mode | Explicit source-owned editable regions | Browser workflow |
-| Move section up/down | Accessible buttons and Alt+Arrow shortcuts | Desktop/mobile browser tests |
-| Drag section | Genuine drag-handle/drop implementation | Real pointer-drag Playwright test |
-| Add before/after | Both placements supported | Browser add-template workflow |
-| Section templates | Default hero/features/text registry plus custom templates | Adapter and browser tests |
-| Delete section | Confirmed preview with undo | Browser delete/restore workflow |
-| Persist section operations | Astro compiler-positioned block rewrite | Adapter unit test |
-| SEO modal | Title, description, keywords, canonical, OG and robots form | Browser workflow |
-| Persist Astro SEO | Head elements updated/inserted and compiled | Adapter unit test |
-| Persist Markdown SEO | YAML frontmatter adapter | Adapter implementation |
-| Post-save undo | Receipt-backed safe revert | Unit and HMR browser tests |
-| 50-step client history | Bounded `ChangeHistory` | Unit-typed implementation |
+| Legacy capability                 | Standalone implementation                                   | Validation                          |
+| --------------------------------- | ----------------------------------------------------------- | ----------------------------------- |
+| Toggle editor from development UI | Native Astro Dev Toolbar app                                | Integration unit test and real demo |
+| Click visible text                | Text mode with stable selector/source resolution            | Playwright desktop/touch workflows  |
+| Modal text editing                | Native labelled modal dialog                                | Playwright focus and queue tests    |
+| Browser preview before save       | DOM preview separated from source transaction               | Playwright text workflow            |
+| Queue multiple changes            | Typed mixed-change ledger                                   | Unit and browser tests              |
+| Remove one queued change          | Per-row undo control                                        | Browser workflow                    |
+| Undo last / undo all              | Bounded undo/redo plus Clear                                | Browser workflow                    |
+| Keyboard save/undo                | Cmd/Ctrl+S, Z, Shift+Z and Y                                | Client implementation               |
+| Save all                          | Runtime-validated idempotent batch transaction              | Unit, adapter and HMR commit tests  |
+| Server connectivity status        | Connecting/ready/warning/error states                       | Browser workflow                    |
+| Section mode                      | Explicit source-owned editable regions                      | Browser workflow                    |
+| Move section up/down              | Accessible buttons and Alt+Arrow shortcuts                  | Desktop/mobile browser tests        |
+| Drag section                      | Genuine drag-handle/drop implementation                     | Real pointer-drag Playwright test   |
+| Add before/after                  | Both placements supported                                   | Browser add-template workflow       |
+| Section templates                 | Default hero/features/text registry plus custom templates   | Adapter and browser tests           |
+| Delete section                    | Confirmed preview with undo                                 | Browser delete/restore workflow     |
+| Persist section operations        | Astro compiler-positioned block rewrite                     | Adapter unit test                   |
+| SEO modal                         | Title, description, keywords, canonical, OG and robots form | Browser workflow                    |
+| Persist Astro SEO                 | Head elements updated/inserted and compiled                 | Adapter unit test                   |
+| Persist Markdown SEO              | YAML frontmatter adapter                                    | Adapter implementation              |
+| Post-save undo                    | Receipt-backed safe revert                                  | Unit and HMR browser tests          |
+| 50-step client history            | Bounded `ChangeHistory`                                     | Unit-typed implementation           |
 
 ## Improvements beyond parity
 

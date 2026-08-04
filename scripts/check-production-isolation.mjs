@@ -14,10 +14,12 @@ const forbiddenRuntimeMarkers = [
 
 async function filesWithin(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
-  const nested = await Promise.all(entries.map((entry) => {
-    const path = join(directory, entry.name);
-    return entry.isDirectory() ? filesWithin(path) : [path];
-  }));
+  const nested = await Promise.all(
+    entries.map((entry) => {
+      const path = join(directory, entry.name);
+      return entry.isDirectory() ? filesWithin(path) : [path];
+    }),
+  );
   return nested.flat();
 }
 

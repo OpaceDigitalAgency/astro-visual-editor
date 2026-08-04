@@ -1,11 +1,7 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AstroIntegration } from 'astro';
-import {
-  normalizeOptions,
-  toClientConfig,
-  type AstroVisualEditorOptions,
-} from './options.js';
+import { normalizeOptions, toClientConfig, type AstroVisualEditorOptions } from './options.js';
 import { parseReceiptRequest, parseRevertRequest, parseSaveRequest } from './shared/protocol.js';
 import {
   APP_ID,
@@ -18,24 +14,19 @@ import {
   SAVE_EVENT,
   SAVE_RESULT_EVENT,
 } from './shared/events.js';
-import type {
-  ReceiptResponse,
-  RevertResponse,
-  SaveResponse,
-} from './shared/types.js';
+import type { ReceiptResponse, RevertResponse, SaveResponse } from './shared/types.js';
 import { TransactionManager } from './server/transaction-manager.js';
 
 export type { AstroVisualEditorOptions } from './options.js';
-export type {
-  EditorChange,
-  SectionTemplate,
-  SeoValues,
-} from './shared/types.js';
+export type { EditorChange, SectionTemplate, SeoValues } from './shared/types.js';
 
 function isRemoteHost(host: string | boolean | undefined): boolean {
   if (host === undefined || host === false) return false;
   if (host === true) return true;
-  const normalized = host.trim().toLowerCase().replace(/^\[|\]$/gu, '');
+  const normalized = host
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/gu, '');
   return !['localhost', '127.0.0.1', '::1'].includes(normalized);
 }
 
@@ -49,6 +40,7 @@ export default function astroVisualEditor(
   const options = normalizeOptions(userOptions);
   let projectRoot = process.cwd();
   let sourceRoot = resolve(process.cwd(), 'src');
+  let transactionManager: TransactionManager | undefined;
 
   return {
     name: 'astro-visual-editor',
@@ -58,8 +50,7 @@ export default function astroVisualEditor(
         addDevToolbarApp({
           id: APP_ID,
           name: 'Visual Editor',
-          icon:
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>',
           entrypoint: fileURLToPath(new URL('./toolbar.js', import.meta.url)),
         });
       },
@@ -76,7 +67,11 @@ export default function astroVisualEditor(
             ? 'The dev server is network-exposed. Remote writes are explicitly enabled.'
             : 'Source writes are disabled because the dev server is network-exposed.'
           : undefined;
-        const manager = new TransactionManager(projectRoot, sourceRoot, options);
+        // Astro can re-run this hook while the dev server remains alive. Keep
+        // the manager in the integration closure so idempotency receipts and
+        // the safe-revert history survive page-source HMR.
+        transactionManager ??= new TransactionManager(projectRoot, sourceRoot, options);
+        const manager = transactionManager;
         const sendConfig = () =>
           toolbar.send(CONFIG_EVENT, toClientConfig(options, writeEnabled, remoteWarning));
 
@@ -147,7 +142,11 @@ export default function astroVisualEditor(
               );
             }
           } catch (error) {
-            const candidate = raw as { clientId?: unknown; requestId?: unknown; receiptId?: unknown };
+            const candidate = raw as {
+              clientId?: unknown;
+              requestId?: unknown;
+              receiptId?: unknown;
+            };
             response = {
               clientId: typeof candidate?.clientId === 'string' ? candidate.clientId : 'invalid',
               requestId: typeof candidate?.requestId === 'string' ? candidate.requestId : 'invalid',

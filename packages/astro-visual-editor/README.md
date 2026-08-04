@@ -1,4 +1,11 @@
-# Astro Visual Editor
+# Astro Visual Editor: Change Text, SEO & Drag & Drop Sections in the Front-End
+
+![Astro Visual Editor by Opace: a source-aware front-end editor with a reviewable text, section and SEO change ledger](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/astro-visual-editor-social-card.svg)
+
+[![CI](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/workflows/ci.yml)
+[![Package](https://img.shields.io/badge/package-%40opacedev%2Fastro--visual--editor-cb3837.svg)](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/PROJECT.md#release-gates)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-2f3337.svg)](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/LICENSE)
+[![Astro integration](https://img.shields.io/badge/Astro-integration-ff5d01.svg)](https://docs.astro.build/en/guides/integrations/)
 
 A development-only visual editor for Astro with text editing, SEO fields,
 section templates, real drag-and-drop, a reviewable change ledger and validated
@@ -7,21 +14,30 @@ source transactions.
 It uses Astro's native Dev Toolbar and `astro:server:setup` communication. It
 does not ship an editor client or write endpoint in production.
 
+Built by [Opace Astro developers](https://opace.agency/services/web-design/astro-development/).
+
+| Mode     | Included workflow                                                        |
+| -------- | ------------------------------------------------------------------------ |
+| Text     | Select rendered content, preview the replacement and queue it            |
+| Sections | Add templates, delete, move or pointer-drag inside declared regions      |
+| SEO      | Edit title, description, keywords, canonical, Open Graph and robots      |
+| Review   | Inspect mixed changes, undo/redo, commit once and conflict-check reverts |
+
 ## Install
 
 ```bash
-npx astro add astro-visual-editor
+npx astro add @opacedev/astro-visual-editor@beta
 ```
 
 Or:
 
 ```bash
-npm install --save-dev astro-visual-editor
+npm install --save-dev @opacedev/astro-visual-editor@beta
 ```
 
 ```js
 import { defineConfig } from 'astro/config';
-import visualEditor from 'astro-visual-editor';
+import visualEditor from '@opacedev/astro-visual-editor';
 
 export default defineConfig({
   integrations: [visualEditor()],
@@ -57,10 +73,7 @@ Annotate the owning file and give important elements stable browser IDs:
 JSON, JSONC and YAML require an exact path:
 
 ```astro
-<h1
-  data-astro-edit-file="src/data/home.json"
-  data-astro-edit-path="hero.title"
->
+<h1 data-astro-edit-file="src/data/home.json" data-astro-edit-path="hero.title">
   {home.hero.title}
 </h1>
 ```
@@ -81,10 +94,7 @@ visualEditor({
 ## Persistent section regions
 
 ```astro
-<div
-  data-astro-edit-region="homepage"
-  data-astro-edit-file="src/pages/index.astro"
->
+<div data-astro-edit-region="homepage" data-astro-edit-file="src/pages/index.astro">
   <section data-section="hero">...</section>
   <section data-section="services">...</section>
   <section data-section="proof">...</section>
@@ -101,19 +111,21 @@ Custom templates use `{{id}}`:
 
 ```js
 visualEditor({
-  sectionTemplates: [{
-    id: 'callout',
-    name: 'Callout',
-    description: 'A highlighted action block.',
-    markup: '<section data-section="{{id}}"><h2>Callout</h2></section>',
-  }],
+  sectionTemplates: [
+    {
+      id: 'callout',
+      name: 'Callout',
+      description: 'A highlighted action block.',
+      markup: '<section data-section="{{id}}"><h2>Callout</h2></section>',
+    },
+  ],
 });
 ```
 
 ## SEO owners
 
 ```astro
-<html data-astro-edit-seo-file="src/pages/index.astro">
+<html data-astro-edit-seo-file="src/pages/index.astro"></html>
 ```
 
 Literal Astro head elements are updated/inserted and compiler-validated.
@@ -145,9 +157,7 @@ interface AstroVisualEditorOptions {
   excludeSelectors?: string[];
   fileMappings?: Record<string, string>;
   selectorMappings?: Record<string, string>;
-  allowedExtensions?: Array<
-    '.astro' | '.md' | '.mdx' | '.json' | '.jsonc' | '.yaml' | '.yml'
-  >;
+  allowedExtensions?: Array<'.astro' | '.md' | '.mdx' | '.json' | '.jsonc' | '.yaml' | '.yml'>;
   sectionTemplates?: SectionTemplate[];
   maxChanges?: number;
   maxTextLength?: number;
@@ -176,6 +186,14 @@ both disabled by default.
   roadmap work.
 
 Full documentation, feature parity, architecture and release evidence:
-[github.com/OpaceDigitalAgency/astro-visual-editor](https://github.com/OpaceDigitalAgency/astro-visual-editor).
 
-MIT © 2026 Opace Digital Agency.
+- [Product page](https://opace.agency/tools/astro/visual-editor/)
+- [GitHub repository](https://github.com/OpaceDigitalAgency/astro-visual-editor)
+- [Full configuration and source-mapping guide](https://github.com/OpaceDigitalAgency/astro-visual-editor#configuration)
+- [Security model](https://github.com/OpaceDigitalAgency/astro-visual-editor/security/policy)
+- [Release evidence and current status](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/PROJECT.md)
+
+MIT © 2026 [Opace Digital Agency](https://opace.agency/services/web-design/).
+
+Need help implementing Astro? Explore [Astro development](https://opace.agency/services/web-design/astro-development/),
+[web design](https://opace.agency/services/web-design/) or [contact Opace](https://opace.agency/get-in-touch/).

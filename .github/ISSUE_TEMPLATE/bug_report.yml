@@ -1,0 +1,89 @@
+name: Bug report
+description: Report a reproducible problem with the editor, source mapping or transaction flow.
+title: '[Bug]: '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Astro Visual Editor. Search existing issues first and remove private content, credentials and customer data from every example.
+
+  - type: input
+    id: package-version
+    attributes:
+      label: Astro Visual Editor version
+      description: Include the exact installed version or commit SHA.
+      placeholder: '@opacedev/astro-visual-editor@0.1.0-beta.1'
+    validations:
+      required: true
+
+  - type: input
+    id: astro-version
+    attributes:
+      label: Astro and Node.js versions
+      placeholder: 'Astro 7.1.6; Node.js 22.12.0'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Affected editor area
+      options:
+        - Text editing
+        - Section add, delete or reorder
+        - SEO editing
+        - Review, commit or revert
+        - Source mapping or configuration
+        - Dev Toolbar or responsive UI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Link to a small public repository or provide the smallest safe fixture and configuration that reproduces the problem.
+      placeholder: Include the relevant astro.config.mjs, source annotation or mapping and page markup.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run astro dev on loopback
+        2. Open the Visual Editor toolbar app
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+      description: Include the visible result, ledger entry and source-file outcome. Attach a screenshot or short recording when useful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or errors
+      description: Paste only the relevant terminal/browser output. Redact paths, tokens and private content.
+      render: shell
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checks
+      options:
+        - label: I reproduced this with the dev server bound to loopback unless remote development is the issue.
+          required: true
+        - label: I reviewed the resulting Git diff and removed secrets, customer data and proprietary source from this report.
+          required: true
+        - label: This is not a vulnerability report. I will use the private process in SECURITY.md for security issues.
+          required: true

@@ -80,8 +80,9 @@ communicate the operation clearly enough.
   desktop, tablet and mobile widths. It is not a duplicate GitHub Pages
   marketing site.
 - GitHub discovery now includes a visual landing README, support/community
-  templates, a canonical About link, 16 focused topics and a verified social
-  preview image.
+  templates, a canonical About link, 18 focused topics, a verified social
+  preview image, a listing in Opace's canonical open-source portfolio and an
+  Opace profile pin.
 
 These facts do not imply npm publication, Astro directory appearance or owner
 acceptance; those remain separate gates.

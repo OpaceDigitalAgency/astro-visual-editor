@@ -7,6 +7,9 @@ Before starting, search [existing issues](https://github.com/OpaceDigitalAgency/
 and read the capability boundaries in [README.md](./README.md). For a substantial
 feature, open the feature-request form first so source ownership, safe failure
 and recovery behaviour can be agreed before implementation.
+Release work must also follow the current version scope and evidence gates in
+[<removed internal document>](./<removed internal document>); do not reuse version numbers from an older
+issue or task.
 
 ## Development
 

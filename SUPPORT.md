@@ -7,10 +7,12 @@ Community support is provided through this repository on a best-effort basis.
 
 1. Read the [installation, mapping and safety guide](./README.md).
 2. Check the exact release state in [<removed internal document>](./<removed internal document>).
-3. Search [existing issues](https://github.com/OpaceDigitalAgency/astro-visual-editor/issues).
-4. Reduce the problem to a fixture that contains no credentials, customer data
+3. Check the supported commands and next-version scope in
+   [<removed internal document>](./<removed internal document>).
+4. Search [existing issues](https://github.com/OpaceDigitalAgency/astro-visual-editor/issues).
+5. Reduce the problem to a fixture that contains no credentials, customer data
    or proprietary source.
-5. Record the package, Astro and Node.js versions and review the resulting Git
+6. Record the package, Astro and Node.js versions and review the resulting Git
    diff.
 
 Use the repository's structured issue forms for a reproducible bug or a scoped

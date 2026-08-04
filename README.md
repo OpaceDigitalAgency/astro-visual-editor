@@ -29,8 +29,10 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 > **Release status:** the public beta is available from npm as
 > `@opacedev/astro-visual-editor`. The implementation is feature-complete
 > against the legacy editor, validated locally and in public CI, and backed by
-> a live canonical Opace product page. Astro's scheduled directory import and
-> owner acceptance remain separate gates. Exact evidence is maintained in
+> a live canonical Opace product page. Astro's own current importer accepts the
+> package, while the scheduled public directory update and owner acceptance
+> remain separate gates. Exact evidence is maintained in
+> [<removed internal document>](./<removed internal document>) and the future version sequence in
 > [<removed internal document>](./<removed internal document>).
 
 | At a glance     | Behaviour                                                                         |
@@ -477,17 +479,25 @@ The package follows Astro's current published rules:
 - the package exports only its built runtime, types, licence and package README.
 
 Astro documents that the integrations library is refreshed weekly from
-qualifying npm packages. The directory card uses the package homepage, which is
-the canonical [Astro Visual Editor product page](https://opace.agency/tools/astro/visual-editor/)
+qualifying npm packages. The current unmodified Astro importer has been run
+against the live registry and generated the expected beta.2 entry with Dev
+Toolbar, Performance + SEO, Utilities and CSS + UI categories. The directory
+card uses the package homepage, which is the canonical
+[Astro Visual Editor product page](https://opace.agency/tools/astro/visual-editor/)
 within the Opace website. Technical documentation remains in this repository so
 the published guidance stays versioned with the source.
-After import, Opace requests a custom product avatar through Astro's directory
-issue process. npm publication, importer eligibility, public listing and avatar
-evidence remain separate gates in [<removed internal document>](./<removed internal document>).
+
+The custom product avatar and metadata request is open as
+[withastro/astro.build#2597](https://github.com/withastro/astro.build/issues/2597).
+Importer acceptance is complete; Astro's scheduled catalogue PR, public listing
+and maintainer handling of the avatar remain external gates in
+[<removed internal document>](./<removed internal document>).
 
 ## Project documents
 
 - [<removed internal document>](./<removed internal document>) — release truth and gates.
+- [<removed internal document>](./<removed internal document>) — current test workflow, version sequence
+  and takeover plan.
 - [<removed internal document>](./<removed internal document>) — exact legacy-to-package comparison.
 - [<removed internal document>](./<removed internal document>) — remaining roadmap.
 - [Complete research and assessment](./Astro%20Integrated%20CMS%20%26%20Frontend%20Editing_%20Complete%20Research%20%26%20Assessment.md) — market context.

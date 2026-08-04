@@ -4,6 +4,18 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Documentation
+
+- Added an authoritative release and takeover plan beginning from the real
+  public beta.2 baseline.
+- Reconciled testing, npm trusted-publishing, registry-consumer and Astro
+  importer evidence across all current project documents.
+- Recorded that Astro's current unmodified importer generates the expected
+  integration entry and categories; public catalogue rendering remains an
+  external Astro step.
+
 ## 0.1.0-beta.2 - 2026-08-04
 
 ### Fixed

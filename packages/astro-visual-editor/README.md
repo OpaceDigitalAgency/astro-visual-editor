@@ -11,6 +11,10 @@ A development-only visual editor for Astro with text editing, SEO fields,
 section templates, real drag-and-drop, a reviewable change ledger and validated
 source transactions.
 
+The current public beta is `0.1.0-beta.2`. It is published through npm trusted
+GitHub OIDC with provenance and has passed a clean Astro 7.1.6 registry install
+and production build.
+
 It uses Astro's native Dev Toolbar and `astro:server:setup` communication. It
 does not ship an editor client or write endpoint in production.
 
@@ -194,6 +198,7 @@ Full documentation, feature parity, architecture and release evidence:
 - [Full configuration and source-mapping guide](https://github.com/OpaceDigitalAgency/astro-visual-editor#configuration)
 - [Security model](https://github.com/OpaceDigitalAgency/astro-visual-editor/security/policy)
 - [Release evidence and current status](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/<removed internal document>)
+- [Current release and takeover plan](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/<removed internal document>)
 
 MIT © 2026 [Opace Digital Agency](https://opace.agency/services/web-design/).
 

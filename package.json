@@ -13,9 +13,14 @@
     "dev": "npm run dev --workspace astro-visual-editor-demo",
     "pack:check": "npm pack --workspace astro-visual-editor --dry-run",
     "test": "npm run test --workspace astro-visual-editor",
+    "test:e2e": "playwright test",
     "test:all": "npm run build && npm run test && npm run check && npm run pack:check"
   },
   "engines": {
     "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.54.2"
   }
 }

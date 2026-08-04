@@ -1,0 +1,9 @@
+export const APP_ID = 'astro-visual-editor';
+export const READY_EVENT = `${APP_ID}:ready`;
+export const CONFIG_EVENT = `${APP_ID}:config`;
+export const SAVE_EVENT = `${APP_ID}:save`;
+export const SAVE_RESULT_EVENT = `${APP_ID}:save-result`;
+export const RECEIPT_EVENT = `${APP_ID}:receipt`;
+export const RECEIPT_RESULT_EVENT = `${APP_ID}:receipt-result`;
+export const REVERT_EVENT = `${APP_ID}:revert`;
+export const REVERT_RESULT_EVENT = `${APP_ID}:revert-result`;

@@ -236,6 +236,25 @@ Allows `<`, `>`, `{` and `}` in replacements. This is disabled by default
 because those characters can change Astro syntax. Prefer code editing for
 structural changes.
 
+## Planned editability setup — urgent enhancement
+
+At present, developers determine what can be selected through
+`editableSelectors`, `excludeSelectors`, source mappings and `data-astro-*`
+annotations. The toolbar does not yet provide an owner-facing setup interface
+for inspecting or changing those rules.
+
+An urgent planned enhancement will add a local **Editability Setup** mode that
+lists visible page content, explains why each value is editable or blocked, and
+lets an authorised site owner create reviewable project rules without manually
+editing templates. Those rules must remain subject to source-attribution,
+source-adapter and transaction safety checks; selecting an element must never
+imply that it is safe to write.
+
+This local setup mode is separate from a future authenticated production admin
+or client workflow. See
+[ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md](./ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md)
+for its requirements and sequencing.
+
 ## Safety model
 
 Astro Visual Editor intentionally fails closed.

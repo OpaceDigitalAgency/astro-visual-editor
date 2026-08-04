@@ -325,6 +325,7 @@ value to a source file plus a structured path or source range.
 
 | Concern | Detail | Severity |
 |---------|--------|----------|
+| **No editability administration** | Site owners must currently change selectors or add source annotations in code to determine what can and cannot be selected. The toolbar does not inventory blocked content or explain eligibility decisions. | **High / urgent enhancement** |
 | **Source file detection** | Uses heuristics (route mapping, DOM context) to guess which `.astro` file to edit. Will fail for content that actually lives in JSON data files or shared component files. | High |
 | **No JSON write support** | The write mechanism does text find-and-replace in `.astro` files. Cannot currently locate and update a value inside a `.json` data file. | High |
 | **SEO persistence incomplete** | The SEO panel UI exists but reading/writing meta tags from `.md` frontmatter is not fully wired up. | Medium |
@@ -332,6 +333,15 @@ value to a source file plus a structured path or source range.
 | **Section editing experimental** | Visual reordering works in the browser but persistent write-back for section moves is incomplete. | Medium |
 | **Nested markup flattening** | Editing text that contains inline formatting (bold, links) may lose that formatting. | Low-Medium |
 | **Localhost only** | Only works during `npm run dev`. Clients and non-technical users cannot access it on a deployed site. | **Critical** |
+
+**Urgent product requirement identified during prototype testing:** add an
+owner-controlled Editability Setup mode. It should inventory visible content,
+explain why an element is editable or blocked, support reviewed per-element and
+selector-group allow/deny policies, and persist those policies in the project.
+End editors must not be able to broaden their own permissions, and an allowed
+element must still pass source-attribution and syntax-aware adapter validation
+before any write. This local policy editor is separate from the authenticated
+remote admin architecture discussed below.
 
 **The critical deployment problem:**
 

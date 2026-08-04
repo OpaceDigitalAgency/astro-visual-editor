@@ -1,24 +1,28 @@
-import type { EditableFileExtension, ClientEditorConfig } from './shared/types.js';
+import type {
+  ClientEditorConfig,
+  EditableFileExtension,
+  SectionTemplate,
+} from './shared/types.js';
 
 export interface AstroVisualEditorOptions {
-  /** Disable the integration without removing it from Astro config. */
   enabled?: boolean;
-  /** Elements considered editable when they contain direct text. */
   editableSelectors?: string[];
-  /** Elements ignored even when they match an editable selector. */
   excludeSelectors?: string[];
-  /** Route-to-source mappings, e.g. `/about`: `src/pages/about.astro`. */
   fileMappings?: Record<string, string>;
-  /** CSS selector-to-source mappings for shared components. */
   selectorMappings?: Record<string, string>;
-  /** File extensions that the server may modify. */
   allowedExtensions?: EditableFileExtension[];
-  /** Maximum number of changes accepted in one batch. */
+  sectionTemplates?: SectionTemplate[];
   maxChanges?: number;
-  /** Maximum length of one edited text value. */
   maxTextLength?: number;
-  /** Permit `<`, `{` and `}` in replacement text. Disabled by default. */
+  maxRequestBytes?: number;
+  maxSourceFileBytes?: number;
+  requestTimeoutMs?: number;
+  receiptTtlMs?: number;
+  historyLimit?: number;
+  /** Allows <, >, { and } in replacement text. Disabled by default. */
   allowUnsafeSourceText?: boolean;
+  /** Source writes are refused on non-loopback dev servers unless explicitly enabled. */
+  allowRemoteDev?: boolean;
 }
 
 export interface NormalizedOptions {
@@ -28,10 +32,53 @@ export interface NormalizedOptions {
   fileMappings: Record<string, string>;
   selectorMappings: Record<string, string>;
   allowedExtensions: EditableFileExtension[];
+  sectionTemplates: SectionTemplate[];
   maxChanges: number;
   maxTextLength: number;
+  maxRequestBytes: number;
+  maxSourceFileBytes: number;
+  requestTimeoutMs: number;
+  receiptTtlMs: number;
+  historyLimit: number;
   allowUnsafeSourceText: boolean;
+  allowRemoteDev: boolean;
 }
+
+const defaultTemplates: SectionTemplate[] = [
+  {
+    id: 'hero',
+    name: 'Hero',
+    description: 'A focused heading, introduction and primary action.',
+    markup: `<section data-section="{{id}}" class="ave-hero">
+  <p class="ave-kicker">New section</p>
+  <h2>Introduce the next important idea</h2>
+  <p>Explain the value clearly, then edit this copy with Text mode.</p>
+  <a href="#">Primary action</a>
+</section>`,
+  },
+  {
+    id: 'features',
+    name: 'Features',
+    description: 'A heading followed by three compact feature cards.',
+    markup: `<section data-section="{{id}}" class="ave-features">
+  <h2>What makes this different</h2>
+  <div class="ave-feature-grid">
+    <article><h3>Feature one</h3><p>Describe the first benefit.</p></article>
+    <article><h3>Feature two</h3><p>Describe the second benefit.</p></article>
+    <article><h3>Feature three</h3><p>Describe the third benefit.</p></article>
+  </div>
+</section>`,
+  },
+  {
+    id: 'text',
+    name: 'Text',
+    description: 'A simple long-form content section.',
+    markup: `<section data-section="{{id}}" class="ave-text">
+  <h2>Section heading</h2>
+  <p>This is a simple content section. Use Text mode to replace this paragraph.</p>
+</section>`,
+  },
+];
 
 const defaults: NormalizedOptions = {
   enabled: true,
@@ -62,24 +109,58 @@ const defaults: NormalizedOptions = {
     'input',
     '[contenteditable="true"]',
     '[data-astro-edit-ignore]',
+    '[data-astro-ve-ui]',
   ],
   fileMappings: {},
-  selectorMappings: {
-    header: 'src/components/Header.astro',
-    footer: 'src/components/Footer.astro',
-  },
-  allowedExtensions: ['.astro', '.md', '.mdx', '.json', '.yaml', '.yml'],
+  selectorMappings: {},
+  allowedExtensions: ['.astro', '.md', '.mdx', '.json', '.jsonc', '.yaml', '.yml'],
+  sectionTemplates: defaultTemplates,
   maxChanges: 100,
   maxTextLength: 10_000,
+  maxRequestBytes: 1_000_000,
+  maxSourceFileBytes: 5_000_000,
+  requestTimeoutMs: 15_000,
+  receiptTtlMs: 10 * 60_000,
+  historyLimit: 50,
   allowUnsafeSourceText: false,
+  allowRemoteDev: false,
 };
 
 function positiveInteger(value: number | undefined, fallback: number): number {
   return Number.isInteger(value) && Number(value) > 0 ? Number(value) : fallback;
 }
 
+function validateSelectors(label: string, selectors: string[]): void {
+  for (const selector of selectors) {
+    if (!selector.trim() || /[\0\r\n]/u.test(selector)) {
+      throw new Error(`${label} contains an invalid CSS selector.`);
+    }
+  }
+}
+
+function validateRelativeMappings(label: string, mappings: Record<string, string>): void {
+  for (const [key, filePath] of Object.entries(mappings)) {
+    if (!key.trim() || !filePath.trim() || filePath.startsWith('/') || filePath.includes('\0')) {
+      throw new Error(`${label} contains an invalid project-relative file mapping.`);
+    }
+  }
+}
+
+function validateTemplates(templates: SectionTemplate[]): void {
+  const ids = new Set<string>();
+  for (const template of templates) {
+    if (!/^[a-z][a-z0-9-]*$/u.test(template.id) || ids.has(template.id)) {
+      throw new Error(`Section template id is invalid or duplicated: ${template.id}`);
+    }
+    if (!template.name.trim() || !template.markup.includes('<section')) {
+      throw new Error(`Section template ${template.id} must have a name and section markup.`);
+    }
+    ids.add(template.id);
+  }
+}
+
 export function normalizeOptions(options: AstroVisualEditorOptions = {}): NormalizedOptions {
-  return {
+  const normalized: NormalizedOptions = {
     enabled: options.enabled ?? defaults.enabled,
     editableSelectors: options.editableSelectors?.length
       ? [...options.editableSelectors]
@@ -87,27 +168,53 @@ export function normalizeOptions(options: AstroVisualEditorOptions = {}): Normal
     excludeSelectors: options.excludeSelectors?.length
       ? [...options.excludeSelectors]
       : [...defaults.excludeSelectors],
-    fileMappings: { ...defaults.fileMappings, ...options.fileMappings },
-    selectorMappings: { ...defaults.selectorMappings, ...options.selectorMappings },
+    fileMappings: { ...options.fileMappings },
+    selectorMappings: { ...options.selectorMappings },
     allowedExtensions: options.allowedExtensions?.length
-      ? [...options.allowedExtensions]
+      ? [...new Set(options.allowedExtensions)]
       : [...defaults.allowedExtensions],
+    sectionTemplates: options.sectionTemplates?.length
+      ? options.sectionTemplates.map((template) => ({ ...template }))
+      : defaults.sectionTemplates.map((template) => ({ ...template })),
     maxChanges: positiveInteger(options.maxChanges, defaults.maxChanges),
     maxTextLength: positiveInteger(options.maxTextLength, defaults.maxTextLength),
-    allowUnsafeSourceText:
-      options.allowUnsafeSourceText ?? defaults.allowUnsafeSourceText,
+    maxRequestBytes: positiveInteger(options.maxRequestBytes, defaults.maxRequestBytes),
+    maxSourceFileBytes: positiveInteger(
+      options.maxSourceFileBytes,
+      defaults.maxSourceFileBytes,
+    ),
+    requestTimeoutMs: positiveInteger(options.requestTimeoutMs, defaults.requestTimeoutMs),
+    receiptTtlMs: positiveInteger(options.receiptTtlMs, defaults.receiptTtlMs),
+    historyLimit: positiveInteger(options.historyLimit, defaults.historyLimit),
+    allowUnsafeSourceText: options.allowUnsafeSourceText ?? defaults.allowUnsafeSourceText,
+    allowRemoteDev: options.allowRemoteDev ?? defaults.allowRemoteDev,
   };
+
+  validateSelectors('editableSelectors', normalized.editableSelectors);
+  validateSelectors('excludeSelectors', normalized.excludeSelectors);
+  validateSelectors('selectorMappings', Object.keys(normalized.selectorMappings));
+  validateRelativeMappings('fileMappings', normalized.fileMappings);
+  validateRelativeMappings('selectorMappings', normalized.selectorMappings);
+  validateTemplates(normalized.sectionTemplates);
+  return normalized;
 }
 
-export function toClientConfig(options: NormalizedOptions): ClientEditorConfig {
+export function toClientConfig(
+  options: NormalizedOptions,
+  writeEnabled = true,
+  remoteWarning?: string,
+): ClientEditorConfig {
   return {
     editableSelectors: options.editableSelectors,
     excludeSelectors: options.excludeSelectors,
     fileMappings: options.fileMappings,
     selectorMappings: options.selectorMappings,
+    sectionTemplates: options.sectionTemplates,
     maxChanges: options.maxChanges,
     maxTextLength: options.maxTextLength,
+    requestTimeoutMs: options.requestTimeoutMs,
     allowUnsafeSourceText: options.allowUnsafeSourceText,
+    writeEnabled,
+    remoteWarning,
   };
 }
-

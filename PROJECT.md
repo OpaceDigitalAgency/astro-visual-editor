@@ -40,6 +40,7 @@ must be completed before a public beta.
 | Narrow-layout check | Complete with boundary | Ledger has no horizontal overflow; touch selection is unsupported under Astro's mobile toolbar overlay |
 | Mobile solution proof | Complete | Compact Pick mode allowed a real page tap and opened the editor at 390 × 844 |
 | Public-beta hardening | Pending | Transaction protocol, immutable ranges, source adapters, HMR and multi-tab recovery |
+| Editability setup/admin UX | **Urgent enhancement pending** | Site owners currently need to change selectors or source annotations in code; the planned owner-controlled setup mode is defined in the engineering handoff |
 | npm package inspection | Complete | `npm pack --dry-run` |
 | Dependency audit | Complete | `npm audit` reports zero known vulnerabilities |
 | GitHub publication | Pending approval | Public repository has not been created |
@@ -68,6 +69,9 @@ requires explicit owner approval. After approval:
 
 - Simple textual source values only; structural Astro/HTML edits remain code
   changes.
+- Editable versus non-editable content is currently determined by developer
+  configuration and source annotations. There is no owner-facing setup/admin
+  interface yet; this is an urgent enhancement request.
 - Explicit source annotations are recommended for components and dynamic routes.
 - Duplicate source text is rejected rather than guessed.
 - Post-validation filesystem failures use best-effort rollback.

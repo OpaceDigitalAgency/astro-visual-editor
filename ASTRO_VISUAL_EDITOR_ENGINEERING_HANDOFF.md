@@ -265,6 +265,53 @@ Local-only is a security property, not merely a usage description.
 
 ## Implementation phases after P0
 
+### Urgent enhancement request — owner-controlled editability setup (P1.0)
+
+Prototype testing showed that code-only `editableSelectors`,
+`excludeSelectors` and `data-astro-editable` annotations are not a sufficient
+product workflow. For example, semantically valid text inside a `<strong>`
+element is not selectable by default, but the toolbar does not explain why or
+give an authorised owner a safe way to opt it in.
+
+Add a local **Editability Setup** mode for site owners and implementers. This is
+an urgent product enhancement, but it must not bypass the P0 transaction,
+source-adapter or source-attribution safeguards. It is distinct from the
+authenticated, deployed client admin system described in Phase 6.
+
+Required capabilities:
+
+- Inventory visible textual content on the current page and show whether each
+  item is editable, excluded, structurally unsafe or unresolved.
+- Explain the exact eligibility and source-resolution reason in plain language.
+- Allow an authorised owner to opt individual elements or stable selector
+  groups in or out, including elements such as `<strong>`, without requiring
+  them to hand-edit Astro templates.
+- Configure or confirm the owning source file and structured field/range where
+  it cannot be proven automatically.
+- Persist the policy as a reviewable, project-owned manifest or generated code
+  patch that is visible in Git; do not keep permissions only in browser state.
+- Preview the policy diff and validate selectors, paths and conflicts before
+  writing it.
+- Keep end editors unable to broaden their own edit permissions. A future
+  remote version must enforce roles on the server, not only hide UI controls.
+- Preserve explicit `data-astro-edit-ignore` and other safety exclusions unless
+  an authorised owner deliberately changes the project policy.
+
+Acceptance criteria:
+
+- A site owner can discover why `01 / PREVIEW` is not editable and safely opt
+  that individual value or the approved `strong` selector group into editing.
+- The resulting policy survives reloads, HMR and another developer checkout.
+- Every eligibility decision can be inspected and traced to a default, project
+  rule or explicit annotation.
+- Enabling a selector never grants a source write unless source attribution and
+  the relevant adapter also validate the edit.
+- Policy changes have keyboard-accessible controls, a review step and automated
+  tests covering allow, deny, conflict and unsafe-structure cases.
+
+Design this alongside the page-content inventory and source-resolution
+inspector. Implement it only on top of the hardened P0 foundations.
+
 ### Phase 1 — Maintainable client architecture
 
 Split `src/toolbar.ts` into focused modules:

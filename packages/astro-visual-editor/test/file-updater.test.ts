@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { normalizeOptions } from '../src/options.js';
 import { applyChangeBatch } from '../src/server/file-updater.js';
-import type { EditorChange } from '../src/shared/types.js';
+import type { TextEditorChange } from '../src/shared/types.js';
 
 async function fixture(): Promise<{ root: string; src: string; page: string }> {
   const root = await mkdtemp(join(tmpdir(), 'astro-visual-editor-'));
@@ -16,8 +16,9 @@ async function fixture(): Promise<{ root: string; src: string; page: string }> {
   return { root, src, page };
 }
 
-function change(overrides: Partial<EditorChange> = {}): EditorChange {
+function change(overrides: Partial<TextEditorChange> = {}): TextEditorChange {
   return {
+    kind: 'text',
     id: 'change-1',
     filePath: 'src/pages/index.astro',
     oldText: 'Original heading',
@@ -31,7 +32,8 @@ describe('applyChangeBatch', () => {
   it('writes a validated batch to source files', async () => {
     const { root, src, page } = await fixture();
     const result = await applyChangeBatch(root, src, [change()], normalizeOptions());
-    expect(result).toEqual({ files: ['src/pages/index.astro'], changeCount: 1 });
+    expect(result).toMatchObject({ files: ['src/pages/index.astro'], changeCount: 1 });
+    expect(result.receiptId).toBeTypeOf('string');
     expect(await readFile(page, 'utf8')).toContain('Improved heading');
   });
 
@@ -83,11 +85,14 @@ describe('applyChangeBatch', () => {
     ).rejects.toThrow('outside');
   });
 
-  it('blocks Astro markup characters unless explicitly enabled', async () => {
-    const { root, src } = await fixture();
-    await expect(
-      applyChangeBatch(root, src, [change({ newText: '<strong>Unsafe</strong>' })], normalizeOptions()),
-    ).rejects.toThrow('Astro source characters');
+  it('escapes markup in literal Astro text instead of changing document structure', async () => {
+    const { root, src, page } = await fixture();
+    await applyChangeBatch(
+      root,
+      src,
+      [change({ newText: '<strong>Still text</strong>' })],
+      normalizeOptions(),
+    );
+    expect(await readFile(page, 'utf8')).toContain('&lt;strong&gt;Still text&lt;/strong&gt;');
   });
 });
-

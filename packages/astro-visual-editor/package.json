@@ -1,7 +1,7 @@
 {
   "name": "astro-visual-editor",
   "version": "0.1.0",
-  "description": "A development-only visual editor for Astro with click-to-edit content, a reviewable change queue, and safe source-file writes.",
+  "description": "A development-only visual editor for Astro with text and SEO editing, section drag-and-drop, a change ledger, and validated source writes.",
   "type": "module",
   "license": "MIT",
   "author": "Opace Digital Agency",
@@ -21,6 +21,9 @@
     "dev-overlay",
     "visual-editor",
     "content-editing",
+    "seo",
+    "drag-and-drop",
+    "page-builder",
     "static-site-editing",
     "tooling",
     "ui"

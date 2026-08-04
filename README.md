@@ -1,89 +1,72 @@
 # Astro Visual Editor
 
-Edit an Astro site where you can see it. Review every change before it touches
-your source files.
+Edit an Astro site where it renders. Queue text, SEO and section changes,
+review the complete batch, then write validated source updates through Astro's
+development toolbar.
 
 [![CI](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/workflows/ci.yml)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-2f3337.svg)](./LICENSE)
 [![Astro integration](https://img.shields.io/badge/Astro-integration-ff5d01.svg)](https://docs.astro.build/en/guides/integrations/)
 
-Astro Visual Editor is a development-only integration that adds click-to-edit
-content controls to Astro's Dev Toolbar. Changes appear immediately in the
-browser, collect in a visible ledger, and are written to source only when you
-commit the reviewed batch.
+Astro Visual Editor is a reusable, development-only Astro integration. It
+rebuilds every user-facing capability of the original site-specific localhost
+editor and replaces that prototype's unfinished save endpoints with typed,
+syntax-aware transactions.
 
-It is not a CMS, database or production admin panel. It is a local source
-workbench for developers and content teams who want the speed of visual editing
-without surrendering Astro's file-based architecture.
+> **Release status:** feature-complete against the legacy editor and validated
+> locally, but not published. GitHub creation, npm publication and the public
+> Astro directory listing remain explicit owner-approval gates.
 
-> **Release status:** extracted and locally validated. The package is not yet
-> published to npm, so the `astro add` command below becomes available with the
-> first approved public release.
+## What it does
 
-## Why it exists
+- Click rendered text and preview a replacement in place.
+- Edit title, description, keywords, canonical URL, Open Graph fields and
+  robots directives in one SEO form.
+- Add, delete and reorder declared sections.
+- Reorder with real pointer drag-and-drop, move buttons or keyboard controls.
+- Add sections from a reusable template registry.
+- Queue mixed text, SEO and structural changes in one visible ledger.
+- Undo and redo queued operations, remove individual changes or clear the batch.
+- Commit a validated batch and revert the last committed batch from its receipt.
+- Recover queued and in-flight work across Astro HMR and navigation.
+- Keep queues and responses isolated between multiple browser tabs.
+- Provide a compact touch Pick mode on narrow screens.
 
-Static sites are pleasant to own but awkward to edit when the person changing
-the sentence has to locate it across pages, layouts and components. The original
-prototype proved that browser-led editing could bridge that gap, but it was
-embedded inside one website and relied on site-specific localhost endpoints.
+The old editor documented drag-and-drop but only implemented up/down buttons.
+This package provides both genuine drag-and-drop and accessible button/keyboard
+alternatives.
 
-This repository turns that prototype into a real Astro integration:
+## Safety difference from the original
 
-- installed through Astro config rather than copied scripts;
-- presented through Astro's native Dev Toolbar;
-- connected to the server through Astro's toolbar channel;
-- restricted to development mode with no production editor endpoint;
-- fail-closed when a file mapping or text replacement is ambiguous;
-- packaged and described for `astro add` and Astro's integrations directory.
+The original `/api/update-sections` route returned success without modifying
+Astro source. Its text and SEO routes relied on broad string replacement. This
+package instead provides:
 
-## Core workflow
+- runtime-validated, size-bounded toolbar messages;
+- stable tab and request IDs with response filtering;
+- idempotent save receipts and safe retries;
+- project-root, source-root, extension and symlink-escape enforcement;
+- original-file hashes and stale-source rejection;
+- Astro compiler validation before `.astro` writes;
+- structured JSON/JSONC and YAML property-path updates;
+- Markdown/MDX frontmatter updates;
+- fail-closed ambiguity and section-region checks;
+- atomic per-file writes with best-effort batch rollback;
+- receipt-backed revert that refuses to overwrite newer file changes;
+- source writes disabled on network-exposed dev servers unless explicitly
+  enabled.
 
-```text
-Open astro dev
-      ↓
-Enable Visual Editor in the Dev Toolbar
-      ↓
-Click a visible text element
-      ↓
-Preview the replacement in the page
-      ↓
-Review old text, new text and source file in the ledger
-      ↓
-Undo individual changes or clear the queue
-      ↓
-Commit the validated batch to source
-      ↓
-Astro HMR renders the saved files
-```
+It adds no production route, editor client or public write endpoint.
 
-The browser preview and the filesystem write are separate actions. Clicking
-"Queue change" does not modify a file.
+## Install
 
-## Features
-
-- Native Astro Dev Toolbar app.
-- Click-to-edit headings, paragraphs, lists, labels, table text and explicitly
-  annotated elements.
-- Immediate visual previews with a reviewable change ledger.
-- Old/new value and expected source file shown for each edit.
-- Individual undo and clear-all controls before saving.
-- Batch validation before the first file is written.
-- Explicit source mappings for components and dynamic routes.
-- Sensible route-to-page fallback for conventional `src/pages` projects.
-- Protection against absolute paths, traversal, symbolic-link escapes,
-  disallowed extensions, stale source text and ambiguous replacements.
-- No production client bundle, API route or editing service.
-- Keyboard-visible focus states and reduced-motion support.
-
-## Installation
-
-After the first npm release, use Astro's integration installer:
+After the approved npm release:
 
 ```bash
 npx astro add astro-visual-editor
 ```
 
-Or install and configure it manually:
+Or install manually:
 
 ```bash
 npm install --save-dev astro-visual-editor
@@ -99,56 +82,147 @@ export default defineConfig({
 });
 ```
 
-Run your site normally:
+Run `npm run dev`, open Astro's Dev Toolbar, then select **Visual Editor**.
 
-```bash
-npm run dev
-```
+The integration follows Astro's documented integration and Dev Toolbar APIs:
 
-Open Astro's Dev Toolbar and select **Visual Editor**.
+- [Integration API](https://docs.astro.build/en/reference/integrations-reference/)
+- [Dev Toolbar App API](https://docs.astro.build/en/reference/dev-toolbar-app-reference/)
+- [Creating a Dev Toolbar app](https://docs.astro.build/en/recipes/making-toolbar-apps/)
 
-## Source mapping
+## Editor modes
 
-Rendered HTML does not always reveal which `.astro` file produced it. The
-editor therefore uses deliberate, inspectable mappings in this order.
+### Text
 
-### 1. Explicit file annotations
+Click an eligible leaf text element. The dialog shows its expected source file,
+previews the new value and adds it to the ledger without writing source.
 
-This is the most reliable option and is recommended for reusable components,
-dynamic routes and repeated content.
+Keyboard users can focus editable content and press `Alt+Enter`.
+
+### Sections
+
+Section persistence is deliberately explicit. Declare a source-owned region and
+give every direct section a stable ID:
 
 ```astro
-<h1 data-astro-edit-file="src/pages/index.astro">
-  A source-aware heading
-</h1>
+<div
+  data-astro-edit-region="homepage-sections"
+  data-astro-edit-file="src/pages/index.astro"
+>
+  <section data-section="hero">...</section>
+  <section data-section="services">...</section>
+  <section data-section="proof">...</section>
+</div>
 ```
 
-Annotate a wrapper when several simple text children come from the same file:
+The editable sections must be contiguous direct children of the region. This
+lets the Astro adapter preserve each complete source block while safely
+reordering, deleting or inserting it.
+
+Available controls:
+
+- add before or after;
+- move up or down;
+- drag handle for pointer reordering;
+- delete with confirmation;
+- `Alt+ArrowUp`, `Alt+ArrowDown` and `Alt+Delete` when a section is focused;
+- undo/redo before commit.
+
+Three neutral templates ship by default: `hero`, `features` and `text`.
+
+### SEO
+
+Mark the file that owns rendered metadata when it differs from the normal route
+mapping:
+
+```astro
+<html data-astro-edit-seo-file="src/pages/index.astro">
+```
+
+The SEO panel supports:
+
+- title;
+- meta description;
+- keywords;
+- canonical URL;
+- Open Graph title and description;
+- robots directives.
+
+For `.astro` owners, literal head elements are updated or inserted and the
+result is compiled before writing. For `.md` and `.mdx` owners, standard YAML
+frontmatter fields are updated. Length guidance is editorial and non-blocking;
+canonical URLs must be complete HTTP(S) URLs.
+
+### Review
+
+The ledger groups all queued changes by type and source file. It supports:
+
+- remove one change;
+- undo/redo the last queued operation;
+- clear all;
+- a single validated commit;
+- idempotent retry if the response is delayed;
+- revert the latest successful receipt while its files remain unchanged.
+
+Shortcuts: `Cmd/Ctrl+S` saves, `Cmd/Ctrl+Z` undoes and
+`Cmd/Ctrl+Shift+Z` or `Cmd/Ctrl+Y` redoes.
+
+## Source attribution
+
+Rendered HTML cannot universally reveal which file or structured field produced
+a value. The editor resolves ownership in this order.
+
+### Explicit file annotation
 
 ```astro
 <section data-astro-edit-file="src/components/Hero.astro">
-  <h1>Build content where it renders</h1>
-  <p>Queue first. Commit when the whole page reads correctly.</p>
+  <h1 data-astro-edit-id="hero-title">A source-aware heading</h1>
 </section>
 ```
 
-### 2. Selector mappings
+`data-astro-edit-id` is recommended for a stable browser selector.
 
-Shared chrome can be configured once:
+### Structured data path
+
+JSON, JSONC and YAML edits require an exact property path:
+
+```astro
+<h1
+  data-astro-edit-file="src/data/homepage.json"
+  data-astro-edit-path="hero.title"
+>
+  {homepage.hero.title}
+</h1>
+```
+
+Array indexes can use `items[2].title` or `items.2.title`.
+
+For Markdown frontmatter:
+
+```astro
+<h1
+  data-astro-edit-file="src/content/pages/about.md"
+  data-astro-edit-path="frontmatter.title"
+>
+  {entry.data.title}
+</h1>
+```
+
+Unstructured MDX body edits are refused because replacing text across expression
+boundaries cannot yet be proven safe.
+
+### Selector mappings
 
 ```js
 visualEditor({
   selectorMappings: {
-    header: 'src/components/Header.astro',
-    footer: 'src/components/Footer.astro',
+    '[data-site-header]': 'src/components/Header.astro',
     '[data-product-hero]': 'src/components/ProductHero.astro',
   },
 });
 ```
 
-### 3. Route mappings
-
-Use route mappings for dynamic or non-standard page structures:
+### Route mappings
 
 ```js
 visualEditor({
@@ -160,34 +234,53 @@ visualEditor({
 });
 ```
 
-### 4. Conventional fallback
+If no explicit mapping exists, `/about` is considered a candidate for
+`src/pages/about.astro` and `/` for `src/pages/index.astro`. The server still
+verifies the real file before writing.
 
-If no explicit mapping exists, `/about` resolves to
-`src/pages/about.astro`, while `/` resolves to `src/pages/index.astro`.
+## Eligibility controls
 
-The server still verifies that the resolved file exists inside Astro's `src`
-directory before accepting a write.
-
-## Marking complex elements
-
-By default, an element with nested markup is not edited because replacing its
-`textContent` could destroy links, spans or formatting. Opt in only when the
-whole element is intentionally plain text:
+Default selection covers common text elements. A node with nested elements is
+not flattened unless explicitly opted in:
 
 ```astro
-<div
-  data-astro-editable
-  data-astro-edit-file="src/components/Announcement.astro"
->
-  The whole value is safe to replace.
+<div data-astro-editable data-astro-edit-file="src/components/Notice.astro">
+  Replace the complete plain-text value.
 </div>
 ```
 
-Exclude an otherwise eligible element with:
+Exclude content with:
 
 ```astro
-<p data-astro-edit-ignore>Managed by an external data source.</p>
+<p data-astro-edit-ignore>Managed externally.</p>
 ```
+
+An owner-facing visual Editability Setup and content inventory remain planned.
+Today these policies are developer-owned configuration/source annotations.
+
+## Section templates
+
+Templates are server configuration, not browser-submitted markup:
+
+```js
+visualEditor({
+  sectionTemplates: [
+    {
+      id: 'callout',
+      name: 'Callout',
+      description: 'A short highlighted action block.',
+      markup: `<section data-section="{{id}}" class="callout">
+  <h2>Callout heading</h2>
+  <p>Edit this text after inserting the section.</p>
+</section>`,
+    },
+  ],
+});
+```
+
+Use `{{id}}` for the generated stable section ID. Markup must contain one
+literal `<section data-section="...">` root and must compile in the owning
+Astro file.
 
 ## Configuration
 
@@ -198,177 +291,128 @@ interface AstroVisualEditorOptions {
   excludeSelectors?: string[];
   fileMappings?: Record<string, string>;
   selectorMappings?: Record<string, string>;
-  allowedExtensions?: Array<'.astro' | '.md' | '.mdx' | '.json' | '.yaml' | '.yml'>;
-  maxChanges?: number;
-  maxTextLength?: number;
+  allowedExtensions?: Array<
+    '.astro' | '.md' | '.mdx' | '.json' | '.jsonc' | '.yaml' | '.yml'
+  >;
+  sectionTemplates?: SectionTemplate[];
+  maxChanges?: number;          // 100
+  maxTextLength?: number;       // 10,000
+  maxRequestBytes?: number;     // 1,000,000
+  maxSourceFileBytes?: number;  // 5,000,000
+  requestTimeoutMs?: number;    // 15,000
+  receiptTtlMs?: number;        // 10 minutes
+  historyLimit?: number;        // 50
   allowUnsafeSourceText?: boolean;
+  allowRemoteDev?: boolean;
 }
 ```
 
-### `enabled`
+`allowUnsafeSourceText` permits raw markup insertion into literal Astro text
+nodes. It is an expert escape hatch and remains off by default. The normal mode
+HTML-escapes structural characters so they remain visible text.
 
-Temporarily disables the integration without removing it from Astro config.
-Default: `true`.
+`allowRemoteDev` permits writes when Astro is bound to a non-loopback host. It
+is off by default because another device on the network could otherwise send
+development-toolbar write messages.
 
-### `editableSelectors`
+## Mobile and accessibility
 
-Controls which simple text elements can be selected. Supplying this option
-replaces the default selector list.
+At phone widths, enabling the editor opens compact Pick mode rather than the
+full workbench. Page content remains tappable, while **Review N** opens a bottom
+sheet containing every mode and commit state.
 
-### `excludeSelectors`
+Implemented accessibility behaviour includes:
 
-Elements matching or contained by these selectors are ignored. Supplying this
-option replaces the defaults.
+- native buttons, forms and modal dialogs;
+- explicit names/descriptions for dialogs and icon controls;
+- focus movement and native modal focus containment;
+- keyboard alternatives for selection and section ordering;
+- status announcements without replacing the ledger;
+- 44-pixel minimum interactive targets;
+- visible focus, reduced-motion and forced-colours support;
+- no horizontal overflow at 390 × 844.
 
-### `allowedExtensions`
-
-Restricts which source file types may be written. The default is `.astro`,
-`.md`, `.mdx`, `.json`, `.yaml` and `.yml`.
-
-### `maxChanges` and `maxTextLength`
-
-Bound the size of editing requests. Defaults: 100 queued changes and 10,000
-characters per replacement.
-
-### `allowUnsafeSourceText`
-
-Allows `<`, `>`, `{` and `}` in replacements. This is disabled by default
-because those characters can change Astro syntax. Prefer code editing for
-structural changes.
-
-## Planned editability setup — urgent enhancement
-
-At present, developers determine what can be selected through
-`editableSelectors`, `excludeSelectors`, source mappings and `data-astro-*`
-annotations. The toolbar does not yet provide an owner-facing setup interface
-for inspecting or changing those rules.
-
-An urgent planned enhancement will add a local **Editability Setup** mode that
-lists visible page content, explains why each value is editable or blocked, and
-lets an authorised site owner create reviewable project rules without manually
-editing templates. Those rules must remain subject to source-attribution,
-source-adapter and transaction safety checks; selecting an element must never
-imply that it is safe to write.
-
-This local setup mode is separate from a future authenticated production admin
-or client workflow. See
-[<removed internal document>](./<removed internal document>)
-for its requirements and sequencing.
-
-## Safety model
-
-Astro Visual Editor intentionally fails closed.
-
-Before writing a batch, the server confirms that:
-
-1. every path is project-relative;
-2. every real file is inside Astro's configured `src` directory;
-3. symbolic links do not escape that directory;
-4. every extension is allowed;
-5. every replacement has a non-empty old and new value;
-6. every original value occurs exactly once in the expected file;
-7. every replacement respects configured size and character limits;
-8. the complete batch is valid before the first write begins.
-
-If any edit fails validation, no source file is changed. If a filesystem write
-fails after validation, files already written by that batch are rolled back on
-a best-effort basis.
-
-Always review the resulting Git diff before committing.
+The browser suite runs an axe check for critical/serious violations in the
+mobile queued-workbench state.
 
 ## Architecture
 
 ```text
-Astro integration
-  ├── astro:config:setup
-  │     └── registers the Dev Toolbar app during `astro dev`
-  ├── toolbar client (Shadow DOM)
-  │     ├── page selection and visual preview
-  │     ├── source mapping
-  │     └── queued change ledger
+Astro integration (development command only)
+  ├── astro:config:setup → registers Dev Toolbar app
+  ├── toolbar client
+  │     ├── text / SEO / section controllers
+  │     ├── preview ledger and undo/redo history
+  │     ├── session recovery and tab/request isolation
+  │     └── compact touch picker
   └── astro:server:setup
-        ├── receives namespaced toolbar messages
-        ├── validates the complete batch
-        └── writes approved source files
+        ├── runtime protocol validation and remote-host gate
+        ├── transaction manager, receipts and revert
+        └── source adapters
+              ├── Astro literal text / head metadata / section regions
+              ├── Markdown body and YAML frontmatter
+              ├── JSON / JSONC property paths
+              └── YAML property paths
 ```
 
-There is no standalone Express server and no production editing endpoint.
+## Current boundaries
 
-## What it deliberately does not do
+- It is a local development editor, not an authenticated production CMS.
+- Source ownership still requires annotations/mappings for component props,
+  shared data and non-conventional routes.
+- It does not rewrite arbitrary Astro component structure; section operations
+  require declared, contiguous regions with stable IDs.
+- It does not infer every import/data dependency or provide the planned full
+  page-content inventory.
+- Receipt reversion survives HMR but is held in the dev-server process; restart-
+  persistent/Git-backed history remains future work.
+- `allowUnsafeSourceText` can intentionally create structural markup and should
+  be enabled only by developers reviewing the resulting Git diff.
 
-- It does not edit arbitrary HTML structures or Astro expressions.
-- It does not infer a reliable source location for every component tree.
-- It does not replace Git, code review or a content model.
-- It does not expose editing in a deployed production site.
-- It does not silently choose between duplicate source strings.
+These are explicit capability boundaries, not silent fallbacks. Unsupported,
+ambiguous or stale edits are rejected.
 
-For complex content, annotate the owning source file or edit the code directly.
-
-## Compatibility
-
-- Astro 7.1.6 or newer in the current major line.
-- Node.js 22.12 or newer, matching Astro 7's runtime requirement.
-- Modern browsers with Astro Dev Toolbar support.
-- Static and server-rendered Astro projects during local development.
-
-The editing workflow is intended for desktop browsers. The ledger scales to a
-narrow viewport without horizontal overflow, but Astro's Dev Toolbar uses a
-full-width overlay at phone sizes, so touch selection of the page underneath is
-not supported.
-
-The CI matrix runs on supported Node.js 22 and 24 lines. Astro's current
-release is used by the demo fixture.
-
-## Development and testing
-
-The repository follows Astro's recommended workspace structure: a publishable
-package plus a real demo project with fixture pages.
+## Development and validation
 
 ```bash
-git clone https://github.com/OpaceDigitalAgency/astro-visual-editor.git
-cd astro-visual-editor
 npm install
-npm run dev
-```
-
-Run the complete validation suite:
-
-```bash
 npm run test:all
 ```
 
-This builds the integration, runs unit and security-boundary tests, type-checks
-the package, checks and builds the Astro demo, and inspects the npm tarball.
+The complete suite:
 
-## Publishing and Astro's integrations directory
+1. builds the package;
+2. runs unit, adapter, protocol and transaction tests;
+3. type-checks the package and demo;
+4. creates a production demo build and verifies production isolation;
+5. inspects the npm tarball;
+6. runs Playwright workflows for text, SEO, templates, add/delete/reorder,
+   genuine drag-and-drop, keyboard/touch, HMR receipts, revert and two-tab
+   isolation;
+7. runs the accessibility scan.
 
-The package metadata is designed for Astro's current discovery rules:
+CI tests Node.js 22.12 and 24 and installs Chromium before the browser suite.
 
-- default export is an integration factory function;
-- `astro-integration` enables `astro add` handling;
-- `withastro`, `devtools`, `dev-overlay` and `dev-toolbar` provide ecosystem and
-  category discovery;
-- `name`, `description`, `repository` and `homepage` are present for the Astro
-  integrations directory;
-- the package publishes only its built runtime, types, licence and README.
+## Astro integration discovery
 
-Once published to npm, Astro's integrations directory automatically imports
-matching packages on its weekly refresh. A separate Astro issue is only needed
-for a custom avatar or listing override.
+The package follows Astro's current published rules:
 
-## Project status
+- default export is an integration factory;
+- `astro-integration` is present for `astro add`;
+- `withastro` is present for the weekly integrations-directory import;
+- package metadata includes its repository, homepage and description;
+- the package exports only its built runtime, types, licence and package README.
 
-See [<removed internal document>](./<removed internal document>) for the evidence-backed release checklist and
-[<removed internal document>](./<removed internal document>)
-for the implementation roadmap and takeover brief. See
-[CHANGELOG.md](./CHANGELOG.md) for release history. Version `0.1.0` remains
-unreleased while the documented beta-hardening work and public GitHub/npm gates
-remain incomplete.
+Astro documents that the integrations library is refreshed weekly from
+qualifying npm packages. Publication remains gated in [<removed internal document>](./<removed internal document>).
 
-## Contributing
+## Project documents
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Security issues should follow
-[SECURITY.md](./SECURITY.md).
+- [<removed internal document>](./<removed internal document>) — release truth and gates.
+- [<removed internal document>](./<removed internal document>) — exact legacy-to-package comparison.
+- [<removed internal document>](./<removed internal document>) — remaining roadmap.
+- [Complete research and assessment](./Astro%20Integrated%20CMS%20%26%20Frontend%20Editing_%20Complete%20Research%20%26%20Assessment.md) — market context.
+- [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
 
 ## Licence
 

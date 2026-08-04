@@ -151,6 +151,7 @@ export default defineToolbarApp({
     const initialSections = new Map<string, SectionDescriptor[]>();
     const regionAnchors = new WeakMap<HTMLElement, Comment>();
     const listenerController = new AbortController();
+    let sectionListenerController = new AbortController();
     let config = defaultConfig;
     let configReady = false;
     let active = false;
@@ -162,6 +163,7 @@ export default defineToolbarApp({
     let deleteTarget: HTMLElement | null = null;
     let saveInFlight = false;
     let timeoutId: number | undefined;
+    let receiptPollId: number | undefined;
     let pendingRequestId = sessionStorage.getItem(SESSION_PENDING) ?? undefined;
     let lastReceiptId = sessionStorage.getItem(SESSION_RECEIPT) ?? undefined;
     let minimized = matchMedia('(max-width: 640px)').matches;
@@ -489,6 +491,10 @@ export default defineToolbarApp({
       const filePath = sourceFileFor(editing, config);
       const key = `text:${filePath}:${selector}`;
       const existing = queue.get(key);
+      if (!existing && queue.size >= config.maxChanges) {
+        showMessage(`The queue limit is ${config.maxChanges} changes. Remove or commit a change first.`, 'error');
+        return;
+      }
       const oldText = existing?.kind === 'text' ? existing.oldText : editing.textContent?.trim() ?? '';
       if (!newText) {
         showMessage('Replacement text cannot be empty. Delete a section in Sections mode instead.', 'error');
@@ -568,6 +574,8 @@ export default defineToolbarApp({
     }
 
     function setupSectionControls(): void {
+      sectionListenerController.abort();
+      sectionListenerController = new AbortController();
       document.querySelectorAll('[data-astro-ve-ui]').forEach((element) => element.remove());
       document.querySelectorAll<HTMLElement>('[data-astro-ve-section-active]').forEach((section) => {
         section.removeAttribute('data-astro-ve-section-active'); section.removeAttribute('tabindex'); section.removeAttribute('aria-label');
@@ -597,9 +605,9 @@ export default defineToolbarApp({
           addControl(controls, `Add section after ${id}`, '+↓', () => openTemplates(section, 'after'));
           addControl(controls, `Delete section ${id}`, '×', () => { deleteTarget = section; confirmDialog.showModal(); confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus(); });
           section.append(controls);
-          section.addEventListener('dragover', onSectionDragOver, { signal: listenerController.signal });
-          section.addEventListener('dragleave', () => delete section.dataset.astroVeDragOver, { signal: listenerController.signal });
-          section.addEventListener('drop', onSectionDrop, { signal: listenerController.signal });
+          section.addEventListener('dragover', onSectionDragOver, { signal: sectionListenerController.signal });
+          section.addEventListener('dragleave', () => delete section.dataset.astroVeDragOver, { signal: sectionListenerController.signal });
+          section.addEventListener('drop', onSectionDrop, { signal: sectionListenerController.signal });
         }
       }
     }
@@ -684,6 +692,10 @@ export default defineToolbarApp({
       const filePath = seoDialog.querySelector<HTMLElement>('.dialog-file')!.textContent!;
       const key = `seo:${filePath}`;
       const existing = queue.get(key);
+      if (!existing && queue.size >= config.maxChanges) {
+        showMessage(`The queue limit is ${config.maxChanges} changes. Remove or commit a change first.`, 'error');
+        return;
+      }
       const before = existing?.kind === 'seo' ? existing.before : seoValues();
       mutate(() => {
         if (JSON.stringify(before) === JSON.stringify(after)) queue.delete(key);
@@ -734,6 +746,10 @@ export default defineToolbarApp({
       pendingRequestId ??= crypto.randomUUID();
       sessionStorage.setItem(SESSION_PENDING, pendingRequestId);
       server.send(SAVE_EVENT, { clientId, requestId: pendingRequestId, changes: serializableQueue() });
+      window.clearInterval(receiptPollId);
+      receiptPollId = window.setInterval(() => {
+        if (pendingRequestId) server.send(RECEIPT_EVENT, { clientId, requestId: pendingRequestId });
+      }, 750);
       window.clearTimeout(timeoutId);
       timeoutId = window.setTimeout(() => {
         saveInFlight = false;
@@ -746,6 +762,7 @@ export default defineToolbarApp({
     function handleSaveResponse(response: SaveResponse): void {
       if (response.clientId !== clientId || response.requestId !== pendingRequestId) return;
       window.clearTimeout(timeoutId); saveInFlight = false;
+      window.clearInterval(receiptPollId);
       if (response.success) {
         queue.clear(); history.record([]); pendingRequestId = undefined;
         sessionStorage.removeItem(SESSION_PENDING); sessionStorage.removeItem(SESSION_QUEUE);

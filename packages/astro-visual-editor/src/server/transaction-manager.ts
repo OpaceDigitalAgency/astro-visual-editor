@@ -129,6 +129,18 @@ export class TransactionManager {
     afterHashes: Receipt['afterHashes'];
   }> {
     if (changes.length === 0) throw new Error('At least one queued change is required.');
+    if (changes.length > this.options.maxChanges) {
+      throw new Error(`A batch cannot contain more than ${this.options.maxChanges} changes.`);
+    }
+    for (const change of changes) {
+      if (change.kind === 'text') {
+        if (!change.oldText || !change.newText) throw new Error('Text changes require oldText and newText.');
+        if (change.newText.length > this.options.maxTextLength) {
+          throw new Error(`Edited text exceeds the ${this.options.maxTextLength}-character limit.`);
+        }
+        if (change.newText.includes('\0')) throw new Error('Edited text cannot contain a null byte.');
+      }
+    }
     const byPath = new Map<string, EditorChange[]>();
     for (const change of changes) {
       const list = byPath.get(change.filePath) ?? [];

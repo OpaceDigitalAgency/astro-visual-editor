@@ -68,6 +68,10 @@ export function applyMarkdownSeo(source: string, change: SeoEditorChange): strin
     for (const field of Object.keys(change.after) as SeoField[]) {
       if (change.after[field] === change.before[field]) continue;
       const path = seoPaths[field];
+      const current = String(document.getIn(path, true) ?? '');
+      if (current !== change.before[field]) {
+        throw new Error(`SEO frontmatter changed before commit: ${field}.`);
+      }
       if (change.after[field]) document.setIn(path, change.after[field]);
       else document.deleteIn(path);
     }

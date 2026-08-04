@@ -19,12 +19,14 @@ programme.
 Read these documents in order:
 
 1. [PROJECT.md](./PROJECT.md) — current release truth and external gates.
-2. This handoff — engineering priorities and acceptance criteria.
-3. [README.md](./README.md) — present package behaviour and usage.
-4. [Astro Integrated CMS & Frontend Editing: Complete Research & Assessment](./Astro%20Integrated%20CMS%20%26%20Frontend%20Editing_%20Complete%20Research%20%26%20Assessment.md) — market and product context.
-5. [Strategic product review](./.agent/docs/astro-visual-editor/strategic-product-review.md) — current product recommendations and changes to the original strategy.
-6. [Current engineering review](./.agent/docs/astro-visual-editor/project-review.md) — code-quality findings and remaining maintainability work.
-7. [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
+2. [RELEASE_PLAN.md](./RELEASE_PLAN.md) — authoritative version sequence,
+   easy-test workflow and takeover plan.
+3. This handoff — engineering priorities and acceptance criteria.
+4. [README.md](./README.md) — present package behaviour and usage.
+5. [Astro Integrated CMS & Frontend Editing: Complete Research & Assessment](./Astro%20Integrated%20CMS%20%26%20Frontend%20Editing_%20Complete%20Research%20%26%20Assessment.md) — market and product context.
+6. [Strategic product review](./.agent/docs/astro-visual-editor/strategic-product-review.md) — current product recommendations and changes to the original strategy.
+7. [Current engineering review](./.agent/docs/astro-visual-editor/project-review.md) — code-quality findings and remaining maintainability work.
+8. [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
 
 If a historical claim conflicts with the current code or `PROJECT.md`, inspect
 the code and update the project document rather than relying on the historical
@@ -99,7 +101,8 @@ site-specific mappings into the standalone package.
 - Keep the editor out of production builds and avoid a public write endpoint in
   the core package.
 - Retain `astro-integration` package metadata for `astro add` and directory
-  discovery.
+  discovery, plus `withastro` and current category keywords for Astro's
+  scheduled importer.
 - Maintain a real demo plus fixture pages and production-output checks.
 
 Primary references:
@@ -499,6 +502,11 @@ provenance after the trusted publisher was configured and read back. Both npm
 to use version-matched `v*` tags and the protected workflow; do not reintroduce
 a long-lived npm publish token.
 
+Astro's current unmodified importer has also been run locally against the live
+npm registry. It added beta.2 with the correct Opace homepage and repository,
+and classified it under Dev Toolbar, Performance + SEO, Utilities and CSS + UI.
+The public catalogue card and issue #2597 avatar remain external Astro outcomes.
+
 Astro's CLI does not accept a dist-tag suffix in `astro add`. Use
 `npx astro add @opacedev/astro-visual-editor` for automatic setup, or install
 `@opacedev/astro-visual-editor@beta` manually before editing the config.
@@ -516,7 +524,11 @@ npm pack --workspace @opacedev/astro-visual-editor --dry-run
 ```
 
 The demo normally uses Astro's default port. When testing alongside other local
-services, bind an isolated explicit port and do not stop unrelated processes.
+services, use the repeatable command and do not stop unrelated processes:
+
+```bash
+npm run dev --workspace astro-visual-editor-demo -- --host 127.0.0.1 --port 4322
+```
 
 ## Definition of release-ready beta
 
@@ -531,13 +543,14 @@ Current evidence:
 7. Documentation matches the implemented capability contract — complete.
 8. Clean-registry consumer build — complete with Astro 7.1.6 and beta.2.
 9. Trusted OIDC publication and provenance — complete on beta.2.
-10. Astro directory listing — importer eligibility complete; scheduled public rendering pending.
+10. Astro directory listing — exact importer preflight complete; scheduled public rendering pending.
 11. Owner acceptance — required before stable `0.1.0`.
 
 ## Suggested next takeover task
 
-Complete restart-persistent local safety and the pre-commit diff UX as one
-bounded component:
+Complete the `0.1.0-beta.3` scope from [RELEASE_PLAN.md](./RELEASE_PLAN.md):
+restart-persistent local safety and the pre-commit diff UX as one bounded
+component.
 
 1. Persist a bounded, checksummed receipt history under an ignored project-local
    `.astro-visual-editor/` directory.
@@ -547,8 +560,8 @@ bounded component:
 5. Test server restart recovery, tampered history, expired history and revert.
 6. Rerun the complete baseline and update `PROJECT.md`.
 
-Keep Git auto-commit, remote providers, authentication and public publication
-outside this bounded task.
+Keep Git auto-commit, remote providers, authentication and a new public npm
+version outside this bounded task unless publication is explicitly authorised.
 
 ## Copyable prompt for a new Codex project
 
@@ -557,13 +570,15 @@ Continue the Astro Visual Editor project in:
 /Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor
 
 Read all applicable AGENTS.md files, then read PROJECT.md,
-ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md, README.md and the complete research
-assessment before changing anything. Treat PROJECT.md and the handoff as current
-engineering truth.
+RELEASE_PLAN.md, ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md, README.md,
+SECURITY.md and both current reviews under .agent/docs before changing anything.
+Treat PROJECT.md as release truth, RELEASE_PLAN.md as the authoritative version
+sequence and the handoff as engineering acceptance criteria.
 
-Complete only the "Suggested next takeover task" from the handoff: persistent
-local receipt history and the pre-commit diff UX. Keep Git auto-commit, remote
-providers and npm publication gated. Preserve unrelated user files and changes.
-Test the component, run the full regression baseline, update
-project/status documents and report exact evidence.
+Complete only the `0.1.0-beta.3` task: persistent local receipt history and the
+exact pre-commit diff UX. Keep Git auto-commit, remote providers,
+authentication, arbitrary block drops and any new npm publication out of scope
+unless explicitly authorised. Preserve unrelated user files and changes. Test
+the component, run the full regression baseline, update project/status
+documents and report exact push and CI evidence.
 ```

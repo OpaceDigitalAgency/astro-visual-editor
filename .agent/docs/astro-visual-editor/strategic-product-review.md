@@ -7,6 +7,8 @@ gaps and recommended investment order
 This review is current against `main` on the reviewed date. Engineering release
 truth remains in [`PROJECT.md`](../../../PROJECT.md), while exact legacy parity is
 recorded in [`FEATURE_PARITY.md`](../../../FEATURE_PARITY.md).
+The current version sequence and takeover plan are in
+[`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md).
 The separate reusable-theme opportunity is specified in
 [`ASTRO_THEME_PRODUCT_PLAN.md`](../../../ASTRO_THEME_PRODUCT_PLAN.md).
 
@@ -94,6 +96,8 @@ communicate the operation clearly enough.
 - npm's live `astro-integration` and `withastro` keyword searches both return
   beta.2 with the canonical Opace homepage and GitHub repository, matching the
   inputs used by Astro's scheduled importer.
+- Astro's current unmodified importer generated the expected entry with Dev
+  Toolbar, Performance + SEO, Utilities and CSS + UI categories.
 - Astro's custom avatar request is open as
   [withastro/astro.build#2597](https://github.com/withastro/astro.build/issues/2597).
 
@@ -306,7 +310,9 @@ Before stable `0.1.0`:
 Ship and learn from the local beta before building a remote CMS.
 
 The next implementation should combine restart-persistent recovery with an
-exact pre-commit diff. Follow that with Editability Setup/content inventory.
+exact pre-commit diff as `0.1.0-beta.3`, following
+[`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md). Follow that with Editability
+Setup/content inventory.
 Those two investments strengthen trust and onboarding for every future path,
 including a later authenticated Git/PR product.
 

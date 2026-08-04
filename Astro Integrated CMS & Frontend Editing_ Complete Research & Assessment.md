@@ -6,8 +6,12 @@
 > The extracted standalone package has a different, safer architecture and now
 > includes every documented user-facing legacy feature for local development,
 > plus genuine section drag-and-drop and hardened persistence. For current
-> engineering truth, priorities and takeover instructions, read
+> release truth and version sequence, read [PROJECT.md](./PROJECT.md) and
+> [RELEASE_PLAN.md](./RELEASE_PLAN.md). For detailed engineering acceptance
+> criteria, read
 > [ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md](./ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md).
+> The package is now a public beta; this research document remains a historical
+> market snapshot rather than a live third-party product comparison.
 
 ## The Goal
 
@@ -447,7 +451,12 @@ Invest in upgrading the Astro Visual Editor's write layer:
 5. Reuse the existing SEO/frontmatter transaction pipeline rather than creating
    a second remote-only implementation.
 
-This would give you a tool that no other product in the Astro ecosystem offers: a visual, click-on-the-page editor that works with any site architecture, shows all content in one unified view (the page itself), and lets non-technical clients edit and approve changes on a deployed site.
+This could produce a differentiated visual, click-on-the-page editor for
+reviewed Astro architectures. It must not claim universal source attribution:
+explicit mappings and bounded deterministic tracing remain necessary wherever
+the rendered page cannot prove which source field produced a value. A remote
+edition would additionally let authorised non-technical clients propose and
+approve changes through a deployed editing surface.
 
 **If you want an off-the-shelf fallback while building the above:**
 

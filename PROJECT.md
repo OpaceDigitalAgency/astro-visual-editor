@@ -4,6 +4,8 @@ This document is the release source of truth for Astro Visual Editor.
 
 The implementation roadmap and takeover instructions are maintained in
 [ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md](./ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md).
+The authoritative version sequence, easy-test workflow and future release gates
+are maintained in [RELEASE_PLAN.md](./RELEASE_PLAN.md).
 
 ## Bounded objective
 
@@ -61,7 +63,7 @@ have been replaced by source adapters and hardened transactions.
 | Release automation            | Complete                       | npm trusted publisher is bound to `OpaceDigitalAgency/astro-visual-editor` and `release.yml`; beta.2 was published by OIDC with SLSA provenance ([run #30927523309](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/30927523309)) |
 | npm publication               | Complete                       | [`@opacedev/astro-visual-editor@0.1.0-beta.2`](https://www.npmjs.com/package/@opacedev/astro-visual-editor) is public; `latest` and `beta` resolve to beta.2                                                                                             |
 | Real registry consumer        | Complete                       | A fresh Astro 7.1.6 project ran `npx astro add @opacedev/astro-visual-editor`, installed beta.2, updated config and completed a production build                                                                                                         |
-| Astro importer eligibility    | Complete                       | npm's live search returns beta.2 for both `astro-integration` and `withastro`, with the canonical Opace homepage and repository; package is absent from Astro's blocklist                                                                                |
+| Astro importer eligibility    | Complete                       | npm's live search returns beta.2 for both `astro-integration` and `withastro`; the package is absent from Astro's blocklist; Astro's unmodified `update-integrations --unsafe` script generated the expected entry and four category mappings            |
 | Astro directory appearance    | Pending external weekly import | Astro refreshes qualifying npm packages automatically; the public listing must still be rendered-verified after the scheduled import                                                                                                                     |
 | Directory avatar              | Pending Astro maintainer merge | A 64 × 64 SVG and metadata request were submitted in [withastro/astro.build#2597](https://github.com/withastro/astro.build/issues/2597)                                                                                                                  |
 
@@ -79,7 +81,10 @@ approved public-beta sequence on 4 August 2026 was:
    complete a production build;
 6. verify that npm's actual keyword search—the source used by Astro's
    importer—returns the package under both qualifying keywords;
-7. submit the custom avatar and metadata request to Astro.
+7. run Astro's current unmodified importer locally against the registry and
+   confirm it adds the package with the Opace homepage, GitHub repository and
+   Dev Toolbar, Performance + SEO, Utilities and CSS + UI categories; and
+8. submit the custom avatar and metadata request to Astro.
 
 Astro 7.1.6 rejects npm version and dist-tag suffixes in `astro add`. The proven
 automatic command is `npx astro add @opacedev/astro-visual-editor`. Users who
@@ -109,3 +114,7 @@ complete until their public result is visibly verified.
 - Commit receipts survive HMR but not a complete dev-server restart; persistent
   Git/disk history remains roadmap work.
 - The local editor now supports desktop and compact touch workflows.
+
+The next bounded implementation and all later proposed versions are defined in
+[RELEASE_PLAN.md](./RELEASE_PLAN.md). Do not reuse version assignments from an
+older task or publish another npm version without reconciling that plan first.

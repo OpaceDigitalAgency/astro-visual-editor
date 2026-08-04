@@ -5,17 +5,21 @@
 
 This is a current code review, not the earlier prototype snapshot. Release
 status and external gates are authoritative in [`PROJECT.md`](../../../PROJECT.md).
+The current version sequence and takeover gates are maintained in
+[`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md).
 
 ## Verdict
 
-The repository is a credible standalone local-beta candidate for its documented
-scope. The unsafe and incomplete legacy write paths are not present in the new
-architecture. Text, SEO and declared section operations run through typed,
-validated transactions and are covered by unit and real browser tests.
+The repository is a verified standalone public beta for its documented local-
+development scope. The unsafe and incomplete legacy write paths are not present
+in the new architecture. Text, SEO and declared section operations run through
+typed, validated transactions and are covered by unit and real browser tests.
 
-It should remain a prerelease until public CI, owner acceptance and ecosystem
-installation/listing checks are complete. It is not an authenticated production
-CMS.
+Beta.2 is public on npm, published through trusted GitHub OIDC with provenance,
+and proven in a clean registry consumer. It should remain a prerelease until
+owner acceptance and the remaining product hardening are complete. Astro's
+directory card and avatar are external pending outcomes, not missing package
+work. The product is not an authenticated production CMS.
 
 ## Implemented architecture
 
@@ -141,10 +145,12 @@ path. Further release hardening should add:
 
 ### 6. Repository quality automation
 
-Formatting, linting, Dependabot, the Node 22.12/24 CI matrix and a trusted npm
-publishing workflow are now present. The remaining release-engineering work is
-external configuration and evidence: bootstrap the npm package, bind its trusted
-publisher, rerun the full release commit in public CI and verify provenance.
+Formatting, linting, Dependabot, the Node 22.12/24 CI matrix and trusted npm
+publishing are implemented and verified. Beta.2 was published from
+`release.yml` through npm OIDC with SLSA provenance; the anonymous registry
+consumer and current main CI also pass. Remaining distribution work is to
+observe Astro's scheduled catalogue import, verify its rendered card and avatar,
+and retain the same evidence for future releases.
 
 ## Security review
 
@@ -174,15 +180,21 @@ Current local evidence:
 - demo production build clean;
 - npm tarball inspection clean;
 - tarball installed and built in a fresh Astro 7.1.6 consumer;
+- public beta.2 installed and built from the anonymous npm registry;
+- beta.2 published through the configured trusted publisher with SLSA
+  provenance;
 - dependency audit reports zero known vulnerabilities.
 
 CI is configured for Node 22.12 and 24 with Chromium installation, and both jobs
-have passed publicly on the current prerelease lineage. The release commit must
-still pass again after the remaining documentation and website changes land.
+have passed publicly on the beta.2 release commit and the latest documentation
+commit. npm's qualifying searches return the package, and it is absent from
+Astro's importer blocklist. The public directory card and issue #2597 avatar
+remain controlled by Astro.
 
 ## Recommended next task
 
 Implement restart-persistent receipt history and exact pre-commit file diffs as
 one bounded component, following the acceptance criteria in the engineering
-handoff. Then implement Editability Setup/content inventory on top of that
-durable review model.
+handoff and the `0.1.0-beta.3` scope in
+[`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md). Then implement Editability
+Setup/content inventory on top of that durable review model.

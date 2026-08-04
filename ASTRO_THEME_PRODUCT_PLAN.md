@@ -5,6 +5,10 @@
 **Related product:**
 [`@opacedev/astro-visual-editor`](https://github.com/OpaceDigitalAgency/astro-visual-editor)
 
+The integration's current public-release sequence is maintained separately in
+[`RELEASE_PLAN.md`](./RELEASE_PLAN.md). Do not merge the theme delivery phases
+into the integration's beta version train.
+
 ## Purpose
 
 Create a genuinely reusable, content-rich Astro theme that demonstrates the

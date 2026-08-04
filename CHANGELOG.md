@@ -4,6 +4,22 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## 0.1.0-beta.2 - 2026-08-04
+
+### Fixed
+
+- Corrected the automatic-install command after a clean registry test proved
+  Astro 7.1.6 rejects npm version and dist-tag suffixes in `astro add` package
+  names.
+- Linked package badges directly to the public npm listing.
+
+### Changed
+
+- Pinned the OIDC release workflow to npm 11.19.0.
+- Added the reusable Astro theme product, quality and Developer Portal
+  submission plan.
+- Added a catalogue-ready 64 × 64 product avatar.
+
 ## 0.1.0-beta.1 - 2026-08-04
 
 ### Added

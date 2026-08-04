@@ -1,8 +1,4 @@
-import type {
-  ClientEditorConfig,
-  EditableFileExtension,
-  SectionTemplate,
-} from './shared/types.js';
+import type { ClientEditorConfig, EditableFileExtension, SectionTemplate } from './shared/types.js';
 
 export interface AstroVisualEditorOptions {
   enabled?: boolean;
@@ -179,10 +175,7 @@ export function normalizeOptions(options: AstroVisualEditorOptions = {}): Normal
     maxChanges: positiveInteger(options.maxChanges, defaults.maxChanges),
     maxTextLength: positiveInteger(options.maxTextLength, defaults.maxTextLength),
     maxRequestBytes: positiveInteger(options.maxRequestBytes, defaults.maxRequestBytes),
-    maxSourceFileBytes: positiveInteger(
-      options.maxSourceFileBytes,
-      defaults.maxSourceFileBytes,
-    ),
+    maxSourceFileBytes: positiveInteger(options.maxSourceFileBytes, defaults.maxSourceFileBytes),
     requestTimeoutMs: positiveInteger(options.requestTimeoutMs, defaults.requestTimeoutMs),
     receiptTtlMs: positiveInteger(options.receiptTtlMs, defaults.receiptTtlMs),
     historyLimit: positiveInteger(options.historyLimit, defaults.historyLimit),

@@ -1,11 +1,5 @@
 export type EditableFileExtension =
-  | '.astro'
-  | '.md'
-  | '.mdx'
-  | '.json'
-  | '.jsonc'
-  | '.yaml'
-  | '.yml';
+  '.astro' | '.md' | '.mdx' | '.json' | '.jsonc' | '.yaml' | '.yml';
 
 export interface SectionTemplate {
   id: string;
@@ -15,7 +9,7 @@ export interface SectionTemplate {
   markup: string;
 }
 
-export interface ClientSectionTemplate extends SectionTemplate {}
+export type ClientSectionTemplate = SectionTemplate;
 
 export interface BaseEditorChange {
   id: string;
@@ -33,13 +27,7 @@ export interface TextEditorChange extends BaseEditorChange {
 }
 
 export type SeoField =
-  | 'title'
-  | 'description'
-  | 'keywords'
-  | 'canonical'
-  | 'ogTitle'
-  | 'ogDescription'
-  | 'robots';
+  'title' | 'description' | 'keywords' | 'canonical' | 'ogTitle' | 'ogDescription' | 'robots';
 
 export type SeoValues = Record<SeoField, string>;
 

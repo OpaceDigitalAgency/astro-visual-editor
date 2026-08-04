@@ -1,23 +1,45 @@
-# Astro Visual Editor
+# Astro Visual Editor: Change Text, SEO & Drag & Drop Sections in the Front-End
+
+![Astro Visual Editor by Opace: a source-aware front-end editor with a reviewable text, section and SEO change ledger](./.github/assets/astro-visual-editor-social-card.svg)
 
 Edit an Astro site where it renders. Queue text, SEO and section changes,
 review the complete batch, then write validated source updates through Astro's
 development toolbar.
 
 [![CI](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/workflows/ci.yml)
+[![Product page](https://img.shields.io/badge/product-Opace-ff7a3d.svg)](https://opace.agency/tools/astro/visual-editor/)
+[![Package](https://img.shields.io/badge/package-%40opacedev%2Fastro--visual--editor-cb3837.svg)](./<removed internal document>#release-gates)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-2f3337.svg)](./LICENSE)
 [![Astro integration](https://img.shields.io/badge/Astro-integration-ff5d01.svg)](https://docs.astro.build/en/guides/integrations/)
+
+[Product page](https://opace.agency/tools/astro/visual-editor/) ·
+[Install](#install) · [Try the demo](#try-the-repository-demo) ·
+[Configuration](#configuration) · [Security](./SECURITY.md) ·
+[Contributing](./CONTRIBUTING.md)
 
 Astro Visual Editor is a reusable, development-only Astro integration. It
 rebuilds every user-facing capability of the original site-specific localhost
 editor and replaces that prototype's unfinished save endpoints with typed,
 syntax-aware transactions.
 
+It is created and maintained by [Opace Digital Agency's Astro development
+team](https://opace.agency/services/web-design/astro-development/). If you need
+a wider website project, see [Opace web design](https://opace.agency/services/web-design/)
+or [get in touch](https://opace.agency/get-in-touch/).
+
 > **Release status:** feature-complete against the legacy editor and validated
-> locally. The source repository is public on
-> [GitHub](https://github.com/OpaceDigitalAgency/astro-visual-editor); npm
-> publication and the Astro directory listing remain separate owner-approval
-> gates.
+> locally and in public CI. The package identity is
+> `@opacedev/astro-visual-editor`; npm publication and Astro directory discovery
+> remain separate release gates. Exact evidence is maintained in
+> [<removed internal document>](./<removed internal document>).
+
+| At a glance     | Behaviour                                                                         |
+| --------------- | --------------------------------------------------------------------------------- |
+| Editing surface | Astro's native development toolbar on the rendered page                           |
+| Content         | Literal Astro/Markdown text plus explicitly mapped JSON, JSONC and YAML fields    |
+| Page structure  | Add, delete and reorder sections inside declared source-owned regions             |
+| Review          | One mixed text, SEO and section ledger with undo, redo, commit and guarded revert |
+| Safety boundary | Local development only; no editor client or write endpoint in production          |
 
 ## What it does
 
@@ -66,22 +88,24 @@ It adds no production route, editor client or public write endpoint.
 
 ## Install
 
-After the approved npm release:
+The following commands are ready for the approved public beta. Until npm
+publication is confirmed in [<removed internal document>](./<removed internal document>), clone this repository
+and use the demo workflow below.
 
 ```bash
-npx astro add astro-visual-editor
+npx astro add @opacedev/astro-visual-editor@beta
 ```
 
 Or install manually:
 
 ```bash
-npm install --save-dev astro-visual-editor
+npm install --save-dev @opacedev/astro-visual-editor@beta
 ```
 
 ```js
 // astro.config.mjs
 import { defineConfig } from 'astro/config';
-import visualEditor from 'astro-visual-editor';
+import visualEditor from '@opacedev/astro-visual-editor';
 
 export default defineConfig({
   integrations: [visualEditor()],
@@ -138,10 +162,7 @@ Section persistence is deliberately explicit. Declare a source-owned region and
 give every direct section a stable ID:
 
 ```astro
-<div
-  data-astro-edit-region="homepage-sections"
-  data-astro-edit-file="src/pages/index.astro"
->
+<div data-astro-edit-region="homepage-sections" data-astro-edit-file="src/pages/index.astro">
   <section data-section="hero">...</section>
   <section data-section="services">...</section>
   <section data-section="proof">...</section>
@@ -176,7 +197,7 @@ Mark the file that owns rendered metadata when it differs from the normal route
 mapping:
 
 ```astro
-<html data-astro-edit-seo-file="src/pages/index.astro">
+<html data-astro-edit-seo-file="src/pages/index.astro"></html>
 ```
 
 The SEO panel supports:
@@ -231,10 +252,7 @@ a value. The editor resolves ownership in this order.
 JSON, JSONC and YAML edits require an exact property path:
 
 ```astro
-<h1
-  data-astro-edit-file="src/data/homepage.json"
-  data-astro-edit-path="hero.title"
->
+<h1 data-astro-edit-file="src/data/homepage.json" data-astro-edit-path="hero.title">
   {homepage.hero.title}
 </h1>
 ```
@@ -244,10 +262,7 @@ Array indexes can use `items[2].title` or `items.2.title`.
 For Markdown frontmatter:
 
 ```astro
-<h1
-  data-astro-edit-file="src/content/pages/about.md"
-  data-astro-edit-path="frontmatter.title"
->
+<h1 data-astro-edit-file="src/content/pages/about.md" data-astro-edit-path="frontmatter.title">
   {entry.data.title}
 </h1>
 ```
@@ -335,17 +350,15 @@ interface AstroVisualEditorOptions {
   excludeSelectors?: string[];
   fileMappings?: Record<string, string>;
   selectorMappings?: Record<string, string>;
-  allowedExtensions?: Array<
-    '.astro' | '.md' | '.mdx' | '.json' | '.jsonc' | '.yaml' | '.yml'
-  >;
+  allowedExtensions?: Array<'.astro' | '.md' | '.mdx' | '.json' | '.jsonc' | '.yaml' | '.yml'>;
   sectionTemplates?: SectionTemplate[];
-  maxChanges?: number;          // 100
-  maxTextLength?: number;       // 10,000
-  maxRequestBytes?: number;     // 1,000,000
-  maxSourceFileBytes?: number;  // 5,000,000
-  requestTimeoutMs?: number;    // 15,000
-  receiptTtlMs?: number;        // 10 minutes
-  historyLimit?: number;        // 50
+  maxChanges?: number; // 100
+  maxTextLength?: number; // 10,000
+  maxRequestBytes?: number; // 1,000,000
+  maxSourceFileBytes?: number; // 5,000,000
+  requestTimeoutMs?: number; // 15,000
+  receiptTtlMs?: number; // 10 minutes
+  historyLimit?: number; // 50
   allowUnsafeSourceText?: boolean;
   allowRemoteDev?: boolean;
 }
@@ -439,6 +452,16 @@ The complete suite:
 
 CI tests Node.js 22.12 and 24 and installs Chromium before the browser suite.
 
+### Repository layout
+
+```text
+packages/astro-visual-editor/  Published integration source and npm README
+demo/                          Real Astro fixture used for manual and browser tests
+tests/e2e/                     End-to-end editor, HMR, mobile and accessibility flows
+scripts/                       Production-isolation and package checks
+.github/                       CI, release automation and contribution templates
+```
+
 ## Astro integration discovery
 
 The package follows Astro's current published rules:
@@ -450,7 +473,13 @@ The package follows Astro's current published rules:
 - the package exports only its built runtime, types, licence and package README.
 
 Astro documents that the integrations library is refreshed weekly from
-qualifying npm packages. Publication remains gated in [<removed internal document>](./<removed internal document>).
+qualifying npm packages. The directory card uses the package homepage, which is
+the canonical [Astro Visual Editor product page](https://opace.agency/tools/astro/visual-editor/)
+within the Opace website. Technical documentation remains in this repository so
+the published guidance stays versioned with the source.
+After import, Opace requests a custom product avatar through Astro's directory
+issue process. Publication, listing and avatar evidence remain separate gates
+in [<removed internal document>](./<removed internal document>).
 
 ## Project documents
 
@@ -462,6 +491,22 @@ qualifying npm packages. Publication remains gated in [<removed internal documen
 - [Strategic product review](./<removed internal review>) — product priorities and recommendation changes.
 - [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
 
+## Questions, bugs and security
+
+- Read the [package documentation](./packages/astro-visual-editor/README.md) for
+  the concise install and configuration reference.
+- Use the structured [GitHub issue forms](https://github.com/OpaceDigitalAgency/astro-visual-editor/issues/new/choose)
+  for reproducible bugs and scoped feature proposals.
+- Read [SUPPORT.md](./SUPPORT.md) before opening an implementation question.
+- Report vulnerabilities privately using [SECURITY.md](./SECURITY.md); do not
+  disclose source-writing security issues in a public issue.
+
 ## Licence
 
-[MIT](./LICENSE) © 2026 Opace Digital Agency.
+[MIT](./LICENSE) © 2026 [Opace Digital Agency](https://opace.agency/services/web-design/).
+
+## Astro and web-design services
+
+- [Astro development](https://opace.agency/services/web-design/astro-development/) — Astro architecture, design, migrations and delivery.
+- [Web design](https://opace.agency/services/web-design/) — strategy, UX, development and performance-focused websites.
+- [Contact Opace](https://opace.agency/get-in-touch/) — discuss an Astro integration or website project.

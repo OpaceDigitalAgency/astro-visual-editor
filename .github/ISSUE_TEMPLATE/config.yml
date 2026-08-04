@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation and current release status
+    url: https://github.com/OpaceDigitalAgency/astro-visual-editor#readme
+    about: Check installation, source mapping, safety boundaries and release evidence before opening an issue.
+  - name: Security vulnerability
+    url: https://github.com/OpaceDigitalAgency/astro-visual-editor/security/policy
+    about: Use the private reporting process. Do not disclose a suspected vulnerability publicly.
+  - name: Opace Astro development services
+    url: https://opace.agency/services/web-design/astro-development/
+    about: Discuss implementation, migration or a wider Astro website project with Opace.

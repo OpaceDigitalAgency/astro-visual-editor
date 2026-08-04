@@ -3,10 +3,19 @@ import { parseSaveRequest } from '../src/shared/protocol.js';
 
 describe('toolbar protocol', () => {
   const valid = {
-    clientId: 'tab-1', requestId: 'request-1', changes: [{
-      kind: 'text', id: 'change-1', filePath: 'src/pages/index.astro', route: '/',
-      oldText: 'Old', newText: 'New', selector: '#title',
-    }],
+    clientId: 'tab-1',
+    requestId: 'request-1',
+    changes: [
+      {
+        kind: 'text',
+        id: 'change-1',
+        filePath: 'src/pages/index.astro',
+        route: '/',
+        oldText: 'Old',
+        newText: 'New',
+        selector: '#title',
+      },
+    ],
   };
 
   it('accepts a bounded discriminated request', () => {

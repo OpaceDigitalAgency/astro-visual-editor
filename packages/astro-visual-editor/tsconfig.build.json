@@ -6,11 +6,5 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "include": [
-    "src/index.ts",
-    "src/options.ts",
-    "src/server/**/*.ts",
-    "src/shared/**/*.ts"
-  ]
+  "include": ["src/index.ts", "src/options.ts", "src/server/**/*.ts", "src/shared/**/*.ts"]
 }
-

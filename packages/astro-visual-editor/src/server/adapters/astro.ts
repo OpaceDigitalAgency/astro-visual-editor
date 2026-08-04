@@ -27,7 +27,11 @@ interface AstroNode {
   position?: { start: PositionPoint; end?: PositionPoint };
 }
 
-function walk(node: AstroNode, visit: (node: AstroNode, parent?: AstroNode) => void, parent?: AstroNode): void {
+function walk(
+  node: AstroNode,
+  visit: (node: AstroNode, parent?: AstroNode) => void,
+  parent?: AstroNode,
+): void {
   visit(node, parent);
   for (const child of node.children ?? []) walk(child, visit, node);
 }
@@ -56,6 +60,39 @@ async function parseAstro(source: string): Promise<AstroNode> {
   return result.ast as unknown as AstroNode;
 }
 
+function normalizedText(value: string): string {
+  return value.replace(/\s+/gu, ' ').trim();
+}
+
+function normalizedLiteralRange(
+  source: string,
+  ast: AstroNode,
+  renderedText: string,
+  label: string,
+): SourceRange {
+  const target = normalizedText(renderedText);
+  const matches: SourceRange[] = [];
+  walk(ast, (node) => {
+    if (node.type !== 'text' || !node.position?.end) return;
+    const raw = source.slice(node.position.start.offset, node.position.end.offset);
+    if (normalizedText(raw) !== target) return;
+    const leading = raw.search(/\S/u);
+    const trailing = raw.search(/\s*$/u);
+    if (leading === -1) return;
+    matches.push({
+      start: node.position.start.offset + leading,
+      end: node.position.start.offset + trailing,
+      replacement: '',
+      label,
+    });
+  });
+  if (matches.length === 0) throw new Error(`Original text was not found for ${label}.`);
+  if (matches.length > 1) {
+    throw new Error(`Original text is ambiguous for ${label}. Add a structured source path.`);
+  }
+  return matches[0]!;
+}
+
 export async function validateAstro(source: string, filename: string): Promise<void> {
   try {
     await transform(source, { filename });
@@ -82,7 +119,10 @@ export async function applyAstroText(
   allowUnsafeSourceText = false,
 ): Promise<string> {
   const ast = await parseAstro(source);
-  const range = uniqueRange(source, change.oldText, `${change.filePath} (${change.selector ?? 'text'})`);
+  const label = `${change.filePath} (${change.selector ?? 'text'})`;
+  const range = source.includes(change.oldText)
+    ? uniqueRange(source, change.oldText, label)
+    : normalizedLiteralRange(source, ast, change.oldText, label);
   let isLiteralText = false;
   walk(ast, (node) => {
     if (
@@ -127,7 +167,8 @@ function innerRange(source: string, node: AstroNode, label: string): SourceRange
 function classifySeoNode(node: AstroNode): SeoField | undefined {
   if (node.type !== 'element') return undefined;
   if (node.name === 'title') return 'title';
-  if (node.name === 'link' && attribute(node, 'rel')?.toLowerCase() === 'canonical') return 'canonical';
+  if (node.name === 'link' && attribute(node, 'rel')?.toLowerCase() === 'canonical')
+    return 'canonical';
   if (node.name !== 'meta') return undefined;
   const name = attribute(node, 'name')?.toLowerCase();
   const property = attribute(node, 'property')?.toLowerCase();
@@ -140,7 +181,11 @@ function classifySeoNode(node: AstroNode): SeoField | undefined {
 }
 
 function currentSeoValue(node: AstroNode, field: SeoField): string {
-  if (field === 'title') return (node.children ?? []).map((child) => child.value ?? '').join('').trim();
+  if (field === 'title')
+    return (node.children ?? [])
+      .map((child) => child.value ?? '')
+      .join('')
+      .trim();
   if (field === 'canonical') return attribute(node, 'href') ?? '';
   return attribute(node, 'content') ?? '';
 }
@@ -169,11 +214,13 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
     if (node.type === 'element' && node.name === 'head') head ??= node;
     const field = classifySeoNode(node);
     if (field) {
-      if (existing.has(field)) throw new Error(`Duplicate SEO field found in ${change.filePath}: ${field}.`);
+      if (existing.has(field))
+        throw new Error(`Duplicate SEO field found in ${change.filePath}: ${field}.`);
       existing.set(field, node);
     }
   });
-  if (!head?.position?.end) throw new Error(`No literal <head> element found in ${change.filePath}.`);
+  if (!head?.position?.end)
+    throw new Error(`No literal <head> element found in ${change.filePath}.`);
 
   const ranges: SourceRange[] = [];
   const inserts: string[] = [];
@@ -247,7 +294,9 @@ function assertUniqueSectionIds(descriptors: SectionDescriptor[], label: string)
 function renderTemplate(template: SectionTemplate, id: string): string {
   const markup = template.markup.replaceAll('{{id}}', id);
   if (!/data-section\s*=\s*["'][^"']+["']/u.test(markup)) {
-    throw new Error(`Section template ${template.id} must include a literal data-section attribute.`);
+    throw new Error(
+      `Section template ${template.id} must include a literal data-section attribute.`,
+    );
   }
   return markup;
 }
@@ -263,13 +312,17 @@ export async function applyAstroSections(
   const region = findRegion(ast, change.regionId);
   const sections = directSections(region);
   const current = sections.map((node) => ({ id: attribute(node, 'data-section')! }));
-  if (current.map((item) => item.id).join('\0') !== change.before.map((item) => item.id).join('\0')) {
+  if (
+    current.map((item) => item.id).join('\0') !== change.before.map((item) => item.id).join('\0')
+  ) {
     throw new Error(`Section order changed before commit in region "${change.regionId}".`);
   }
-  if (sections.length === 0) throw new Error('An editable section region must start with at least one section.');
+  if (sections.length === 0)
+    throw new Error('An editable section region must start with at least one section.');
 
   const byId = new Map<string, string>();
-  for (const node of sections) byId.set(attribute(node, 'data-section')!, elementSource(source, node));
+  for (const node of sections)
+    byId.set(attribute(node, 'data-section')!, elementSource(source, node));
   const templateById = new Map(templates.map((template) => [template.id, template]));
   const ordered = change.after.map((descriptor) => {
     const existing = byId.get(descriptor.id);

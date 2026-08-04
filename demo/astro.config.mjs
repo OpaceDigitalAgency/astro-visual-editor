@@ -1,7 +1,8 @@
 import { defineConfig } from 'astro/config';
-import visualEditor from 'astro-visual-editor';
+import visualEditor from '@opacedev/astro-visual-editor';
 
 export default defineConfig({
+  site: 'http://localhost:4321',
   integrations: [
     visualEditor({
       fileMappings: {

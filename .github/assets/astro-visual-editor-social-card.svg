@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Astro Visual Editor by Opace</title>
+  <desc id="desc">A dark product card showing the Astro Visual Editor change ledger for text, section, and SEO updates.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0d0f10"/>
+      <stop offset="1" stop-color="#171a1b"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="56" y1="54" x2="156" y2="154" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffab78"/>
+      <stop offset="1" stop-color="#fb700a"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="48"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity=".09" stroke="#fff">
+    <path d="M0 72h1200M0 144h1200M0 216h1200M0 288h1200M0 360h1200M0 432h1200M0 504h1200M0 576h1200"/>
+    <path d="M72 0v630M144 0v630M216 0v630M288 0v630M360 0v630M432 0v630M504 0v630M576 0v630M648 0v630M720 0v630M792 0v630M864 0v630M936 0v630M1008 0v630M1080 0v630M1152 0v630"/>
+  </g>
+  <ellipse cx="932" cy="300" rx="240" ry="180" fill="#8c6296" opacity=".22" filter="url(#glow)"/>
+  <rect x="56" y="54" width="100" height="100" rx="25" fill="url(#mark)"/>
+  <path d="m78 86-12 18 12 18m56-36 12 18-12 18" fill="none" stroke="#111415" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m94 127 4-18 23-27 10 9-23 27-14 9Z" fill="#111415"/>
+  <text x="184" y="95" fill="#f5f0e9" font-family="Arial, sans-serif" font-size="28" font-weight="700">Astro Visual Editor</text>
+  <text x="184" y="128" fill="#9da4a4" font-family="Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="2">BY OPACE DIGITAL AGENCY</text>
+  <text x="56" y="254" fill="#ffab78" font-family="monospace" font-size="16" font-weight="700" letter-spacing="2">TEXT · SEO · DRAG AND DROP SECTIONS</text>
+  <text x="56" y="325" fill="#f5f0e9" font-family="Arial, sans-serif" font-size="58" font-weight="750">Review the page.</text>
+  <text x="56" y="389" fill="#f5f0e9" font-family="Arial, sans-serif" font-size="58" font-weight="750">Trust the source.</text>
+  <text x="58" y="458" fill="#aeb5b4" font-family="Arial, sans-serif" font-size="20">A source-aware visual editor for Astro development.</text>
+  <g transform="translate(752 86)">
+    <rect width="388" height="456" rx="24" fill="#1b1f20" stroke="#3a4041" stroke-width="2"/>
+    <text x="26" y="43" fill="#f5f0e9" font-family="Arial, sans-serif" font-size="17" font-weight="700">Visual Editor</text>
+    <circle cx="324" cy="37" r="5" fill="#67d391"/>
+    <text x="337" y="42" fill="#aeb5b4" font-family="monospace" font-size="11">Connected</text>
+    <rect x="22" y="65" width="344" height="50" rx="11" fill="#101213" stroke="#303536"/>
+    <rect x="280" y="72" width="78" height="36" rx="8" fill="#292e2f"/>
+    <text x="49" y="96" fill="#818888" font-family="Arial, sans-serif" font-size="12">Text</text>
+    <text x="112" y="96" fill="#818888" font-family="Arial, sans-serif" font-size="12">Sections</text>
+    <text x="215" y="96" fill="#818888" font-family="Arial, sans-serif" font-size="12">SEO</text>
+    <text x="299" y="96" fill="#f5f0e9" font-family="Arial, sans-serif" font-size="12" font-weight="700">Review</text>
+    <text x="24" y="151" fill="#ffab78" font-family="monospace" font-size="10" font-weight="700">CHANGE LEDGER</text>
+    <text x="24" y="175" fill="#f5f0e9" font-family="Arial, sans-serif" font-size="18" font-weight="700">3 ready to review</text>
+    <g font-family="Arial, sans-serif">
+      <rect x="22" y="194" width="344" height="67" rx="11" fill="#202425" stroke="#343a3b"/>
+      <rect x="36" y="213" width="53" height="27" rx="6" fill="#ffab78"/>
+      <text x="50" y="231" fill="#111415" font-size="10" font-weight="800">TEXT</text>
+      <text x="104" y="224" fill="#f5f0e9" font-size="13" font-weight="700">Hero heading</text>
+      <text x="104" y="243" fill="#899090" font-family="monospace" font-size="9">src/pages/index.astro</text>
+      <rect x="22" y="272" width="344" height="67" rx="11" fill="#202425" stroke="#343a3b"/>
+      <rect x="36" y="291" width="53" height="27" rx="6" fill="#a78bfa"/>
+      <text x="42" y="309" fill="#111415" font-size="9" font-weight="800">SECTION</text>
+      <text x="104" y="302" fill="#f5f0e9" font-size="13" font-weight="700">Reordered 3 sections</text>
+      <text x="104" y="321" fill="#899090" font-family="monospace" font-size="9">review → preview → commit</text>
+      <rect x="22" y="350" width="344" height="67" rx="11" fill="#202425" stroke="#343a3b"/>
+      <rect x="36" y="369" width="53" height="27" rx="6" fill="#78d6f5"/>
+      <text x="51" y="387" fill="#111415" font-size="10" font-weight="800">SEO</text>
+      <text x="104" y="380" fill="#f5f0e9" font-size="13" font-weight="700">Meta description</text>
+      <text x="104" y="399" fill="#899090" font-family="monospace" font-size="9">src/pages/index.astro</text>
+    </g>
+    <rect x="228" y="427" width="138" height="37" rx="8" fill="#fb700a"/>
+    <text x="249" y="450" fill="#111415" font-family="Arial, sans-serif" font-size="12" font-weight="800">Commit 3 changes</text>
+  </g>
+  <text x="56" y="574" fill="#f5f0e9" font-family="Arial, sans-serif" font-size="17" font-weight="700">opace.agency/tools/astro/visual-editor/</text>
+</svg>

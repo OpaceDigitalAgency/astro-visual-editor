@@ -40,7 +40,9 @@ Run `astro dev`, open the Dev Toolbar and choose **Visual Editor**.
   idempotent commit and conflict-protected revert.
 
 The queue recovers through Astro HMR/navigation and stays isolated per browser
-tab. Narrow screens use compact touch Pick mode plus a full Review sheet.
+tab. The workbench collapses to compact Pick mode on desktop or mobile. Icon
+controls provide visible hover/focus tooltips, and dialogs close with Cancel,
+Escape or a backdrop click.
 
 ## Reliable source mapping
 
@@ -91,6 +93,9 @@ visualEditor({
 
 Sections must be contiguous direct children with unique stable IDs. This is a
 deliberate safety contract: arbitrary component structure is never rewritten.
+Existing sections drag only within their declared region. Add before/after
+inserts validated templates; arbitrary page-wide and cross-region drops are not
+supported.
 
 Custom templates use `{{id}}`:
 
@@ -165,6 +170,7 @@ both disabled by default.
 - Complex expressions/shared data need explicit file/path mapping.
 - Unstructured MDX body expressions are refused.
 - Section operations require declared Astro regions.
+- No arbitrary page-wide or cross-region section drops.
 - Receipt reverts survive HMR but not a complete dev-server restart.
 - Visual Editability Setup/content inventory and Git-backed history remain
   roadmap work.

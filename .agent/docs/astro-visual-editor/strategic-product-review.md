@@ -4,8 +4,8 @@
 **Scope:** Current product position, completed functionality, remaining product
 gaps and recommended investment order
 
-This review is current against commit `afcaa42`. Engineering release truth
-remains in [`PROJECT.md`](../../../PROJECT.md), while exact legacy parity is
+This review is current against `main` on the reviewed date. Engineering release
+truth remains in [`PROJECT.md`](../../../PROJECT.md), while exact legacy parity is
 recorded in [`FEATURE_PARITY.md`](../../../FEATURE_PARITY.md).
 
 ## Executive verdict
@@ -41,6 +41,23 @@ adding production authentication, GitHub tokens or broad Git automation.
 | Mobile/accessibility | Touch Pick/Review flow, keyboard controls, reduced motion, forced colours and axe gate | Broader assistive-technology coverage can grow |
 | Production isolation | No production editor runtime or public write route | Therefore no deployed client access |
 | Editability administration | Developer selectors, mappings and source annotations | No owner-facing setup/inventory UI |
+
+## Interaction findings from owner review
+
+An owner review on 4 August 2026 identified five concrete interaction issues.
+They should not be conflated with unrestricted page-builder scope.
+
+| Finding | Classification | Product decision |
+| --- | --- | --- |
+| Desktop collapse control did nothing | Bug | Fixed: every viewport collapses to the compact picker and can expand into Review |
+| Section icon meanings were unclear | Usability/accessibility bug | Fixed: visible hover/focus tooltips plus existing accessible names |
+| Clicking a dialog backdrop did not close it | Usability defect | Fixed for text, SEO, template and confirmation dialogs; Escape/Cancel remain |
+| A reorder was difficult to identify in the ledger | Clarity bug | Fixed: semantic structural summary with labelled Before/After order |
+| Drag a new block anywhere on the page | Enhancement | Do not allow arbitrary drops; design a template palette with explicit compatible destination regions |
+
+The screenshot already contained a queued `SECTIONS` row, so the reorder was
+not absent from state. The real defect was that an unlabeled ID sequence did not
+communicate the operation clearly enough.
 
 ## What is proven now
 
@@ -189,6 +206,9 @@ fail-closed write model.
 
 - Bulk multi-page SEO/content operations.
 - Companion/deep-link integration with Keystatic or another structured admin.
+- A draggable block/template palette with highlighted, source-compatible drop
+  zones. Dropping creates a new section only inside an approved region; moving
+  existing sections across regions requires compatible adapter/schema rules.
 - Visual screenshot regression for structural template changes.
 - Multi-user real-time collaboration.
 

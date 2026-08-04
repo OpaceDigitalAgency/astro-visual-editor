@@ -41,7 +41,7 @@ write paths have been replaced by source adapters and hardened transactions.
 | Unit and safety tests | Complete | 19 Vitest tests cover configuration, protocol, adapters, transactions and file boundaries |
 | Type and demo checks | Complete | TypeScript and `astro check` |
 | Production isolation | Complete | Automated post-build scan rejects toolbar protocol/runtime markers in demo output |
-| Desktop browser workflow | Complete | Playwright covers text, SEO, section controls, templates, delete, undo/redo and genuine drag/drop |
+| Desktop browser workflow | Complete | Playwright covers collapse/expand, dialog light-dismiss, tooltips, semantic section review, text, SEO, templates, delete, undo/redo and genuine drag/drop |
 | Source commit/revert | Complete | Real commit, HMR receipt recovery and conflict-protected revert pass in the demo |
 | Narrow/mobile workflow | Complete | Real touch Pick mode, Review sheet, keyboard section move and zero horizontal overflow at 390 × 844 |
 | Accessibility browser gate | Complete | axe reports no critical/serious toolbar violations in the tested mobile state |

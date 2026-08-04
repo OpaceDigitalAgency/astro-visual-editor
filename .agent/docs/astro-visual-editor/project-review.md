@@ -1,7 +1,7 @@
 # Astro Visual Editor — Current Engineering Review
 
 **Reviewed:** 4 August 2026
-**Baseline:** `afcaa42` (`main`)
+**Baseline:** current `main` on the reviewed date
 
 This is a current code review, not the earlier prototype snapshot. Release
 status and external gates are authoritative in [`PROJECT.md`](../../../PROJECT.md).

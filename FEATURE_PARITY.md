@@ -62,6 +62,8 @@ drag event implementation and used move-up/down buttons.
 - Network-exposed dev-server write refusal.
 - Atomic writes, rollback and conflict-protected revert.
 - Committed Playwright and axe regression tests in CI.
+- Functional compact collapse on desktop, visible section-control tooltips,
+  light-dismiss dialogs and semantic structural review summaries.
 
 ## Deliberate non-parity
 

@@ -8,7 +8,7 @@ development toolbar.
 
 [![CI](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/workflows/ci.yml)
 [![Product page](https://img.shields.io/badge/product-Opace-ff7a3d.svg)](https://opace.agency/tools/astro/visual-editor/)
-[![Package](https://img.shields.io/badge/package-%40opacedev%2Fastro--visual--editor-cb3837.svg)](./<removed internal document>#release-gates)
+[![Package](https://img.shields.io/badge/package-%40opacedev%2Fastro--visual--editor-cb3837.svg)](https://www.npmjs.com/package/@opacedev/astro-visual-editor)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-2f3337.svg)](./LICENSE)
 [![Astro integration](https://img.shields.io/badge/Astro-integration-ff5d01.svg)](https://docs.astro.build/en/guides/integrations/)
 
@@ -26,10 +26,11 @@ syntax-aware transactions.
 It is created and maintained by Opace Digital Agency's <a href="https://opace.agency/services/web-design/astro-development/">Astro development team</a>. If you need
 a wider website project, see the <a href="https://opace.agency/services/web-design/">web design services</a> provided by Opace or <a href="https://opace.agency/get-in-touch/">get in touch</a>.
 
-> **Release status:** feature-complete against the legacy editor, validated
-> locally and in public CI, with its canonical Opace product page live. The package identity is
-> `@opacedev/astro-visual-editor`; npm publication and Astro directory discovery
-> remain separate release gates. Exact evidence is maintained in
+> **Release status:** the public beta is available from npm as
+> `@opacedev/astro-visual-editor`. The implementation is feature-complete
+> against the legacy editor, validated locally and in public CI, and backed by
+> a live canonical Opace product page. Astro's scheduled directory import and
+> owner acceptance remain separate gates. Exact evidence is maintained in
 > [<removed internal document>](./<removed internal document>).
 
 | At a glance     | Behaviour                                                                         |
@@ -87,15 +88,15 @@ It adds no production route, editor client or public write endpoint.
 
 ## Install
 
-The following commands are ready for the approved public beta. Until npm
-publication is confirmed in [<removed internal document>](./<removed internal document>), clone this repository
-and use the demo workflow below.
+Let Astro install the current public beta and update `astro.config.mjs`:
 
 ```bash
-npx astro add @opacedev/astro-visual-editor@beta
+npx astro add @opacedev/astro-visual-editor
 ```
 
-Or install manually:
+Astro 7.1.6's `astro add` command accepts package names but rejects npm version
+or dist-tag suffixes. To pin the npm `beta` tag explicitly, install manually
+and use the configuration shown below:
 
 ```bash
 npm install --save-dev @opacedev/astro-visual-editor@beta
@@ -461,6 +462,10 @@ scripts/                       Production-isolation and package checks
 .github/                       CI, release automation and contribution templates
 ```
 
+For the proposed reusable Astro theme that will demonstrate this integration,
+including its product scope, quality gates and Developer Portal submission
+process, see [Astro Theme Product and Publishing Plan](./<removed internal document>).
+
 ## Astro integration discovery
 
 The package follows Astro's current published rules:
@@ -477,8 +482,8 @@ the canonical [Astro Visual Editor product page](https://opace.agency/tools/astr
 within the Opace website. Technical documentation remains in this repository so
 the published guidance stays versioned with the source.
 After import, Opace requests a custom product avatar through Astro's directory
-issue process. Publication, listing and avatar evidence remain separate gates
-in [<removed internal document>](./<removed internal document>).
+issue process. npm publication, importer eligibility, public listing and avatar
+evidence remain separate gates in [<removed internal document>](./<removed internal document>).
 
 ## Project documents
 
@@ -488,6 +493,7 @@ in [<removed internal document>](./<removed internal document>).
 - [Complete research and assessment](./Astro%20Integrated%20CMS%20%26%20Frontend%20Editing_%20Complete%20Research%20%26%20Assessment.md) — market context.
 - [Current engineering review](./<removed internal review>) — code-quality assessment.
 - [Strategic product review](./<removed internal review>) — product priorities and recommendation changes.
+- [Astro Theme Product and Publishing Plan](./<removed internal document>) — a separate reusable theme and Developer Portal submission plan.
 - [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
 
 ## Questions, bugs and security

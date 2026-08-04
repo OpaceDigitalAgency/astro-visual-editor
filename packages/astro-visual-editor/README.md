@@ -3,7 +3,7 @@
 ![Astro Visual Editor by Opace: a source-aware front-end editor with a reviewable text, section and SEO change ledger](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/astro-visual-editor-social-card.svg)
 
 [![CI](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/workflows/ci.yml)
-[![Package](https://img.shields.io/badge/package-%40opacedev%2Fastro--visual--editor-cb3837.svg)](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/<removed internal document>#release-gates)
+[![Package](https://img.shields.io/badge/package-%40opacedev%2Fastro--visual--editor-cb3837.svg)](https://www.npmjs.com/package/@opacedev/astro-visual-editor)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-2f3337.svg)](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/LICENSE)
 [![Astro integration](https://img.shields.io/badge/Astro-integration-ff5d01.svg)](https://docs.astro.build/en/guides/integrations/)
 
@@ -26,10 +26,12 @@ Built by [Opace Astro developers](https://opace.agency/services/web-design/astro
 ## Install
 
 ```bash
-npx astro add @opacedev/astro-visual-editor@beta
+npx astro add @opacedev/astro-visual-editor
 ```
 
-Or:
+Astro 7.1.6's `astro add` command does not accept version or dist-tag suffixes.
+To pin the public beta tag explicitly, install it manually and add the
+integration to the config shown below:
 
 ```bash
 npm install --save-dev @opacedev/astro-visual-editor@beta

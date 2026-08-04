@@ -15,17 +15,16 @@ development toolbar.
 [Product page](https://opace.agency/tools/astro/visual-editor/) ·
 [Install](#install) · [Try the demo](#try-the-repository-demo) ·
 [Configuration](#configuration) · [Security](./SECURITY.md) ·
-[Contributing](./CONTRIBUTING.md)
+[Contributing](./CONTRIBUTING.md) ·
+[Opace open-source portfolio](https://github.com/OpaceDigitalAgency/OpaceDigitalAgency)
 
 Astro Visual Editor is a reusable, development-only Astro integration. It
 rebuilds every user-facing capability of the original site-specific localhost
 editor and replaces that prototype's unfinished save endpoints with typed,
 syntax-aware transactions.
 
-It is created and maintained by [Opace Digital Agency's Astro development
-team](https://opace.agency/services/web-design/astro-development/). If you need
-a wider website project, see [Opace web design](https://opace.agency/services/web-design/)
-or [get in touch](https://opace.agency/get-in-touch/).
+It is created and maintained by Opace Digital Agency's <a href="https://opace.agency/services/web-design/astro-development/">Astro development team</a>. If you need
+a wider website project, see the <a href="https://opace.agency/services/web-design/">web design services</a> provided by Opace or <a href="https://opace.agency/get-in-touch/">get in touch</a>.
 
 > **Release status:** feature-complete against the legacy editor, validated
 > locally and in public CI, with its canonical Opace product page live. The package identity is

@@ -6,7 +6,7 @@
 
 **Current branch:** `main`
 
-**Current package version:** `0.1.0-beta.1` release candidate
+**Current package version:** `0.1.0-beta.2` public beta
 
 **Package name:** `@opacedev/astro-visual-editor`
 
@@ -32,9 +32,9 @@ claim.
 
 ## Executive decision
 
-Continue the standalone Astro integration. The existing `0.1.0` is now an
-unreleased, feature-complete local beta candidate rather than the earlier text-
-only prototype. It is still not a stable public release.
+Continue the standalone Astro integration. Version `0.1.0-beta.2` is now a
+published, feature-complete public beta rather than the earlier text-only
+prototype. It is still not a stable `0.1.0` release.
 
 The product's differentiator is the **rendered page as a unified content review
 surface**, combined with a visible change ledger. Its central engineering
@@ -74,8 +74,9 @@ typed source-adapter and transaction architecture first.
 - A complete page-content inventory.
 - Client-facing authentication, Git commits or pull-request workflow.
 - Restart-persistent on-disk/Git edit history and file-level diff UI.
-- An npm release or Astro integrations-directory listing. The public GitHub
-  repository now exists at `OpaceDigitalAgency/astro-visual-editor`.
+- A rendered Astro integrations-directory listing. The npm package and public
+  GitHub repository exist, importer eligibility is verified, and the scheduled
+  Astro import remains external.
 
 ### Legacy prototype boundary
 
@@ -154,12 +155,12 @@ criteria; they are no longer an unimplemented task list. Evidence includes 20
 Vitest tests and four committed Chromium workflows covering HMR commit/revert,
 two-tab isolation, touch/keyboard access, drag/drop and axe scanning.
 
-## Release blockers
+## Stable-release blockers
 
-Every original P0 item is implemented. The complete matrix, package-content
-review and clean packed-tarball Astro 7.1.6 consumer build pass locally. Before
-a public beta, rerun that release evidence on the intended tag and obtain owner
-approval for npm publication.
+Every original P0 item is implemented. The public beta, package-content review,
+clean-registry Astro 7.1.6 consumer build and OIDC provenance are verified.
+Before stable `0.1.0`, complete owner acceptance and address material beta
+feedback.
 
 ### P0.1 — Replace unsafe string mutation with immutable edit ranges
 
@@ -491,21 +492,16 @@ Implemented release engineering includes formatting/linting checks, Dependabot,
 the Node 22.12/24 CI matrix, production-isolation and package-content checks, a
 clean packed-tarball consumer test, and an OIDC trusted-publishing workflow.
 
-Before the first public beta:
+The package was bootstrapped interactively as `0.1.0-beta.1`, then
+`0.1.0-beta.2` was published from the public GitHub-hosted runner with SLSA
+provenance after the trusted publisher was configured and read back. Both npm
+`latest` and `beta` currently resolve to beta.2. Future versions must continue
+to use version-matched `v*` tags and the protected workflow; do not reintroduce
+a long-lived npm publish token.
 
-- rerun the full matrix on the intended release commit;
-- test the lowest supported Astro version and current Astro version;
-- rerun `npm audit`, inspect `npm pack --dry-run`, and install that exact tarball
-  in a clean external fixture;
-- bootstrap the npm package and bind the implemented trusted publisher;
-- publish from the public GitHub-hosted runner so provenance is generated; and
-- use a prerelease version until owner acceptance is complete.
-
-Recommended initial public version: `0.1.0-beta.1`, not stable `0.1.0`.
-
-The public GitHub repository was created after owner instruction. npm
-publication and directory follow-up remain separate owner-approval gates. Do
-not infer npm publication authority from repository work.
+Astro's CLI does not accept a dist-tag suffix in `astro add`. Use
+`npx astro add @opacedev/astro-visual-editor` for automatic setup, or install
+`@opacedev/astro-visual-editor@beta` manually before editing the config.
 
 ## Working commands
 
@@ -533,9 +529,10 @@ Current evidence:
 5. Multi-tab and HMR commit/recovery/revert tests pass — complete.
 6. Production isolation is reverified by the demo build — complete.
 7. Documentation matches the implemented capability contract — complete.
-8. Packed-package consumer build — complete locally with Astro 7.1.6; rerun on the release tag.
-9. Clean/reconciled working tree — required at release handoff.
-10. Owner approval — required separately for GitHub and npm public actions.
+8. Clean-registry consumer build — complete with Astro 7.1.6 and beta.2.
+9. Trusted OIDC publication and provenance — complete on beta.2.
+10. Astro directory listing — importer eligibility complete; scheduled public rendering pending.
+11. Owner acceptance — required before stable `0.1.0`.
 
 ## Suggested next takeover task
 

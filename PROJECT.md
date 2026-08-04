@@ -30,59 +30,67 @@ discovered by Astro's integrations directory after an approved npm release.
 
 ## Current status
 
-Version `0.1.0-beta.1` of `@opacedev/astro-visual-editor` is implemented as the
-first public-beta release candidate. The legacy interface is feature-complete
-and its unfinished write paths have been replaced by source adapters and
-hardened transactions.
+Version `0.1.0-beta.2` of `@opacedev/astro-visual-editor` is the current public
+beta. The legacy interface is feature-complete and its unfinished write paths
+have been replaced by source adapters and hardened transactions.
 
-| Gate                          | Status                         | Evidence                                                                                                                                                              |
-| ----------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Standalone workspace          | Complete                       | Package and independent demo workspaces                                                                                                                               |
-| Astro API conformance         | Complete                       | Integration factory, `astro:config:setup`, `astro:server:setup`, Dev Toolbar app                                                                                      |
-| Unit and safety tests         | Complete                       | 20 Vitest tests cover configuration, protocol, adapters, transactions, formatted multiline literals and file boundaries                                               |
-| Type and demo checks          | Complete                       | TypeScript and `astro check`                                                                                                                                          |
-| Production isolation          | Complete                       | Automated post-build scan rejects toolbar protocol/runtime markers in demo output                                                                                     |
-| Desktop browser workflow      | Complete                       | Playwright covers collapse/expand, dialog light-dismiss, tooltips, semantic section review, text, SEO, templates, delete, undo/redo and genuine drag/drop             |
-| Source commit/revert          | Complete                       | Real commit, HMR receipt recovery and conflict-protected revert pass in the demo                                                                                      |
-| Narrow/mobile workflow        | Complete                       | Real touch Pick mode, Review sheet, keyboard section move and zero horizontal overflow at 390 × 844                                                                   |
-| Accessibility browser gate    | Complete                       | axe reports no critical/serious toolbar violations in the tested mobile state                                                                                         |
-| Transaction hardening         | Complete for local beta        | Runtime guards, bounded requests/files, hashes, idempotency, atomic writes, rollback and receipts                                                                     |
-| Syntax-aware source adapters  | Complete for documented scope  | Astro literals/head/regions, Markdown/frontmatter, JSONC paths and YAML paths                                                                                         |
-| HMR and multi-tab isolation   | Complete                       | Committed Playwright workflows preserve addressed queues/responses across two tabs                                                                                    |
-| Browser tests in CI           | Complete                       | Four Chromium workflows run after unit/type/build/package checks                                                                                                      |
-| Editability setup/admin UX    | **Urgent enhancement pending** | Site owners currently need to change selectors or source annotations in code; the planned owner-controlled setup mode is defined in the engineering handoff           |
-| npm package inspection        | Complete                       | `npm pack --dry-run`                                                                                                                                                  |
-| Clean packed-package consumer | Complete                       | Installed the generated tarball with Astro 7.1.6 in a fresh external fixture and completed a production build                                                         |
-| Dependency audit              | Complete                       | `npm audit` reports zero known vulnerabilities                                                                                                                        |
-| GitHub repository             | Complete                       | Public repository: `OpaceDigitalAgency/astro-visual-editor`                                                                                                           |
-| GitHub Actions run            | Complete                       | Node 22.12 and 24 passed on `393ba16` ([run #30924230137](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/30924230137))                        |
-| Canonical Opace product page  | Complete                       | `/tools/` and `/tools/astro/visual-editor/` are deployed and rendered-verified at desktop, tablet and mobile widths                                                   |
-| GitHub discovery presentation | Complete                       | Rich landing README, community templates, support route, About copy, canonical website, 18 topics, 1280 × 640 social preview, Opace portfolio listing and profile pin |
-| Package identity              | Complete                       | Scoped package metadata uses `@opacedev/astro-visual-editor` with Opace author, homepage, repository and discovery keywords                                           |
-| Release automation            | Release candidate              | OIDC workflow, lint/format gates and Dependabot are implemented; live trusted-publisher verification pending                                                          |
-| npm publication               | Pending approval               | Package has not been published                                                                                                                                        |
-| Astro directory appearance    | Pending npm release            | Astro refreshes qualifying npm packages automatically                                                                                                                 |
-| Directory avatar              | Pending npm release            | Product mark is ready; Astro issue must be filed after publication                                                                                                    |
+| Gate                          | Status                         | Evidence                                                                                                                                                                                                                                                 |
+| ----------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Standalone workspace          | Complete                       | Package and independent demo workspaces                                                                                                                                                                                                                  |
+| Astro API conformance         | Complete                       | Integration factory, `astro:config:setup`, `astro:server:setup`, Dev Toolbar app                                                                                                                                                                         |
+| Unit and safety tests         | Complete                       | 20 Vitest tests cover configuration, protocol, adapters, transactions, formatted multiline literals and file boundaries                                                                                                                                  |
+| Type and demo checks          | Complete                       | TypeScript and `astro check`                                                                                                                                                                                                                             |
+| Production isolation          | Complete                       | Automated post-build scan rejects toolbar protocol/runtime markers in demo output                                                                                                                                                                        |
+| Desktop browser workflow      | Complete                       | Playwright covers collapse/expand, dialog light-dismiss, tooltips, semantic section review, text, SEO, templates, delete, undo/redo and genuine drag/drop                                                                                                |
+| Source commit/revert          | Complete                       | Real commit, HMR receipt recovery and conflict-protected revert pass in the demo                                                                                                                                                                         |
+| Narrow/mobile workflow        | Complete                       | Real touch Pick mode, Review sheet, keyboard section move and zero horizontal overflow at 390 × 844                                                                                                                                                      |
+| Accessibility browser gate    | Complete                       | axe reports no critical/serious toolbar violations in the tested mobile state                                                                                                                                                                            |
+| Transaction hardening         | Complete for local beta        | Runtime guards, bounded requests/files, hashes, idempotency, atomic writes, rollback and receipts                                                                                                                                                        |
+| Syntax-aware source adapters  | Complete for documented scope  | Astro literals/head/regions, Markdown/frontmatter, JSONC paths and YAML paths                                                                                                                                                                            |
+| HMR and multi-tab isolation   | Complete                       | Committed Playwright workflows preserve addressed queues/responses across two tabs                                                                                                                                                                       |
+| Browser tests in CI           | Complete                       | Four Chromium workflows run after unit/type/build/package checks                                                                                                                                                                                         |
+| Editability setup/admin UX    | **Urgent enhancement pending** | Site owners currently need to change selectors or source annotations in code; the planned owner-controlled setup mode is defined in the engineering handoff                                                                                              |
+| npm package inspection        | Complete                       | `npm pack --dry-run`                                                                                                                                                                                                                                     |
+| Clean packed-package consumer | Complete                       | Installed the generated tarball with Astro 7.1.6 in a fresh external fixture and completed a production build                                                                                                                                            |
+| Dependency audit              | Complete                       | `npm audit` reports zero known vulnerabilities                                                                                                                                                                                                           |
+| GitHub repository             | Complete                       | Public repository: `OpaceDigitalAgency/astro-visual-editor`                                                                                                                                                                                              |
+| GitHub Actions run            | Complete                       | Node 22.12 and 24 passed on the beta.2 release commit `2cf10f1` ([run #30927510113](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/30927510113))                                                                                 |
+| Canonical Opace product page  | Complete                       | `/tools/` and `/tools/astro/visual-editor/` are deployed and rendered-verified at desktop, tablet and mobile widths                                                                                                                                      |
+| GitHub discovery presentation | Complete                       | Rich landing README, community templates, support route, About copy, canonical website, 18 topics, 1280 × 640 social preview, Opace portfolio listing and profile pin                                                                                    |
+| Package identity              | Complete                       | Scoped package metadata uses `@opacedev/astro-visual-editor` with Opace author, homepage, repository and discovery keywords                                                                                                                              |
+| Release automation            | Complete                       | npm trusted publisher is bound to `OpaceDigitalAgency/astro-visual-editor` and `release.yml`; beta.2 was published by OIDC with SLSA provenance ([run #30927523309](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/30927523309)) |
+| npm publication               | Complete                       | [`@opacedev/astro-visual-editor@0.1.0-beta.2`](https://www.npmjs.com/package/@opacedev/astro-visual-editor) is public; `latest` and `beta` resolve to beta.2                                                                                             |
+| Real registry consumer        | Complete                       | A fresh Astro 7.1.6 project ran `npx astro add @opacedev/astro-visual-editor`, installed beta.2, updated config and completed a production build                                                                                                         |
+| Astro importer eligibility    | Complete                       | npm's live search returns beta.2 for both `astro-integration` and `withastro`, with the canonical Opace homepage and repository; package is absent from Astro's blocklist                                                                                |
+| Astro directory appearance    | Pending external weekly import | Astro refreshes qualifying npm packages automatically; the public listing must still be rendered-verified after the scheduled import                                                                                                                     |
+| Directory avatar              | Pending Astro maintainer merge | A 64 × 64 SVG and metadata request were submitted in [withastro/astro.build#2597](https://github.com/withastro/astro.build/issues/2597)                                                                                                                  |
 
-## Release gates
+## Public beta record and remaining gates
 
-Do not publish the current commit as stable `0.1.0`. The first public version is
-`0.1.0-beta.1` on the `beta` dist-tag, followed by owner acceptance. The clean
-packed-package consumer test is complete; public actions remain gated below.
+Do not promote the package to stable `0.1.0` until owner acceptance. The
+approved public-beta sequence on 4 August 2026 was:
 
-The public GitHub repository was created after explicit owner instruction on
-4 August 2026. npm publication remains a separate public external action and
-requires explicit owner approval. Before publication:
+1. bootstrap `0.1.0-beta.1` through an interactive, 2FA-authenticated publish;
+2. bind npm trusted publishing to this repository and `release.yml`;
+3. publish the corrective `0.1.0-beta.2` tag from GitHub Actions with OIDC and
+   SLSA provenance;
+4. point both npm `beta` and `latest` at beta.2 while no stable release exists;
+5. install from the anonymous registry in a clean Astro 7.1.6 project and
+   complete a production build;
+6. verify that npm's actual keyword search—the source used by Astro's
+   importer—returns the package under both qualifying keywords;
+7. submit the custom avatar and metadata request to Astro.
 
-1. confirm the GitHub Actions Node 22.12/24 matrix passes on `main`;
-2. configure npm trusted publishing or an npm release token;
-3. confirm the npm account owns the `opacedev` scope;
-4. bootstrap the new npm package, then configure the `release.yml` trusted publisher;
-5. publish `@opacedev/astro-visual-editor@0.1.0-beta.1` on the `beta` tag with provenance;
-6. verify `npx astro add @opacedev/astro-visual-editor@beta` in a clean fixture;
-7. confirm the package appears in Astro's integrations directory after its
-   scheduled refresh;
-8. request the prepared custom avatar and homepage metadata from Astro.
+Astro 7.1.6 rejects npm version and dist-tag suffixes in `astro add`. The proven
+automatic command is `npx astro add @opacedev/astro-visual-editor`. Users who
+want to pin the beta tag must use
+`npm install --save-dev @opacedev/astro-visual-editor@beta` and configure the
+integration manually.
+
+The only release-distribution gates still outside this repository are Astro's
+scheduled directory import, Astro maintainer handling of the avatar issue, and
+owner acceptance before a stable release. Do not describe any of those as
+complete until their public result is visibly verified.
 
 ## Known boundaries
 

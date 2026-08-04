@@ -7,6 +7,8 @@ gaps and recommended investment order
 This review is current against `main` on the reviewed date. Engineering release
 truth remains in [`PROJECT.md`](../../../PROJECT.md), while exact legacy parity is
 recorded in [`FEATURE_PARITY.md`](../../../FEATURE_PARITY.md).
+The separate reusable-theme opportunity is specified in
+[`ASTRO_THEME_PRODUCT_PLAN.md`](../../../ASTRO_THEME_PRODUCT_PLAN.md).
 
 ## Executive verdict
 
@@ -83,9 +85,21 @@ communicate the operation clearly enough.
   templates, a canonical About link, 18 focused topics, a verified social
   preview image, a listing in Opace's canonical open-source portfolio and an
   Opace profile pin.
+- `@opacedev/astro-visual-editor@0.1.0-beta.2` is public on npm. Both `latest`
+  and `beta` resolve to beta.2.
+- npm trusted publishing is bound to the exact GitHub repository and
+  `release.yml`; beta.2 was published through OIDC with SLSA provenance.
+- A fresh Astro 7.1.6 project installed beta.2 through the supported
+  unversioned `astro add` command and completed a production build.
+- npm's live `astro-integration` and `withastro` keyword searches both return
+  beta.2 with the canonical Opace homepage and GitHub repository, matching the
+  inputs used by Astro's scheduled importer.
+- Astro's custom avatar request is open as
+  [withastro/astro.build#2597](https://github.com/withastro/astro.build/issues/2597).
 
-These facts do not imply npm publication, Astro directory appearance or owner
-acceptance; those remain separate gates.
+These facts do not imply that Astro's scheduled import has already rendered a
+directory card, that Astro has merged the avatar request, or that the beta has
+owner acceptance for stable release; those remain separate gates.
 
 ## Product value
 
@@ -199,17 +213,17 @@ fail-closed write model.
   automation green across supported Node/Astro versions.
 - Expand browser states to error/conflict, view transitions and additional
   viewport/accessibility combinations.
-- Configure the implemented npm trusted-publishing workflow against the real
-  npm package only after the package has been bootstrapped and approved.
-- Release a prerelease before declaring stable `0.1.0`.
+- Keep the verified npm trusted-publishing workflow pinned to an OIDC-capable
+  npm CLI and release only version-matched tags.
+- Collect beta acceptance evidence before declaring stable `0.1.0`.
 
 ### Priority 5 — distribution and measurable discovery
 
 - Deploy and verify the canonical Opace product page and `/tools/` directory.
 - Keep GitHub and npm metadata pointed at that canonical page; do not maintain
   a duplicate GitHub Pages marketing site.
-- After npm publication, verify `astro add`, Astro's scheduled directory import,
-  the custom avatar request and every final listing link.
+- Monitor Astro's scheduled directory import and avatar request, then verify
+  every rendered listing link when the card becomes public.
 - Add privacy-conscious product-page conversion and outbound-install tracking
   so roadmap decisions use adoption evidence rather than page impressions.
 
@@ -272,20 +286,20 @@ fail-closed write model.
 
 ## Release assessment
 
-The repository is a credible local beta candidate for its documented scope.
-It is not yet a stable public product because owner acceptance, public release
-workflow and ecosystem installation/listing verification remain separate
-gates. Remote/client editing is not part of this release.
+The repository is now a verified public beta for its documented scope. The npm
+release, OIDC workflow, SLSA provenance, clean-registry installation and Astro
+importer inputs are complete. It is not yet a stable public product because
+owner acceptance and ecosystem listing rendering remain separate gates.
+Remote/client editing is not part of this release.
 
-Before the first npm prerelease:
+Before stable `0.1.0`:
 
-1. rerun `npm run test:all` on the release commit;
-2. run the Node 22.12/24 CI matrix;
-3. rebuild/install the packed tarball in a clean consumer;
-4. verify production isolation;
-5. review repository visibility, security policy and issue templates;
-6. configure provenance/trusted publishing; and
-7. obtain explicit owner approval for npm publication.
+1. complete owner acceptance against the documented desktop and mobile flows;
+2. resolve material beta feedback and rerun the full release matrix;
+3. verify Astro's public directory card after the scheduled import;
+4. verify the custom avatar and final homepage/repository links after Astro
+   processes issue #2597; and
+5. preserve the OIDC-only tagged release path and provenance.
 
 ## Final recommendation
 
@@ -295,3 +309,9 @@ The next implementation should combine restart-persistent recovery with an
 exact pre-commit diff. Follow that with Editability Setup/content inventory.
 Those two investments strengthen trust and onboarding for every future path,
 including a later authenticated Git/PR product.
+
+Treat the proposed reusable theme as a separate discovery and demonstration
+product, not as scope added to the integration package. Build it in its own
+repository, keep the editor development-only and optional, and submit it
+through the Astro Developer Portal only after its clean-install, accessibility,
+performance and production-isolation gates pass.

@@ -33,6 +33,31 @@ async function clickRevertWhenStable(page: import('@playwright/test').Page): Pro
   throw new Error('The durable revert control never became stable.');
 }
 
+async function waitForWorkbenchButtonEnabled(
+  page: import('@playwright/test').Page,
+  name: string | RegExp,
+  timeout = 30_000,
+): Promise<void> {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    try {
+      await page.waitForLoadState('domcontentloaded', { timeout: 2_000 });
+      const toolbar = page.locator('astro-dev-toolbar');
+      const workbench = toolbar.locator('.workbench');
+      if (!(await workbench.isVisible())) {
+        const opener = toolbar.getByRole('button', { name: 'Visual Editor' });
+        if ((await opener.count()) && (await opener.isEnabled())) await opener.click();
+      }
+      const button = workbench.getByRole('button', { name });
+      if ((await button.count()) && (await button.isEnabled())) return;
+    } catch {
+      // The source write can replace the toolbar while Astro completes HMR.
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`The ${String(name)} control did not become enabled after HMR.`);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
@@ -125,7 +150,7 @@ test('commits through HMR and reverts from a durable receipt', async ({ page }) 
   const originalSource = await readFile(demoSource, 'utf8');
   try {
     await page.setViewportSize({ width: 1440, height: 980 });
-    let { toolbar, workbench } = await enableEditor(page);
+    const { toolbar, workbench } = await enableEditor(page);
     const lead = page.locator('[data-astro-edit-id="hero-lead"]');
     const originalText = (await lead.textContent())!.trim();
     await lead.click();
@@ -135,13 +160,7 @@ test('commits through HMR and reverts from a durable receipt', async ({ page }) 
     await workbench.getByRole('button', { name: /Commit 1 change/ }).click();
     await expect(lead).toHaveText('Committed browser test copy.', { timeout: 15_000 });
 
-    toolbar = page.locator('astro-dev-toolbar');
-    workbench = toolbar.locator('.workbench');
-    if (!(await workbench.isVisible()))
-      await toolbar.getByRole('button', { name: 'Visual Editor' }).click();
-    await expect(workbench.getByRole('button', { name: 'Revert last commit' })).toBeEnabled({
-      timeout: 15_000,
-    });
+    await waitForWorkbenchButtonEnabled(page, 'Revert last commit');
     await clickRevertWhenStable(page);
     await expect(lead).toHaveText(originalText, { timeout: 15_000 });
     await expect.poll(async () => readFile(demoSource, 'utf8')).toBe(originalSource);
@@ -174,7 +193,7 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
     const dialogB = editorB.toolbar.locator('dialog').filter({ hasText: 'Edit text' });
     await dialogB.locator('textarea').fill('Queued only in tab B');
     await dialogB.getByRole('button', { name: 'Queue change' }).click();
-    await expect(editorB.workbench.getByRole('button', { name: /Commit 1 change/ })).toBeEnabled();
+    await waitForWorkbenchButtonEnabled(pageB, /Commit 1 change/);
 
     await editorA.workbench.getByRole('button', { name: /Commit 1 change/ }).click();
     await expect(pageA.locator('[data-demo-banner]')).toHaveText('Committed only from tab A', {
@@ -190,13 +209,7 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
         .getByRole('button', { name: /Commit 1 change/ }),
     ).toBeEnabled();
 
-    const toolbarA = pageA.locator('astro-dev-toolbar');
-    const workbenchA = toolbarA.locator('.workbench');
-    if (!(await workbenchA.isVisible()))
-      await toolbarA.getByRole('button', { name: 'Visual Editor' }).click();
-    await expect(workbenchA.getByRole('button', { name: 'Revert last commit' })).toBeEnabled({
-      timeout: 15_000,
-    });
+    await waitForWorkbenchButtonEnabled(pageA, 'Revert last commit');
     await clickRevertWhenStable(pageA);
     await expect.poll(async () => readFile(demoSource, 'utf8')).toBe(originalSource);
     const toolbarB = pageB.locator('astro-dev-toolbar');

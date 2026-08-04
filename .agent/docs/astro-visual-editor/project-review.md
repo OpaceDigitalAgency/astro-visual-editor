@@ -1,218 +1,188 @@
-# Astro Visual Editor — Full Project Review
+# Astro Visual Editor — Current Engineering Review
 
-> **Historical review snapshot:** This review was written against the earlier
-> text-only prototype. Its P0, SEO, section, mobile and browser-test gaps were
-> subsequently implemented on 4 August 2026. Use `PROJECT.md`, `README.md` and
-> `FEATURE_PARITY.md` for current engineering truth; retain this file for the
-> original findings and longer-term recommendations only.
+**Reviewed:** 4 August 2026
+**Baseline:** `afcaa42` (`main`)
 
-**Date:** 4 August 2026  
-**Reviewer:** Antigravity (Claude Opus 4.6)  
-**Scope:** All documentation (7 docs) and all application code (15 source files, 3 test files, 2 config files, 1 CI workflow)
+This is a current code review, not the earlier prototype snapshot. Release
+status and external gates are authoritative in [`PROJECT.md`](../../../PROJECT.md).
 
----
+## Verdict
 
-## What It Does
+The repository is a credible standalone local-beta candidate for its documented
+scope. The unsafe and incomplete legacy write paths are not present in the new
+architecture. Text, SEO and declared section operations run through typed,
+validated transactions and are covered by unit and real browser tests.
 
-Astro Visual Editor is a **development-only Astro integration** that adds click-to-edit content controls via Astro's Dev Toolbar. It's designed to solve a genuine gap in the Astro ecosystem: no existing tool lets you visually edit content directly on the rendered page while keeping Astro's file-based architecture intact.
+It should remain a prerelease until public CI, owner acceptance and ecosystem
+installation/listing checks are complete. It is not an authenticated production
+CMS.
 
-### Core Workflow
+## Implemented architecture
 
-1. Developer runs `astro dev` and opens the Visual Editor in the Dev Toolbar
-2. Clicking any eligible text element (headings, paragraphs, list items, etc.) opens an edit dialog
-3. Changes preview instantly in the browser but don't touch source files
-4. Edits accumulate in a visible "change ledger" showing old text, new text, and target file
-5. Individual changes can be undone; the whole queue can be cleared
-6. "Commit" validates the entire batch, then writes all changes to source files atomically
-7. Astro's HMR renders the updated files
-
-### Key Differentiator
-
-The rendered page is the editing surface — unlike every other Astro CMS/editor tool (TinaCMS, Keystatic, CloudCannon, etc.), which show content per-collection or per-file. This is the only approach that naturally handles pages assembled from multiple source files. The accompanying [research assessment](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/Astro%20Integrated%20CMS%20%26%20Frontend%20Editing_%20Complete%20Research%20%26%20Assessment.md) thoroughly validates this positioning.
-
-### Architecture
-
-```
-packages/astro-visual-editor/
-  src/
-    index.ts          → Integration factory (hooks into astro:config:setup, astro:config:done, astro:server:setup)
-    options.ts         → Configuration normalisation and validation
-    toolbar.ts         → Dev Toolbar client (Shadow DOM UI, selection, queue, commit)
-    server/
-      file-updater.ts  → Batch file write with validation and rollback
-      source-files.ts  → Source snapshot reading with hash generation
-      adapters/
-        shared.ts      → Source range utilities (overlap detection, HTML escaping)
-        structured.ts  → JSON/JSONC and YAML structured editing adapters
-    shared/
-      types.ts         → Shared type definitions (changes, config, protocol messages)
-      events.ts        → Event name constants
-      protocol.ts      → Runtime message parsing and validation guards
-demo/                  → Real Astro project with fixture pages for testing
+```text
+packages/astro-visual-editor/src/
+  index.ts                         Astro integration and toolbar server channel
+  options.ts                       validated configuration/defaults
+  toolbar.ts                       Dev Toolbar application and workflow UI
+  client/
+    history.ts                     bounded undo/redo
+    source-resolver.ts             browser ownership resolution
+    styles.ts                      responsive/accessibility presentation
+  server/
+    transaction-manager.ts         idempotent receipts, commit and revert
+    file-updater.ts                snapshot/write transaction orchestration
+    source-files.ts                path, size, hash and atomic-file controls
+    adapters/
+      astro.ts                     literal text, head SEO and section regions
+      markdown.ts                  body/frontmatter editing
+      structured.ts                JSON/JSONC and YAML paths
+      shared.ts                    exact ranges and path utilities
+  shared/
+    events.ts                      protocol event constants
+    protocol.ts                    runtime message validation
+    types.ts                       discriminated change/request types
 ```
 
-The build uses **esbuild** to produce two bundles (node for server, browser for toolbar) plus TypeScript declarations.
+The package builds separate server and toolbar bundles with declarations. The
+demo is a real Astro workspace rather than a mocked host.
 
----
+## Completed capability review
 
-## Current Status
+| Capability | Review result |
+| --- | --- |
+| Text preview/queue/commit | Implemented and browser-tested |
+| SEO read/edit/persist | Implemented for Astro head and Markdown/MDX frontmatter |
+| Section add/delete/reorder | Implemented for declared Astro regions |
+| Genuine drag/drop | Implemented with button and keyboard equivalents |
+| Default/custom templates | Implemented with server-owned markup validation |
+| Undo/redo/clear/individual removal | Implemented |
+| HMR recovery | Implemented with bounded server receipts and session state |
+| Multi-tab isolation | Implemented with client/request addressing |
+| Commit revert | Implemented and refuses to overwrite newer source |
+| Structured sources | JSON/JSONC and YAML exact paths implemented |
+| Runtime protocol guards | Implemented with byte/change/text limits |
+| Network exposure protection | Writes fail closed unless explicitly opted in |
+| Mobile workflow | Compact Pick/Review model implemented and touch-tested |
+| Accessibility | Keyboard, focus, forced-colour/reduced-motion support plus axe gate |
+| Production isolation | Production demo contains no editor/toolbar runtime |
 
-**Version 0.1.0 — unreleased prototype.** The docs correctly label this as locally validated but not ready for public beta. The [PROJECT.md](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/PROJECT.md) status table and [engineering handoff](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md) are remarkably thorough.
+Exact legacy comparison is in [`FEATURE_PARITY.md`](../../../FEATURE_PARITY.md).
 
----
+## Previously reported defects now resolved
 
-## Limitations
+- `allowUnsafeSourceText` is typed, configured and passed to the Astro adapter.
+- Option tests match the safe empty selector-mapping default.
+- Client and request IDs are generated, sent, returned and filtered.
+- Shared runtime protocol parsers validate browser-originated requests.
+- Changes use a discriminated union and adapter routing by kind/extension.
+- Shared event constants are used by both ends of the toolbar channel.
+- File snapshots and hashes participate in commit/revert safety.
+- Structured adapters are connected to the write pipeline.
+- SEO, sections and mobile workflows are implemented.
+- Playwright specifications are committed and run through `test:all`/CI.
 
-### 1. Fundamental Design Limitations
+## Current quality findings
 
-| Limitation | Detail |
-|---|---|
-| **Text-only editing** | Only plain `textContent` replacements. No structural HTML, component props, expressions, or Astro frontmatter editing. |
-| **Naive string replacement** | [file-updater.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/server/file-updater.ts#L104-L117) applies changes sequentially to an already-modified file buffer, so edit A can create text that edit B accidentally matches. |
-| **No syntax awareness** | The `.astro` write path does raw `string.replace()`. An apostrophe can break a JS expression, a quote can break JSON. |
-| **Source adapters unused** | [structured.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/server/adapters/structured.ts) has working JSON/YAML adapters, but [file-updater.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/server/file-updater.ts) doesn't use them — everything goes through raw string replacement. |
-| **No file hashing** | [source-files.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/server/source-files.ts) implements `hashSource()` and `readSourceSnapshot()`, but they're **not called** by the write path. Stale file detection is only by text match, not content hash. |
-| **Desktop-only editing surface** | Astro's Dev Toolbar covers the page on narrow viewports. The compact mobile Pick mode described in the handoff is designed but not implemented. |
-| **Dev-only; no client/editor access** | Requires `astro dev` running locally. Non-technical editors can't use it. |
+### 1. Toolbar maintainability
 
-### 2. Code Inconsistencies & Bugs Found
+`src/toolbar.ts` is 866 lines and still owns substantial UI construction,
+interaction state and lifecycle coordination. Some concerns have already moved
+into `client/`, but the entry point should be decomposed before adding
+Editability Setup, history or remote-provider UI.
 
-| Issue | Severity | Detail |
-|---|---|---|
-| **`allowUnsafeSourceText` not in types** | Medium | Used in both [toolbar.ts:26,348](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/toolbar.ts#L26) and [file-updater.ts:40](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/server/file-updater.ts#L40), but **missing from** `AstroVisualEditorOptions`, `NormalizedOptions`, and `ClientEditorConfig` type definitions. It will always use the fallback `false`. |
-| **Options test expects non-existent default** | Medium | [options.test.ts:18](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/test/options.test.ts#L18) asserts `options.selectorMappings.header === 'src/components/Header.astro'`, but [options.ts:111](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/options.ts#L111) sets `selectorMappings: {}` as default. This test would **fail**. (The handoff P0.5 explicitly says to remove these defaults.) |
-| **Event constants duplicated** | Low | [events.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/shared/events.ts) defines shared constants, but [index.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/index.ts#L14-L18) and [toolbar.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/toolbar.ts#L8-L12) both define their own copies. |
-| **Protocol guards unused** | Medium | [protocol.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/shared/protocol.ts) has `parseSaveRequest()`, `parseReceiptRequest()`, and `parseRevertRequest()` — none are used in [index.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/index.ts#L56). The server handler trusts the incoming payload without validation. |
-| **`clientId` not sent** | Medium | [types.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/shared/types.ts#L83) defines `SaveRequest` extending `ClientMessage` (requires `clientId`), but [toolbar.ts:390](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/toolbar.ts#L390) sends `{ requestId, changes }` — no `clientId`. |
-| **`SaveResponse` type mismatch** | Low | [index.ts:65](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/index.ts#L65) constructs the response without a `clientId`, but `SaveResponse` extends `ClientMessage` which requires it. |
-| **Toolbar default config drift** | Low | [toolbar.ts:19-27](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/toolbar.ts#L19-L27) has its own `defaultConfig` that's a subset of the server defaults. If the server config push fails, the client falls back to a mismatched default set. |
-| **`EditorChange` type mismatch** | Medium | [file-updater.ts:3](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/server/file-updater.ts#L3) imports `EditorChange` but accesses `.oldText` and `.newText` directly — these only exist on `TextEditorChange`, not on `SeoEditorChange` or `SectionsEditorChange`. No runtime kind-check. |
-| **`innerHTML` in toolbar** | Low-Med | [toolbar.ts:139-152](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/toolbar.ts#L139-L152) uses `innerHTML` for static markup, which is safe, but the handoff explicitly asks to avoid it. |
+Recommended boundary:
 
-### 3. Test Coverage Gaps
+```text
+client/
+  editor-store.ts
+  selection-controller.ts
+  section-controller.ts
+  transaction-client.ts
+  persistence.ts
+  ui/workbench.ts
+  ui/dialogs.ts
+  ui/mobile-picker.ts
+```
 
-- **3 test files, ~145 lines total** — covers the basics but is thin
-- No tests for the structured adapters (`applyJsonText`, `applyYamlText`)
-- No tests for protocol parsing (`parseSaveRequest`, etc.)
-- No tests for source-file snapshot reading
-- No tests for `shared.ts` utilities (`applyRanges`, `uniqueRange`, `pathParts`)
-- No browser/E2E tests committed (Playwright is in `devDependencies` but no test files exist)
-- The `test:e2e` script in root `package.json` points to `playwright test` but no spec files
+Preserve the current section-scoped listener disposal when moving controllers.
 
-### 4. Missing Infrastructure
+### 2. Durable recovery
 
-- No linting/formatting (ESLint, Prettier)
-- No dependency update automation (Dependabot/Renovate)
-- No npm publish workflow (trusted publishing)
-- CI only runs `test:all`; no separate browser test job
-- No `.editorconfig` or similar consistency enforcement
-- `__fixtures__` directory under demo is empty
+Receipts survive Astro HMR but live in the dev-server process. A full restart
+removes the toolbar's safe revert history. Add checksummed, bounded,
+project-local receipt persistence with output-hash verification before restore.
 
----
+Do not automatically stage or commit the whole repository from the core tool;
+that risks capturing unrelated working-tree changes.
 
-## Prioritised Recommendations
+### 3. Pre-commit inspection
 
-### 🔴 Priority 1 — Fix Bugs Before Any Other Work
+The ledger describes semantic old/new values but does not show the exact file
+patch. Generate a per-file diff from validated snapshots before write. The diff
+must be derived from the same transaction inputs used for commit.
 
-These are things that are currently broken or inconsistent in the existing code:
+### 4. Editability onboarding
 
-1. **Add `allowUnsafeSourceText` to `AstroVisualEditorOptions` and `NormalizedOptions`** — without it, the option cannot be configured and the toolbar/server checks always use `false`. ~5 min fix.
+Eligibility and attribution are safe but developer-owned. Add an owner-facing
+inventory that explains editable/excluded/unresolved states and persists
+reviewed policy without bypassing adapter validation.
 
-2. **Fix the options test** — it asserts default `selectorMappings.header` which doesn't exist. Either add the default mappings back (contradicts P0.5) or fix the test assertion. ~5 min fix.
+### 5. Test matrix expansion
 
-3. **Add `clientId` to toolbar save requests** — generate a stable tab ID (e.g., from `crypto.randomUUID()` stored in `sessionStorage`) and include it. Without it, the type contract is broken. ~15 min fix.
+The current 19 unit tests and four browser workflows cover the critical beta
+path. Further release hardening should add:
 
-4. **Use protocol parsing guards on the server** — the `parseSaveRequest()` function exists and is well-written but isn't called. Wire it into the `SAVE_EVENT` handler in [index.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/index.ts#L56). ~10 min fix.
+- browser conflict/error and failed-HMR recovery states;
+- Astro view transitions;
+- static and SSR host fixtures;
+- lowest/current supported Astro version matrix;
+- additional screen-reader/manual keyboard evidence;
+- additional production-output markers as the toolbar protocol evolves.
 
-5. **Add `kind` discriminator to toolbar changes** — the toolbar sends changes without a `kind` field, but `EditorChange` is a discriminated union. File-updater accesses `.oldText`/`.newText` directly without checking `kind === 'text'`. ~10 min fix.
+### 6. Repository quality automation
 
-6. **Use shared event constants** — [events.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/shared/events.ts) exists with all constants. Import from it in `index.ts` and `toolbar.ts` instead of redeclaring. ~5 min fix.
+TypeScript checking and tests are strong, but the repository still lacks a
+dedicated formatter/linter, dependency-update automation and a trusted npm
+publishing workflow. These are release-engineering gaps rather than functional
+editor defects.
 
----
+## Security review
 
-### 🟠 Priority 2 — P0 Hardening (Release Blockers)
+The core trust boundary is appropriate for a local developer tool:
 
-These align with the handoff's P0 items and must be done before any public beta:
+- no production write route;
+- non-loopback writes disabled by default;
+- allowed extensions and source/project roots enforced;
+- realpath/symlink escape checked;
+- request, text, source-file and change-count limits;
+- stale hashes and ambiguous targets rejected;
+- compiler/parser validation before write;
+- atomic writes and best-effort rollback;
+- revert protected by current-output hashes.
 
-7. **P0.1 — Immutable edit ranges** — Replace the sequential `string.replace()` in [file-updater.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/server/file-updater.ts#L79-L137) with range-based editing using [shared.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/server/adapters/shared.ts)'s `applyRanges()`. Resolve all edits against the **original** file snapshot, not the mutated buffer. Use `hashSource()` from [source-files.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/server/source-files.ts#L14-L16) for stale-file detection.
+`allowRemoteDev` and `allowUnsafeSourceText` are explicit expert options and
+should remain prominently documented. A future deployed editor requires a
+separate security design and must not reuse local trust assumptions.
 
-8. **P0.2 — Wire up source adapters** — The JSON and YAML adapters in [structured.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/server/adapters/structured.ts) are implemented and correct. Route `.json`/`.jsonc`/`.yaml`/`.yml` files through them instead of raw string replacement. Add an `.astro` adapter for literal text nodes using `@astrojs/compiler` (already a dependency).
+## Validation evidence
 
-9. **P0.3 — Multi-tab safety** — The server broadcasts responses to all connected clients. Add `clientId` filtering so Tab A doesn't clear Tab B's queue.
+Current local evidence:
 
-10. **P0.4 — HMR survival** — Persist queue state in `sessionStorage`. On toolbar init, check for pending transactions via the receipt protocol (already defined in types but not implemented).
+- 6 Vitest files, 19 passing tests;
+- 4 passing Chromium end-to-end workflows;
+- TypeScript and `astro check` clean;
+- demo production build clean;
+- npm tarball inspection clean;
+- tarball installed and built in a fresh Astro 7.1.6 consumer;
+- dependency audit reports zero known vulnerabilities.
 
-11. **P0.5 — Remove default selector mappings** — Remove the phantom `header`/`footer` defaults that the test expects. Validate CSS selectors with `document.querySelector()` safety checks.
+CI is configured for Node 22.12 and 24 with Chromium installation. A configured
+workflow is not the same as a completed public GitHub Actions run; record that
+separately after the first push.
 
-12. **P0.6 — Network exposure protection** — Check if the dev server is bound to a non-loopback address and refuse writes. The `allowRemoteDev` option exists in the config but isn't enforced.
+## Recommended next task
 
----
-
-### 🟡 Priority 3 — Test & Quality Infrastructure
-
-13. **Write adapter tests** — `applyJsonText()` and `applyYamlText()` have no tests. Cover: valid edits, missing paths, stale values, encoding preservation, malformed input.
-
-14. **Write protocol guard tests** — `parseSaveRequest()`, `parseReceiptRequest()`, and `parseRevertRequest()` have no tests. Cover: valid payloads, missing fields, oversized payloads, malformed data.
-
-15. **Write range utility tests** — `applyRanges()`, `uniqueRange()`, `pathParts()` have no tests. Cover: non-overlapping ranges, overlapping rejection, empty strings, array index paths.
-
-16. **Add E2E browser tests** — Playwright is installed. Write specs for: selection, queue, undo, clear, commit, error display. These currently exist only as manual evidence.
-
-17. **Add ESLint + Prettier** — No code formatting or linting exists. This matters for contributions and consistency.
-
-18. **Add Dependabot/Renovate** — No dependency update automation.
-
----
-
-### 🟢 Priority 4 — Product Enhancements (Post-Beta)
-
-19. **Editability Setup mode** (P1.0 in handoff) — The most impactful product enhancement. Site owners need to understand *why* something isn't editable and safely opt elements in/out. Currently requires editing templates.
-
-20. **Page content inventory** (Phase 2 in handoff) — Panel listing all editable values on the current page, grouped by source file.
-
-21. **Client architecture split** (Phase 1 in handoff) — [toolbar.ts](file:///Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor/packages/astro-visual-editor/src/toolbar.ts) is a 421-line monolith handling UI, state, selection, and communication. Split into focused modules per the handoff's architecture diagram.
-
-22. **Mobile compact mode** — The Playwright proof-of-concept validated this works. Implement the Pick → Review state machine for narrow viewports.
-
-23. **Diff view before commit** (Phase 3 in handoff) — Show exact per-file diffs, not just old/new text.
-
-24. **SEO editing** (Phase 4 in handoff) — Types exist (`SeoEditorChange`, `SeoValues`, `SeoField`) but no UI or write path.
-
-25. **Section operations** (Phase 5 in handoff) — Types exist (`SectionsEditorChange`, `SectionTemplate`, `SectionDescriptor`) and templates are defined in options, but no UI or write path.
-
----
-
-### 🔵 Priority 5 — Release Engineering
-
-26. **Add npm trusted publishing workflow** — OIDC-based GitHub Actions for provenance-signed releases.
-
-27. **Create public GitHub repository** — Currently only exists locally. Requires owner approval.
-
-28. **Publish `0.1.0-beta.1`** — As recommended in the handoff. Not stable `0.1.0`.
-
-29. **Verify `npx astro add astro-visual-editor`** — End-to-end installation test in a clean fixture project.
-
----
-
-## Assessment Summary
-
-> [!IMPORTANT]
-> **The project concept is strong and the documentation is exceptionally thorough** — the research assessment, engineering handoff, and project status documents are among the best I've seen for a prototype-stage project. The market gap analysis is well-evidenced and the phased roadmap is realistic.
-
-> [!WARNING]
-> **The code has significant inconsistencies** between what the types/protocols define and what the runtime actually uses. Several well-built components (protocol guards, source adapters, hash-based snapshots, range utilities) exist but aren't wired into the main code path. This suggests the architecture was designed ahead of implementation, and the wiring was never completed.
-
-> [!CAUTION]
-> **Do not publish as-is.** The sequential string replacement can corrupt files when multiple edits interact. The server trusts unvalidated browser payloads. The `allowUnsafeSourceText` option silently doesn't work. Fix Priority 1 items and at least P0.1-P0.3 before any public release.
-
-### Effort Estimate
-
-| Priority | Items | Estimated Effort |
-|---|---|---|
-| 🔴 P1 — Bug fixes | 6 items | 1–2 hours |
-| 🟠 P2 — P0 hardening | 6 items | 3–5 days |
-| 🟡 P3 — Test infrastructure | 6 items | 2–3 days |
-| 🟢 P4 — Product enhancements | 7 items | 2–4 weeks |
-| 🔵 P5 — Release engineering | 4 items | 1–2 days |
-
-**Recommended first task:** Fix all 6 Priority 1 bugs (< 1 hour of work), then run `npm run test:all` to verify nothing else breaks. This clears the path for the P0 hardening work.
+Implement restart-persistent receipt history and exact pre-commit file diffs as
+one bounded component, following the acceptance criteria in the engineering
+handoff. Then implement Editability Setup/content inventory on top of that
+durable review model.

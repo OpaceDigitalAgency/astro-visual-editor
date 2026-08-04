@@ -40,7 +40,7 @@ write paths have been replaced by source adapters and hardened transactions.
 | Astro API conformance | Complete | Integration factory, `astro:config:setup`, `astro:server:setup`, Dev Toolbar app |
 | Unit and safety tests | Complete | 19 Vitest tests cover configuration, protocol, adapters, transactions and file boundaries |
 | Type and demo checks | Complete | TypeScript and `astro check` |
-| Production isolation | Complete | Demo production build contains no editor or toolbar runtime |
+| Production isolation | Complete | Automated post-build scan rejects toolbar protocol/runtime markers in demo output |
 | Desktop browser workflow | Complete | Playwright covers text, SEO, section controls, templates, delete, undo/redo and genuine drag/drop |
 | Source commit/revert | Complete | Real commit, HMR receipt recovery and conflict-protected revert pass in the demo |
 | Narrow/mobile workflow | Complete | Real touch Pick mode, Review sheet, keyboard section move and zero horizontal overflow at 390 × 844 |
@@ -53,7 +53,8 @@ write paths have been replaced by source adapters and hardened transactions.
 | npm package inspection | Complete | `npm pack --dry-run` |
 | Clean packed-package consumer | Complete | Installed the generated tarball with Astro 7.1.6 in a fresh external fixture and completed a production build |
 | Dependency audit | Complete | `npm audit` reports zero known vulnerabilities |
-| GitHub publication | Pending approval | Public repository has not been created |
+| GitHub repository | Complete | Public repository: `OpaceDigitalAgency/astro-visual-editor` |
+| GitHub Actions run | Pending first push | The workflow is configured; record remote CI separately after it runs |
 | npm publication | Pending approval | Package has not been published |
 | Astro directory appearance | Pending npm release | Astro refreshes qualifying npm packages automatically |
 
@@ -63,13 +64,14 @@ Do not publish the current commit as stable `0.1.0`. The recommended first
 public version remains `0.1.0-beta.1`, followed by owner acceptance. The clean
 packed-package consumer test is complete; public actions remain gated below.
 
-Publishing the GitHub repository or npm package is a public external action and
-requires explicit owner approval. After approval:
+The public GitHub repository was created after explicit owner instruction on
+4 August 2026. npm publication remains a separate public external action and
+requires explicit owner approval. Before publication:
 
-1. create `OpaceDigitalAgency/astro-visual-editor` as a public repository;
-2. push the verified `main` branch;
-3. configure npm trusted publishing or an npm release token;
-4. publish `astro-visual-editor@0.1.0` with provenance;
+1. confirm the GitHub Actions Node 22.12/24 matrix passes on `main`;
+2. configure npm trusted publishing or an npm release token;
+3. change the package to the approved prerelease version;
+4. publish `astro-visual-editor@0.1.0-beta.1` with provenance;
 5. verify `npx astro add astro-visual-editor` in a clean fixture;
 6. confirm the package appears in Astro's integrations directory after its
    scheduled refresh;

@@ -13,10 +13,13 @@ async function enableEditor(page: import('@playwright/test').Page) {
 
 async function clickRevertWhenStable(page: import('@playwright/test').Page): Promise<void> {
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const revert = page.locator('astro-dev-toolbar').locator('.workbench').getByRole('button', { name: 'Revert last commit' });
+    const revert = page.locator('astro-dev-toolbar').last().locator('.workbench .revert').last();
     try {
-      if (await revert.isEnabled()) {
-        await revert.click({ force: true, timeout: 750 });
+      if (await revert.count() && await revert.evaluate((button: HTMLButtonElement) => !button.disabled)) {
+        // Dispatch synchronously inside the toolbar's shadow DOM. A normal
+        // locator click can succeed and then reject when the resulting source
+        // write immediately replaces the toolbar during Astro HMR.
+        await revert.evaluate((button: HTMLButtonElement) => button.click());
         return;
       }
     } catch {

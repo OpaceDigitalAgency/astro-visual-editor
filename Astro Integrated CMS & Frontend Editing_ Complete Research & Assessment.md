@@ -3,9 +3,10 @@
 > **Review status — 4 August 2026:** This document contains the original market
 > assessment and legacy-editor findings. Product availability, pricing and
 > third-party feature claims must be reverified before a purchasing decision.
-> The extracted standalone package has a different, safer architecture and does
-> not yet include every legacy feature described below. For current engineering
-> truth, priorities and takeover instructions, read
+> The extracted standalone package has a different, safer architecture and now
+> includes every documented user-facing legacy feature for local development,
+> plus genuine section drag-and-drop and hardened persistence. For current
+> engineering truth, priorities and takeover instructions, read
 > [ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md](./ASTRO_VISUAL_EDITOR_ENGINEERING_HANDOFF.md).
 
 ## The Goal
@@ -427,21 +428,24 @@ attribution is the central engineering problem still to solve.
 
 **If you want something that works TODAY for developer review (no restructuring):**
 
-Use the extracted **Astro Visual Editor** locally for annotated, simple-text
-workflows during `npm run dev`. The rendered page is the unified review view and
-the queue supports batch approval. Do not yet assume that expressions, JSON,
-YAML, frontmatter, repeated values or arbitrary component structures can be
-edited safely.
+Use the extracted **Astro Visual Editor** locally during `npm run dev`. The
+rendered page is the unified review view and the queue supports mixed text, SEO
+and declared-section approval. Astro literals, Markdown/frontmatter and
+explicit JSONC/YAML paths are supported. Arbitrary expressions, repeated
+ambiguous values and undeclared component structures are deliberately refused
+rather than guessed.
 
 **If you want to make it client-accessible (the real goal):**
 
 Invest in upgrading the Astro Visual Editor's write layer:
 
 1. Replace local file system writes with **GitHub API commits** (the same pattern Keystatic, Decap, and Sveltia use).
-2. Add **source-file detection for JSON files** — when a user edits text that originates from a `.json` data file, the editor needs to trace it back to the correct key/value pair.
+2. Extend the existing exact-path JSONC/YAML adapters with reviewed source
+   attribution for deterministic import and content-collection patterns.
 3. Deploy the site in **SSR mode** with a protected `/admin` route that loads the editor for authenticated users only.
 4. Add **simple authentication** (OAuth via GitHub/Google, or a password gate) so only authorised editors can access the editing overlay.
-5. Wire up the **SEO panel** to read/write frontmatter fields properly.
+5. Reuse the existing SEO/frontmatter transaction pipeline rather than creating
+   a second remote-only implementation.
 
 This would give you a tool that no other product in the Astro ecosystem offers: a visual, click-on-the-page editor that works with any site architecture, shows all content in one unified view (the page itself), and lets non-technical clients edit and approve changes on a deployed site.
 

@@ -22,7 +22,9 @@ Read these documents in order:
 2. This handoff — engineering priorities and acceptance criteria.
 3. [README.md](./README.md) — present package behaviour and usage.
 4. [Astro Integrated CMS & Frontend Editing: Complete Research & Assessment](./Astro%20Integrated%20CMS%20%26%20Frontend%20Editing_%20Complete%20Research%20%26%20Assessment.md) — market and product context.
-5. [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
+5. [Strategic product review](./.agent/docs/astro-visual-editor/strategic-product-review.md) — current product recommendations and changes to the original strategy.
+6. [Current engineering review](./.agent/docs/astro-visual-editor/project-review.md) — code-quality findings and remaining maintainability work.
+7. [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
 
 If a historical claim conflicts with the current code or `PROJECT.md`, inspect
 the code and update the project document rather than relying on the historical
@@ -72,7 +74,8 @@ typed source-adapter and transaction architecture first.
 - A complete page-content inventory.
 - Client-facing authentication, Git commits or pull-request workflow.
 - Restart-persistent on-disk/Git edit history and file-level diff UI.
-- A public GitHub repository or npm release.
+- An npm release or Astro integrations-directory listing. The public GitHub
+  repository now exists at `OpaceDigitalAgency/astro-visual-editor`.
 
 ### Legacy prototype boundary
 
@@ -122,10 +125,11 @@ A live Playwright proof at `390 × 844` established:
 | Current full workbench | `ASTRO-DEV-TOOLBAR` intercepts the tap |
 | Compact selection UI | The underlying `P` receives the tap |
 
-The normal page click then opened the edit dialog with no console errors. The
-proof changed only the browser DOM, not repository files.
+The original proof changed only the browser DOM. The compact solution is now
+implemented in repository code and covered by the committed mobile Chromium
+workflow with real touch input, keyboard section movement and overflow checks.
 
-### Required interaction model
+### Implemented interaction model
 
 1. Activating the app enters **Pick mode**.
 2. On narrow screens, show only a compact chip above Astro's toolbar:
@@ -155,12 +159,14 @@ two-tab isolation, touch/keyboard access, drag/drop and axe scanning.
 Every original P0 item is implemented. The complete matrix, package-content
 review and clean packed-tarball Astro 7.1.6 consumer build pass locally. Before
 a public beta, rerun that release evidence on the intended tag and obtain owner
-approval for public GitHub/npm actions.
+approval for npm publication.
 
 ### P0.1 — Replace unsafe string mutation with immutable edit ranges
 
-Current behaviour applies each queued replacement to the already-modified file.
-An earlier replacement can create text that a later change accidentally matches.
+The legacy risk was sequential replacement against an already-modified file,
+where one replacement could create the accidental target of a later edit. The
+standalone transaction/adapters now resolve and validate edits against source
+snapshots and fail closed on stale or ambiguous targets.
 
 Required design:
 
@@ -180,9 +186,9 @@ Acceptance criteria:
 
 ### P0.2 — Introduce syntax-aware source adapters
 
-The current `<>{}` filter does not make raw source replacement safe. For
-example, an apostrophe can break a JavaScript string and an unescaped quote can
-break JSON.
+The legacy `<>{}` filter did not make raw source replacement safe. The current
+pipeline routes supported extensions through syntax-aware adapters and keeps
+raw Astro markup behind the explicit `allowUnsafeSourceText` option.
 
 Define an adapter contract resembling:
 
@@ -219,7 +225,8 @@ Acceptance criteria:
 ### P0.3 — Harden the toolbar protocol
 
 Astro's server-to-toolbar messages are broadcast to connected clients. The
-current client creates a request ID but does not filter responses by it.
+standalone client now addresses and filters every transaction by stable client
+and request IDs and validates messages at runtime.
 
 Required changes:
 
@@ -379,7 +386,7 @@ field maps to a given source.
 - Distinguish previewed, queued, validating, conflicted, written and failed
   states.
 - Permit selective commit and selective retry.
-- Add committed-batch receipts and an explicit revert operation where safe.
+- Retain the implemented committed-batch receipts and hash-protected revert.
 - Show Git working-tree awareness without automatically committing.
 
 ### Phase 4 — Restore SEO editing safely — complete for local beta
@@ -494,8 +501,9 @@ Before the first public beta:
 
 Recommended initial public version: `0.1.0-beta.1`, not stable `0.1.0`.
 
-Public GitHub creation, npm publication and directory submission remain owner
-approval gates. Do not infer publication authority from implementation work.
+The public GitHub repository was created after owner instruction. npm
+publication and directory follow-up remain separate owner-approval gates. Do
+not infer npm publication authority from repository work.
 
 ## Working commands
 
@@ -556,7 +564,7 @@ engineering truth.
 
 Complete only the "Suggested next takeover task" from the handoff: persistent
 local receipt history and the pre-commit diff UX. Keep Git auto-commit, remote
-providers and all public GitHub/npm actions gated. Preserve unrelated user files
-and changes. Test the component, run the full regression baseline, update
+providers and npm publication gated. Preserve unrelated user files and changes.
+Test the component, run the full regression baseline, update
 project/status documents and report exact evidence.
 ```

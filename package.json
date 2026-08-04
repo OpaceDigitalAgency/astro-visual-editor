@@ -10,11 +10,12 @@
   "scripts": {
     "build": "npm run build --workspace astro-visual-editor",
     "check": "npm run check --workspace astro-visual-editor && npm run check --workspace astro-visual-editor-demo",
+    "check:production-isolation": "node scripts/check-production-isolation.mjs",
     "dev": "npm run dev --workspace astro-visual-editor-demo",
     "pack:check": "npm pack --workspace astro-visual-editor --dry-run",
     "test": "npm run test --workspace astro-visual-editor",
     "test:e2e": "playwright test",
-    "test:all": "npm run build && npm run test && npm run check && npm run pack:check && npm run test:e2e"
+    "test:all": "npm run build && npm run test && npm run check && npm run check:production-isolation && npm run pack:check && npm run test:e2e"
   },
   "engines": {
     "node": ">=22.12.0"

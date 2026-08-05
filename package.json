@@ -19,7 +19,8 @@
     "release:preflight": "node scripts/release-preflight.mjs beta",
     "test": "npm run test --workspace @opacedev/astro-visual-editor",
     "test:e2e": "playwright test",
-    "test:all": "npm run format:check && npm run lint && npm run build && npm run test && npm run check && npm run check:production-isolation && npm run pack:check && npm run test:e2e"
+    "test:ci": "npm run format:check && npm run lint && npm run build && npm run test && npm run check && npm run check:production-isolation && npm run pack:check",
+    "test:all": "npm run test:ci && npm run test:e2e"
   },
   "engines": {
     "node": ">=22.12.0"

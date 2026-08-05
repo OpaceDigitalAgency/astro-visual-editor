@@ -6,12 +6,12 @@
 
 **Release branch:** `main`
 
-**Candidate working branch:** `codex/beta4-editability-setup`
+**Candidate working branch:** none; Beta 4 is merged into `main`
 
-**Current package version:** `0.1.0-beta.4` owner-accepted release
+**Current package version:** `0.1.0-beta.4` published release
 
-**Release candidate:** bounded `0.1.0-beta.4` Editability Setup implemented,
-fully validated and owner-accepted for protected publication
+**Release status:** bounded `0.1.0-beta.4` Editability Setup implemented, fully
+validated, owner-accepted and published through the protected workflow
 
 **Package name:** `@opacedev/astro-visual-editor`
 
@@ -39,9 +39,10 @@ claim.
 
 ## Executive decision
 
-Continue the standalone Astro integration. Version `0.1.0-beta.3` adds durable
-local recovery, exact file review and a compact editing workflow to the
-feature-complete public beta. It is still not a stable `0.1.0` release.
+Continue the standalone Astro integration. Published version
+`0.1.0-beta.4` adds owner-controlled Editability Setup and page inventory to
+Beta 3's durable local recovery, exact file review and compact editing workflow.
+It is still not a stable `0.1.0` release.
 
 The product's differentiator is the **rendered page as a unified content review
 surface**, combined with a visible change ledger. Its central engineering
@@ -159,9 +160,10 @@ as the commit signal and the change ledger as its signature differentiator.
 
 The local-beta implementation now completes P0.1–P0.6 for the documented
 feature scope. The retained sections below explain the design and acceptance
-criteria; they are no longer an unimplemented task list. Evidence includes 20
-Vitest tests and four committed Chromium workflows covering HMR commit/revert,
-two-tab isolation, touch/keyboard access, drag/drop and axe scanning.
+criteria; they are no longer an unimplemented task list. Evidence includes 28
+Vitest tests and five committed Chromium workflows covering Editability Setup,
+HMR commit/revert, two-tab isolation, touch/keyboard access, drag/drop and axe
+scanning.
 
 ## Stable-release blockers
 
@@ -299,8 +301,8 @@ Local-only is a security property, not merely a usage description.
 
 ### Urgent enhancement request — owner-controlled editability setup (P1.0)
 
-**Candidate implementation status (5 August 2026): complete locally, awaiting
-owner browser acceptance before Beta 4 publication.**
+**Implementation status (5 August 2026): complete, owner-accepted and published
+as Beta 4 through the protected workflow.**
 
 Prototype testing showed that code-only `editableSelectors`,
 `excludeSelectors` and `data-astro-editable` annotations are not a sufficient
@@ -514,9 +516,9 @@ Implemented release engineering includes formatting/linting checks, Dependabot,
 the Node 22.12/24 CI matrix, production-isolation and package-content checks, a
 clean packed-tarball consumer test, and an OIDC trusted-publishing workflow.
 
-The package was bootstrapped interactively as `0.1.0-beta.1`. Beta.2 and
-beta.3 were then published from public GitHub-hosted runners with npm OIDC and
-provenance. `beta` currently resolves to beta.3; `latest` intentionally remains
+The package was bootstrapped interactively as `0.1.0-beta.1`. Beta.2, beta.3 and
+beta.4 were then published from public GitHub-hosted runners with npm OIDC and
+provenance. `beta` currently resolves to beta.4; `latest` intentionally remains
 beta.2 until stable promotion. Future versions must continue to use
 version-matched `v*` tags and the protected workflow; do not reintroduce a
 long-lived npm publish token.
@@ -560,17 +562,16 @@ Current evidence:
 5. Multi-tab and HMR commit/recovery/revert tests pass — complete.
 6. Production isolation is reverified by the demo build — complete.
 7. Documentation matches the implemented capability contract — complete.
-8. Clean-registry consumer build — complete with Astro 7.1.6 and beta.3.
-9. Trusted OIDC publication and provenance — complete on beta.3.
+8. Clean-registry consumer build — complete with Astro 7.1.6 and beta.4.
+9. Trusted OIDC publication and provenance — complete on beta.4.
 10. Astro directory listing — exact importer preflight complete; scheduled public rendering pending.
 11. Owner acceptance — required before stable `0.1.0`.
 
 ## Suggested next takeover task
 
-Complete owner localhost acceptance for the implemented `0.1.0-beta.4`
-Editability Setup and page-inventory candidate, then follow the protected
-versioning, CI and npm release procedure. Keep Git auto-commit, remote providers,
-authentication and arbitrary block drops outside that bounded task.
+Monitor npm search reindexing and Astro's scheduled integration-directory
+import for the published `0.1.0-beta.4`, then verify the rendered card, links,
+categories and avatar. Begin Beta 5 only as a separately approved bounded task.
 
 ## Copyable prompt for a new Codex project
 

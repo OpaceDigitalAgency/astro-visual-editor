@@ -8,10 +8,10 @@
 
 **Current branch:** `main`
 
-**Candidate working branch:** `codex/beta4-editability-setup`
+**Candidate working branch:** none; Beta 4 is merged into `main`
 
-**Release candidate:** bounded `0.1.0-beta.4` functionality is implemented,
-fully validated and owner-accepted for protected publication.
+**Release status:** bounded `0.1.0-beta.4` functionality is implemented,
+fully validated, owner-accepted and published through the protected workflow.
 
 This plan replaces the release sequence proposed in the earlier Codex task
 **Find easy app testing**. That task remains useful historical context, but its
@@ -32,7 +32,7 @@ place:
 - `name`, `description`, `repository` and `homepage` are complete;
 - the homepage is the canonical Opace product page;
 - category keywords include Dev Toolbar, Performance + SEO, Utilities and UI;
-- npm search eligibility is proven for both qualifying keywords; beta.3 registry
+- npm search eligibility is proven for both qualifying keywords; beta.4 registry
   search reindexing is externally pending;
 - the package is not in Astro's importer blocklist;
 - Astro's current unmodified `update-integrations --unsafe` script was run
@@ -55,21 +55,18 @@ Do not describe an eligible package as already listed. Conversely, do not ask a
 future task to resubmit the npm package manually: Astro's documented mechanism
 is the scheduled npm import.
 
-## Most recent completed public evidence
-
-The protected Beta 4 workflow will replace these Beta 3 evidence links after
-publication completes.
+## Current release evidence
 
 | Gate                | Current evidence                                                                                                                                                                                                  |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public npm package  | [`@opacedev/astro-visual-editor@0.1.0-beta.3`](https://www.npmjs.com/package/@opacedev/astro-visual-editor)                                                                                                       |
-| npm tags            | `beta` resolves to beta.3; `latest` intentionally remains beta.2 until stable promotion                                                                                                                           |
-| Trusted publication | Protected [release run #30994165501](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/30994165501) created the tag, published by npm OIDC with provenance and verified the registry package |
-| Main CI             | Node 22.12 and 24 passed beta.3 in [run #30994045901](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/30994045901)                                                                         |
+| Public npm package  | [`@opacedev/astro-visual-editor@0.1.0-beta.4`](https://www.npmjs.com/package/@opacedev/astro-visual-editor/v/0.1.0-beta.4)                                                                                        |
+| npm tags            | `beta` resolves to beta.4; `latest` intentionally remains beta.2 until stable promotion                                                                                                                           |
+| Trusted publication | Protected [release run #31021372372](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/31021372372) created the tag, published by npm OIDC with provenance and verified the registry package |
+| Main CI             | Node 22.12 and 24 passed exact beta.4 `main` commit `ce645bd` in [run #31021104027](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/31021104027)                                           |
 | Package validation  | Build, type checks, production-isolation scan, package inspection and dependency audit pass                                                                                                                       |
-| Automated behaviour | 24 Vitest tests and four committed Chromium workflows                                                                                                                                                             |
-| Registry consumer   | Exact beta.3 clean Astro 7.1.6 install and production build pass                                                                                                                                                  |
-| Importer inputs     | Package returned by npm searches; correct metadata; not blocklisted; Astro's own importer generated the expected entry                                                                                            |
+| Automated behaviour | 28 Vitest tests and five committed Chromium workflows                                                                                                                                                             |
+| Registry consumer   | Exact beta.4 clean Astro 7.1.6 install and production build pass                                                                                                                                                  |
+| Importer inputs     | Correct metadata and blocklist/importer proof remain valid; npm search reindexing for beta.4 is externally pending                                                                                                |
 | Astro listing       | Not yet publicly rendered; wait for and verify the external scheduled import                                                                                                                                      |
 | Avatar              | Request open in Astro issue #2597                                                                                                                                                                                 |
 
@@ -91,14 +88,14 @@ publication completes.
 
 ### Out of date or corrected
 
-- The package is no longer local-only or unpublished. Beta.2 is public.
+- The package is no longer local-only or unpublished. Beta.4 is public.
 - npm bootstrap, 2FA, trusted publisher configuration, OIDC provenance and
   clean-registry installation are complete.
 - The earlier `beta.1` publication plan is complete, and `beta.2` was used for
   release-command/metadata correction. Persistent history must therefore start
   at beta.3, not beta.2.
-- The earlier report of 9 tests is obsolete. The current baseline is 20 Vitest
-  tests plus four Playwright workflows.
+- The earlier report of 9 tests is obsolete. The current baseline is 28 Vitest
+  tests plus five Playwright workflows.
 - The earlier dirty-worktree, lockfile, missing Prettier plugin and failed npm
   package checks were transient pre-release blockers and are resolved.
 - A GitHub Pages marketing site is not required. The canonical product page is
@@ -160,7 +157,7 @@ npm pack --workspace @opacedev/astro-visual-editor --dry-run
 
 1. formatting and linting;
 2. package build and TypeScript checks;
-3. 24 unit/adapter/protocol/transaction tests or the documented higher count;
+3. 28 unit/adapter/protocol/transaction tests or the documented higher count;
 4. demo `astro check` and production build;
 5. proof that production output contains no editor runtime or write route;
 6. package-content inspection; and
@@ -222,8 +219,8 @@ Exit criteria:
 
 ### `0.1.0-beta.4` — Editability Setup and page inventory
 
-**Release status (5 August 2026):** implemented, fully validated and accepted by
-the owner for protected publication.
+**Release status (5 August 2026):** implemented, fully validated, accepted by
+the owner and published through the protected workflow.
 
 - mark visible content as editable, excluded, unresolved or structurally unsafe;
 - explain every decision in plain language;
@@ -370,10 +367,10 @@ dependency, but production output must remain independent and editor-free.
 
 ## Immediate next takeover task
 
-Merge the owner-accepted `0.1.0-beta.4` release through protected `main`, then
-use the guarded Publish package workflow and record the immutable CI, release
-and npm evidence. Do not add remote authentication, Git auto-commit or
-arbitrary block drops.
+Monitor npm search reindexing and Astro's next scheduled directory import, then
+verify the public card, links, categories and avatar. Begin Beta 5 only as a
+separately approved bounded task. Do not add remote authentication, Git
+auto-commit or arbitrary block drops.
 
 Before changing code, read all applicable `AGENTS.md` files, then read in order:
 

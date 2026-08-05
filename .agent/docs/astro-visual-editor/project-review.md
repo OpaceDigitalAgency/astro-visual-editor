@@ -9,8 +9,8 @@ The current version sequence and takeover gates are maintained in
 [`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md).
 
 > **Release update — 5 August 2026:** Beta 4's bounded Editability Setup and
-> page inventory are implemented, fully validated and owner-accepted for
-> protected publication; `PROJECT.md` is authoritative.
+> page inventory are implemented, fully validated, owner-accepted and published
+> through the protected workflow; `PROJECT.md` is authoritative.
 
 ## Verdict
 
@@ -19,7 +19,7 @@ development scope. The unsafe and incomplete legacy write paths are not present
 in the new architecture. Text, SEO and declared section operations run through
 typed, validated transactions and are covered by unit and real browser tests.
 
-Beta.2 is public on npm, published through trusted GitHub OIDC with provenance,
+Beta.4 is public on npm, published through trusted GitHub OIDC with provenance,
 and proven in a clean registry consumer. It should remain a prerelease until
 owner acceptance and the remaining product hardening are complete. Astro's
 directory card and avatar are external pending outcomes, not missing package
@@ -138,7 +138,7 @@ owner acceptance and future attribution work.
 
 ### 5. Test matrix expansion
 
-The current 20 unit tests and four browser workflows cover the critical beta
+The current 28 unit tests and five browser workflows cover the critical beta
 path. Further release hardening should add:
 
 - browser conflict/error and failed-HMR recovery states;
@@ -151,7 +151,7 @@ path. Further release hardening should add:
 ### 6. Repository quality automation
 
 Formatting, linting, Dependabot, the Node 22.12/24 CI matrix and trusted npm
-publishing are implemented and verified. Beta.2 was published from
+publishing are implemented and verified. Beta.4 was published from
 `release.yml` through npm OIDC with SLSA provenance; the anonymous registry
 consumer and current main CI also pass. Remaining distribution work is to
 observe Astro's scheduled catalogue import, verify its rendered card and avatar,
@@ -179,25 +179,25 @@ separate security design and must not reuse local trust assumptions.
 
 Current local evidence:
 
-- 6 Vitest files, 20 passing tests;
-- 4 passing Chromium end-to-end workflows;
+- 7 Vitest files, 28 passing tests;
+- 5 passing Chromium end-to-end workflows;
 - TypeScript and `astro check` clean;
 - demo production build clean;
 - npm tarball inspection clean;
 - tarball installed and built in a fresh Astro 7.1.6 consumer;
-- public beta.2 installed and built from the anonymous npm registry;
-- beta.2 published through the configured trusted publisher with SLSA
+- public beta.4 installed and built from the anonymous npm registry;
+- beta.4 published through the configured trusted publisher with SLSA
   provenance;
 - dependency audit reports zero known vulnerabilities.
 
 CI is configured for Node 22.12 and 24 with Chromium installation, and both jobs
-have passed publicly on the beta.2 release commit and the latest documentation
-commit. npm's qualifying searches return the package, and it is absent from
-Astro's importer blocklist. The public directory card and issue #2597 avatar
-remain controlled by Astro.
+passed publicly on the exact beta.4 `main` commit. npm's qualifying metadata is
+unchanged and the package remains absent from Astro's importer blocklist; npm
+search reindexing for beta.4 is externally pending. The public directory card
+and issue #2597 avatar remain controlled by Astro.
 
 ## Recommended next task
 
-Complete owner localhost acceptance for the implemented Beta 4 Editability
-Setup/content inventory, then use the protected versioning, CI and npm release
-path in [`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md).
+Monitor npm search reindexing and Astro's scheduled import for the published
+Beta 4 package. Begin Beta 5 only as a separately approved bounded task using
+the protected path in [`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md).

@@ -13,8 +13,8 @@ The separate reusable-theme opportunity is specified in
 [`ASTRO_THEME_PRODUCT_PLAN.md`](../../../ASTRO_THEME_PRODUCT_PLAN.md).
 
 > **Release update — 5 August 2026:** the bounded Beta 4 Editability Setup and
-> page inventory described below are implemented, validated and owner-accepted
-> for protected publication. `PROJECT.md` remains authoritative.
+> page inventory described below are implemented, validated, owner-accepted and
+> published through the protected workflow. `PROJECT.md` remains authoritative.
 
 ## Executive verdict
 
@@ -48,7 +48,7 @@ adding production authentication, GitHub tokens or broad Git automation.
 | Browser resilience         | HMR recovery, navigation state and two-tab request isolation                                                                     | No multi-user collaboration model                          |
 | Mobile/accessibility       | Touch Pick/Review flow, keyboard controls, reduced motion, forced colours and axe gate                                           | Broader assistive-technology coverage can grow             |
 | Production isolation       | No production editor runtime or public write route                                                                               | Therefore no deployed client access                        |
-| Editability administration | Guided docked owner inventory, reviewed allow/deny policy and source confirmation implemented and owner-accepted                 | Protected publication and external Astro import            |
+| Editability administration | Guided docked owner inventory, reviewed allow/deny policy and source confirmation implemented, accepted and published            | External Astro import                                      |
 
 ## Interaction findings from owner review
 
@@ -76,10 +76,11 @@ communicate the operation clearly enough.
 - The legacy documentation-only drag claim is now a real drag/drop workflow.
 - Text, SEO and section edits share one validated transaction pipeline.
 - Unsupported, ambiguous, stale, oversized or out-of-root edits fail closed.
-- Four committed Chromium workflows cover desktop, mobile, HMR commit/revert,
-  two-tab isolation, keyboard controls, drag/drop and axe scanning.
-- Twenty Vitest tests cover configuration, protocol, source adapters,
-  transactions, paths and revert.
+- Five committed Chromium workflows cover desktop, mobile, Editability Setup,
+  HMR commit/revert, two-tab isolation, keyboard controls, drag/drop and axe
+  scanning.
+- Twenty-eight Vitest tests cover configuration, policy, protocol, source
+  adapters, transactions, paths and revert.
 - A generated npm tarball installs and builds in a clean Astro 7.1.6 consumer.
 - The dependency audit reports zero known vulnerabilities.
 - The canonical product presence is implemented inside Opace's existing site at
@@ -91,15 +92,15 @@ communicate the operation clearly enough.
   templates, a canonical About link, 18 focused topics, a verified social
   preview image, a listing in Opace's canonical open-source portfolio and an
   Opace profile pin.
-- `@opacedev/astro-visual-editor@0.1.0-beta.2` is public on npm. Both `latest`
-  and `beta` resolve to beta.2.
+- `@opacedev/astro-visual-editor@0.1.0-beta.4` is public on npm. `beta` resolves
+  to beta.4; `latest` intentionally remains beta.2 until stable promotion.
 - npm trusted publishing is bound to the exact GitHub repository and
-  `release.yml`; beta.2 was published through OIDC with SLSA provenance.
-- A fresh Astro 7.1.6 project installed beta.2 through the supported
-  unversioned `astro add` command and completed a production build.
-- npm's live `astro-integration` and `withastro` keyword searches both return
-  beta.2 with the canonical Opace homepage and GitHub repository, matching the
-  inputs used by Astro's scheduled importer.
+  `release.yml`; beta.4 was published through OIDC with SLSA provenance.
+- The protected release workflow installed exact beta.4 in a fresh Astro 7.1.6
+  project and completed a production build.
+- The qualifying `astro-integration` and `withastro` metadata, canonical Opace
+  homepage and GitHub repository remain published; npm search reindexing for
+  beta.4 is externally pending.
 - Astro's current unmodified importer generated the expected entry with Dev
   Toolbar, Performance + SEO, Utilities and CSS + UI categories.
 - Astro's custom avatar request is open as
@@ -316,10 +317,9 @@ Before stable `0.1.0`:
 
 Ship and learn from the local beta before building a remote CMS.
 
-The next implementation should combine restart-persistent recovery with an
-exact pre-commit diff as `0.1.0-beta.3`, following
-[`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md). Follow that with Editability
-Setup/content inventory.
+Beta 4 is published. Monitor npm search reindexing and Astro's scheduled import,
+then begin Beta 5's bounded attribution and schema-aware fields only after
+separate approval under [`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md).
 Those two investments strengthen trust and onboarding for every future path,
 including a later authenticated Git/PR product.
 

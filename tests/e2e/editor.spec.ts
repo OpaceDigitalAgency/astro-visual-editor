@@ -38,16 +38,21 @@ async function waitForWorkbenchButtonEnabled(
   while (Date.now() < deadline) {
     try {
       await page.waitForLoadState('domcontentloaded', { timeout: 2_000 });
-      // Astro can briefly retain the outgoing toolbar while installing its
-      // HMR replacement. Always address the newest live instance.
-      const toolbar = page.locator('astro-dev-toolbar').last();
-      const workbench = toolbar.locator('.workbench');
-      if (!(await workbench.isVisible())) {
-        const opener = toolbar.getByRole('button', { name: 'Visual Editor' });
-        if ((await opener.count()) && (await opener.isEnabled())) await opener.click();
+      // Astro can briefly retain an outgoing toolbar while installing its HMR
+      // replacement. Accept the enabled control from any connected instance.
+      const toolbars = page.locator('astro-dev-toolbar');
+      const buttons = toolbars.locator('.workbench').getByRole('button', { name });
+      for (let index = (await buttons.count()) - 1; index >= 0; index -= 1) {
+        if (await buttons.nth(index).isEnabled()) return;
       }
-      const button = workbench.getByRole('button', { name });
-      if ((await button.count()) && (await button.isEnabled())) return;
+      const openers = toolbars.getByRole('button', { name: 'Visual Editor' });
+      for (let index = (await openers.count()) - 1; index >= 0; index -= 1) {
+        const opener = openers.nth(index);
+        if ((await opener.isVisible()) && (await opener.isEnabled())) {
+          await opener.click();
+          break;
+        }
+      }
     } catch {
       // The source write can replace the toolbar while Astro completes HMR.
     }

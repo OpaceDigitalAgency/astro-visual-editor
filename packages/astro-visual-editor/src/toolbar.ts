@@ -42,6 +42,7 @@ const SESSION_QUEUE = `${APP_ID}:queue:v2`;
 const SESSION_CLIENT = `${APP_ID}:client-id`;
 const SESSION_PENDING = `${APP_ID}:pending`;
 const SESSION_RECEIPT = `${APP_ID}:last-receipt`;
+const SESSION_CONFIG = `${APP_ID}:config:v1`;
 let hasUnsavedChanges = false;
 
 const defaultConfig: ClientEditorConfig = {
@@ -176,6 +177,15 @@ function safeParseQueue(): EditorChange[] {
   }
 }
 
+function safeParseConfig(): ClientEditorConfig | undefined {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(SESSION_CONFIG) ?? 'null');
+    return value && typeof value === 'object' ? (value as ClientEditorConfig) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default defineToolbarApp({
   init(canvas, app, server) {
     const clientId = getClientId();
@@ -186,8 +196,10 @@ export default defineToolbarApp({
     const regionAnchors = new WeakMap<HTMLElement, Comment>();
     const listenerController = new AbortController();
     let sectionListenerController = new AbortController();
-    let config = defaultConfig;
-    let configReady = false;
+    const cachedConfig = safeParseConfig();
+    let config = cachedConfig ? { ...defaultConfig, ...cachedConfig } : defaultConfig;
+    let configReady = Boolean(cachedConfig);
+    let configConfirmed = false;
     let active = false;
     let mode: EditorMode = 'text';
     let hovered: HTMLElement | null = null;
@@ -1248,6 +1260,8 @@ export default defineToolbarApp({
     server.on(CONFIG_EVENT, (next: ClientEditorConfig) => {
       config = { ...defaultConfig, ...next };
       configReady = true;
+      configConfirmed = true;
+      sessionStorage.setItem(SESSION_CONFIG, JSON.stringify(next));
       try {
         for (const selector of [
           ...config.editableSelectors,
@@ -1345,12 +1359,13 @@ export default defineToolbarApp({
       if (panel.isConnected)
         server.send(READY_EVENT, { clientId, route: window.location.pathname });
     };
+    if (configReady) replaceQueue(safeParseQueue());
     announceReady();
     // The toolbar websocket can reconnect during Astro HMR just as the first
     // ready event is sent. Retry the handshake until the server confirms the
     // configuration instead of leaving source actions disabled.
     const configRetryId = window.setInterval(() => {
-      if (configReady || !panel.isConnected) window.clearInterval(configRetryId);
+      if (configConfirmed || !panel.isConnected) window.clearInterval(configRetryId);
       else announceReady();
     }, 500);
     renderQueue();

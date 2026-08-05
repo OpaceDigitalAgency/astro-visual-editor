@@ -77,11 +77,17 @@ async function closePagesAfterHmr(pages: import('@playwright/test').Page[]): Pro
   // Closing a whole context while Astro is replacing several documents can
   // occasionally stall Chromium. Close each page without unload handlers and
   // let Playwright dispose the now-empty context with the browser fixture.
-  await Promise.all(
-    pages.map(async (page) => {
-      if (!page.isClosed()) await page.close({ runBeforeUnload: false });
-    }),
-  );
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, 2_000);
+    void Promise.allSettled(
+      pages.map(async (page) => {
+        if (!page.isClosed()) await page.close({ runBeforeUnload: false });
+      }),
+    ).then(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
 }
 
 test.beforeEach(async ({ page }) => {

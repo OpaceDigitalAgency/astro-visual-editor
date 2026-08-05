@@ -505,11 +505,39 @@ export default defineToolbarApp({
       for (const change of changes) {
         if (change.kind === 'text' && change.selector) {
           const element = document.querySelector<HTMLElement>(change.selector);
-          if (element) element.textContent = change.newText;
+          if (element && element.textContent !== change.newText)
+            element.textContent = change.newText;
         } else if (change.kind === 'seo') setSeoPreview(change.after);
         else if (change.kind === 'sections') applySectionState(change, change.after);
       }
     }
+
+    // Astro HMR can replace page content just after the toolbar has restored a
+    // tab's session queue. Reapply text previews when that replacement lands so
+    // the queued value stays visible without changing another tab's queue.
+    let previewFrame: number | undefined;
+    const pageObserver = new MutationObserver(() => {
+      if (!panel.isConnected) {
+        pageObserver.disconnect();
+        if (previewFrame !== undefined) cancelAnimationFrame(previewFrame);
+        return;
+      }
+      if (queue.size === 0 || previewFrame !== undefined) return;
+      previewFrame = requestAnimationFrame(() => {
+        previewFrame = undefined;
+        for (const change of queue.values()) {
+          if (change.kind !== 'text' || !change.selector) continue;
+          const element = document.querySelector<HTMLElement>(change.selector);
+          if (element && element.textContent !== change.newText)
+            element.textContent = change.newText;
+        }
+      });
+    });
+    pageObserver.observe(document.documentElement, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
 
     function replaceQueue(changes: EditorChange[]): void {
       const current = serializableQueue();

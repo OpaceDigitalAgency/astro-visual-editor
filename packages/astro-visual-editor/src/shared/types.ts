@@ -74,6 +74,27 @@ export interface SaveRequest extends ClientMessage {
   changes: EditorChange[];
 }
 
+export interface DiffLine {
+  kind: 'context' | 'remove' | 'add';
+  text: string;
+  oldLine?: number;
+  newLine?: number;
+}
+
+export interface FileDiff {
+  filePath: string;
+  beforeHash: string;
+  afterHash: string;
+  lines: DiffLine[];
+}
+
+export interface PreviewResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  diffs?: FileDiff[];
+  error?: string;
+}
+
 export interface SaveResponse extends ClientMessage {
   requestId: string;
   success: boolean;
@@ -104,6 +125,19 @@ export interface RevertResponse extends ClientMessage {
   success: boolean;
   files?: string[];
   error?: string;
+}
+
+export interface HistoryEntry {
+  receiptId: string;
+  createdAt: number;
+  files: string[];
+  changeCount: number;
+  status: 'committed' | 'reverted';
+}
+
+export interface HistoryResponse extends ClientMessage {
+  requestId: string;
+  entries: HistoryEntry[];
 }
 
 export interface ApplyBatchResult {

@@ -33,6 +33,24 @@ async function clickRevertWhenStable(page: import('@playwright/test').Page): Pro
   throw new Error('The durable revert control never became stable.');
 }
 
+async function restoreFromHistory(page: import('@playwright/test').Page): Promise<void> {
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  // The source commit can queue one final Astro HMR navigation after reload.
+  // Let that navigation settle before addressing the replacement toolbar.
+  await page.waitForTimeout(1_000);
+  const { toolbar, workbench } = await enableEditor(page);
+  await workbench
+    .getByRole('button', { name: 'History' })
+    .evaluate((button: HTMLButtonElement) => button.click());
+  const restore = toolbar
+    .locator('dialog')
+    .filter({ hasText: 'Saved changes' })
+    .getByRole('button', { name: /Restore saved changes/ })
+    .first();
+  await expect(restore).toBeVisible();
+  await restore.evaluate((button: HTMLButtonElement) => button.click());
+}
+
 async function waitForWorkbenchButtonEnabled(
   page: import('@playwright/test').Page,
   name: string | RegExp,
@@ -58,6 +76,18 @@ async function waitForWorkbenchButtonEnabled(
   throw new Error(`The ${String(name)} control did not become enabled after HMR.`);
 }
 
+async function reviewAndCommit(
+  toolbar: import('@playwright/test').Locator,
+  workbench: import('@playwright/test').Locator,
+): Promise<void> {
+  await workbench.getByRole('button', { name: /Review 1 file change/ }).click();
+  const review = toolbar.locator('dialog').filter({ hasText: 'Review file changes' });
+  await expect(review).toBeVisible();
+  expect(await review.locator('.diff-line.remove').count()).toBeGreaterThan(0);
+  expect(await review.locator('.diff-line.add').count()).toBeGreaterThan(0);
+  await review.getByRole('button', { name: 'Commit these changes' }).click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
@@ -68,6 +98,9 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await page.setViewportSize({ width: 1440, height: 980 });
   const { toolbar, workbench } = await enableEditor(page);
   await expect(workbench).toBeVisible();
+  const workbenchBox = (await workbench.boundingBox())!;
+  expect(workbenchBox.width).toBeLessThanOrEqual(401);
+  expect(workbenchBox.height).toBeLessThanOrEqual(611);
   await expect(toolbar.getByText('Connected. Changes remain local until committed.')).toBeVisible();
 
   await workbench.getByRole('button', { name: 'Collapse editor' }).click();
@@ -95,6 +128,13 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await workbench.getByRole('button', { name: 'Clear' }).click();
 
   await workbench.getByRole('tab', { name: 'Sections' }).click();
+  await expect(workbench).toBeHidden();
+  await expect(picker).toBeVisible();
+  const firstControlsBox = (await page
+    .locator('.astro-ve-section-controls')
+    .first()
+    .boundingBox())!;
+  expect(firstControlsBox.width).toBeLessThanOrEqual(137);
   const source = page.getByRole('button', { name: 'Drag preview to reorder' });
   await expect(source).toHaveAttribute('title', 'Drag preview to reorder');
   await expect(source).toHaveAttribute('data-tooltip', 'Drag preview to reorder');
@@ -108,7 +148,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(
     page.locator('[data-astro-edit-region="home-principles"] > section').first(),
   ).toHaveAttribute('data-section', 'review');
-  await workbench.getByRole('tab', { name: 'Review' }).click();
+  await picker.getByRole('button', { name: /Review 1/ }).click();
   await expect(workbench.locator('.change-summary')).toHaveText(
     'Reordered 3 sections in home-principles',
   );
@@ -124,11 +164,14 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
     .getByRole('button', { name: /Text/ })
     .click();
   await expect(page.locator('[data-section^="text-"]')).toHaveCount(1);
+  await picker.getByRole('button', { name: /Review 1/ }).click();
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
+  await workbench.getByRole('tab', { name: 'Sections' }).click();
 
   await page.getByRole('button', { name: 'Delete section review' }).click();
   await toolbar.getByRole('button', { name: 'Delete section', exact: true }).click();
   await expect(page.locator('[data-section="review"]')).toHaveCount(0);
+  await picker.getByRole('button', { name: /Review 1/ }).click();
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
 
   await workbench.getByRole('tab', { name: 'SEO' }).click();
@@ -145,7 +188,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(page).toHaveTitle('Astro Visual Editor demo');
 });
 
-test('commits through HMR and reverts from a durable receipt', async ({ page }) => {
+test('commits through HMR and restores from durable History', async ({ page }) => {
   test.setTimeout(60_000);
   const originalSource = await readFile(demoSource, 'utf8');
   try {
@@ -157,11 +200,10 @@ test('commits through HMR and reverts from a durable receipt', async ({ page }) 
     const dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
     await dialog.locator('textarea').fill('Committed browser test copy.');
     await dialog.getByRole('button', { name: 'Queue change' }).click();
-    await workbench.getByRole('button', { name: /Commit 1 change/ }).click();
+    await reviewAndCommit(toolbar, workbench);
     await expect(lead).toHaveText('Committed browser test copy.', { timeout: 15_000 });
 
-    await waitForWorkbenchButtonEnabled(page, 'Revert last commit');
-    await clickRevertWhenStable(page);
+    await restoreFromHistory(page);
     await expect(lead).toHaveText(originalText, { timeout: 15_000 });
     await expect.poll(async () => readFile(demoSource, 'utf8')).toBe(originalSource);
   } finally {
@@ -193,9 +235,9 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
     const dialogB = editorB.toolbar.locator('dialog').filter({ hasText: 'Edit text' });
     await dialogB.locator('textarea').fill('Queued only in tab B');
     await dialogB.getByRole('button', { name: 'Queue change' }).click();
-    await waitForWorkbenchButtonEnabled(pageB, /Commit 1 change/);
+    await waitForWorkbenchButtonEnabled(pageB, /Review 1 file change/);
 
-    await editorA.workbench.getByRole('button', { name: /Commit 1 change/ }).click();
+    await reviewAndCommit(editorA.toolbar, editorA.workbench);
     await expect(pageA.locator('[data-demo-banner]')).toHaveText('Committed only from tab A', {
       timeout: 15_000,
     });
@@ -206,7 +248,7 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
       pageB
         .locator('astro-dev-toolbar')
         .locator('.workbench')
-        .getByRole('button', { name: /Commit 1 change/ }),
+        .getByRole('button', { name: /Review 1 file change/ }),
     ).toBeEnabled();
 
     await waitForWorkbenchButtonEnabled(pageA, 'Revert last commit');
@@ -247,12 +289,14 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   await textDialog.getByRole('button', { name: 'Cancel' }).click();
   await picker.getByRole('button', { name: 'Expand' }).click();
   await workbench.getByRole('tab', { name: 'Sections' }).click();
+  await expect(workbench).toBeHidden();
   const move = page.getByRole('button', { name: 'Move preview down' });
   await move.focus();
   await move.press('Enter');
   await expect(
     page.locator('[data-astro-edit-region="home-principles"] > section').first(),
   ).toHaveAttribute('data-section', 'review');
+  await picker.getByRole('button', { name: /Review 1/ }).click();
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);

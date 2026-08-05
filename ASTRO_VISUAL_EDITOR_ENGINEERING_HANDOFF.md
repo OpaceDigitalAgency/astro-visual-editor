@@ -1,12 +1,12 @@
 # Astro Visual Editor — Engineering Handoff
 
-**Prepared:** 4 August 2026
+**Prepared:** 5 August 2026
 
 **Repository:** `/Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor`
 
 **Current branch:** `main`
 
-**Current package version:** `0.1.0-beta.2` public beta
+**Current package version:** `0.1.0-beta.3` owner-approved release
 
 **Package name:** `@opacedev/astro-visual-editor`
 
@@ -34,9 +34,9 @@ claim.
 
 ## Executive decision
 
-Continue the standalone Astro integration. Version `0.1.0-beta.2` is now a
-published, feature-complete public beta rather than the earlier text-only
-prototype. It is still not a stable `0.1.0` release.
+Continue the standalone Astro integration. Version `0.1.0-beta.3` adds durable
+local recovery, exact file review and a compact editing workflow to the
+feature-complete public beta. It is still not a stable `0.1.0` release.
 
 The product's differentiator is the **rendered page as a unified content review
 surface**, combined with a visible change ledger. Its central engineering
@@ -548,20 +548,9 @@ Current evidence:
 
 ## Suggested next takeover task
 
-Complete the `0.1.0-beta.3` scope from [RELEASE_PLAN.md](./RELEASE_PLAN.md):
-restart-persistent local safety and the pre-commit diff UX as one bounded
-component.
-
-1. Persist a bounded, checksummed receipt history under an ignored project-local
-   `.astro-visual-editor/` directory.
-2. Refuse restore when the current file hash differs from the recorded output.
-3. Add a History panel listing batch time, files and status.
-4. Generate an exact per-file preview diff before commit.
-5. Test server restart recovery, tampered history, expired history and revert.
-6. Rerun the complete baseline and update `PROJECT.md`.
-
-Keep Git auto-commit, remote providers, authentication and a new public npm
-version outside this bounded task unless publication is explicitly authorised.
+Begin only the `0.1.0-beta.4` Editability Setup and page-inventory scope after
+the beta.3 GitHub/npm release evidence is recorded. Keep Git auto-commit, remote
+providers, authentication and arbitrary block drops outside that bounded task.
 
 ## Copyable prompt for a new Codex project
 
@@ -575,10 +564,9 @@ SECURITY.md and both current reviews under .agent/docs before changing anything.
 Treat PROJECT.md as release truth, RELEASE_PLAN.md as the authoritative version
 sequence and the handoff as engineering acceptance criteria.
 
-Complete only the `0.1.0-beta.3` task: persistent local receipt history and the
-exact pre-commit diff UX. Keep Git auto-commit, remote providers,
-authentication, arbitrary block drops and any new npm publication out of scope
-unless explicitly authorised. Preserve unrelated user files and changes. Test
-the component, run the full regression baseline, update project/status
+Complete only the `0.1.0-beta.4` Editability Setup and page-inventory task from
+RELEASE_PLAN.md. Keep Git auto-commit, remote providers, authentication and
+arbitrary block drops out of scope. Preserve unrelated user files and changes.
+Test the component, run the full regression baseline, update project/status
 documents and report exact push and CI evidence.
 ```

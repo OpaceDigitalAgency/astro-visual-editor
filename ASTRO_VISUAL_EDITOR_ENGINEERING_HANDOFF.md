@@ -6,7 +6,7 @@
 
 **Current branch:** `main`
 
-**Current package version:** `0.1.0-beta.3` owner-approved release
+**Current package version:** `0.1.0-beta.3` published release
 
 **Package name:** `@opacedev/astro-visual-editor`
 
@@ -495,12 +495,12 @@ Implemented release engineering includes formatting/linting checks, Dependabot,
 the Node 22.12/24 CI matrix, production-isolation and package-content checks, a
 clean packed-tarball consumer test, and an OIDC trusted-publishing workflow.
 
-The package was bootstrapped interactively as `0.1.0-beta.1`, then
-`0.1.0-beta.2` was published from the public GitHub-hosted runner with SLSA
-provenance after the trusted publisher was configured and read back. Both npm
-`latest` and `beta` currently resolve to beta.2. Future versions must continue
-to use version-matched `v*` tags and the protected workflow; do not reintroduce
-a long-lived npm publish token.
+The package was bootstrapped interactively as `0.1.0-beta.1`. Beta.2 and
+beta.3 were then published from public GitHub-hosted runners with npm OIDC and
+provenance. `beta` currently resolves to beta.3; `latest` intentionally remains
+beta.2 until stable promotion. Future versions must continue to use
+version-matched `v*` tags and the protected workflow; do not reintroduce a
+long-lived npm publish token.
 
 Astro's current unmodified importer has also been run locally against the live
 npm registry. It added beta.2 with the correct Opace homepage and repository,
@@ -541,15 +541,15 @@ Current evidence:
 5. Multi-tab and HMR commit/recovery/revert tests pass — complete.
 6. Production isolation is reverified by the demo build — complete.
 7. Documentation matches the implemented capability contract — complete.
-8. Clean-registry consumer build — complete with Astro 7.1.6 and beta.2.
-9. Trusted OIDC publication and provenance — complete on beta.2.
+8. Clean-registry consumer build — complete with Astro 7.1.6 and beta.3.
+9. Trusted OIDC publication and provenance — complete on beta.3.
 10. Astro directory listing — exact importer preflight complete; scheduled public rendering pending.
 11. Owner acceptance — required before stable `0.1.0`.
 
 ## Suggested next takeover task
 
-Begin only the `0.1.0-beta.4` Editability Setup and page-inventory scope after
-the beta.3 GitHub/npm release evidence is recorded. Keep Git auto-commit, remote
+Begin only the `0.1.0-beta.4` Editability Setup and page-inventory scope. The
+beta.3 GitHub/npm release evidence is recorded. Keep Git auto-commit, remote
 providers, authentication and arbitrary block drops outside that bounded task.
 
 ## Copyable prompt for a new Codex project

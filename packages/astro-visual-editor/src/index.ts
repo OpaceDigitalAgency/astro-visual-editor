@@ -6,6 +6,10 @@ import { parseReceiptRequest, parseRevertRequest, parseSaveRequest } from './sha
 import {
   APP_ID,
   CONFIG_EVENT,
+  HISTORY_EVENT,
+  HISTORY_RESULT_EVENT,
+  PREVIEW_EVENT,
+  PREVIEW_RESULT_EVENT,
   READY_EVENT,
   RECEIPT_EVENT,
   RECEIPT_RESULT_EVENT,
@@ -14,7 +18,13 @@ import {
   SAVE_EVENT,
   SAVE_RESULT_EVENT,
 } from './shared/events.js';
-import type { ReceiptResponse, RevertResponse, SaveResponse } from './shared/types.js';
+import type {
+  HistoryResponse,
+  PreviewResponse,
+  ReceiptResponse,
+  RevertResponse,
+  SaveResponse,
+} from './shared/types.js';
 import { TransactionManager } from './server/transaction-manager.js';
 
 export type { AstroVisualEditorOptions } from './options.js';
@@ -78,6 +88,40 @@ export default function astroVisualEditor(
         toolbar.on(READY_EVENT, sendConfig);
         toolbar.onAppInitialized(APP_ID, sendConfig);
 
+        toolbar.on(HISTORY_EVENT, async (raw: unknown) => {
+          try {
+            const request = parseReceiptRequest(raw);
+            const response: HistoryResponse = { ...request, entries: await manager.history() };
+            toolbar.send(HISTORY_RESULT_EVENT, response);
+          } catch {
+            return;
+          }
+        });
+
+        toolbar.on(PREVIEW_EVENT, async (raw: unknown) => {
+          let response: PreviewResponse;
+          try {
+            const request = parseSaveRequest(raw, options.maxChanges, options.maxRequestBytes);
+            response = writeEnabled
+              ? await manager.preview(request)
+              : {
+                  clientId: request.clientId,
+                  requestId: request.requestId,
+                  success: false,
+                  error: remoteWarning,
+                };
+          } catch (error) {
+            const candidate = raw as { clientId?: unknown; requestId?: unknown };
+            response = {
+              clientId: typeof candidate?.clientId === 'string' ? candidate.clientId : 'invalid',
+              requestId: typeof candidate?.requestId === 'string' ? candidate.requestId : 'invalid',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown preview error.',
+            };
+          }
+          toolbar.send(PREVIEW_RESULT_EVENT, response);
+        });
+
         toolbar.on(SAVE_EVENT, async (raw: unknown) => {
           let response: SaveResponse;
           try {
@@ -112,11 +156,11 @@ export default function astroVisualEditor(
           toolbar.send(SAVE_RESULT_EVENT, response);
         });
 
-        toolbar.on(RECEIPT_EVENT, (raw: unknown) => {
+        toolbar.on(RECEIPT_EVENT, async (raw: unknown) => {
           let response: ReceiptResponse;
           try {
             const request = parseReceiptRequest(raw);
-            const receipt = manager.getReceipt(request.clientId, request.requestId);
+            const receipt = await manager.getReceipt(request.clientId, request.requestId);
             response = {
               ...request,
               status: receipt ? (receipt.success ? 'success' : 'failed') : 'unknown',

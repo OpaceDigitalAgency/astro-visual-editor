@@ -10,7 +10,7 @@ After an approved maintainer starts **Publish package** from `main`, GitHub
 automatically:
 
 1. checks the version is the correct kind of release (`beta` or stable);
-2. runs the full repository test suite on the exact `main` commit;
+2. verifies that both protected CI checks passed on the exact `main` commit;
 3. confirms the changelog and release-status documents name that version;
 4. packs the real npm tarball and installs it in a fresh Astro 7.1.6 project;
 5. creates the matching `v<version>` tag only after those checks pass;
@@ -19,6 +19,21 @@ automatically:
    the published registry package.
 
 The workflow fails closed: a failed check means no npm publish.
+
+## Fast path without duplicated work
+
+Pull-request CI runs the portable build/unit/package checks on Node 22 and 24,
+but runs the Chromium journeys only once on Node 24. After merge, the publish
+workflow verifies those exact required checks instead of downloading Chromium
+and repeating the full suite. It then performs only the release-specific work:
+candidate tarball installation, tag creation, npm publication and registry
+installation.
+
+Future agents should use focused tests while developing and run
+`npm run test:all` once when the release candidate is ready. Do not repeatedly
+run the full baseline after every small correction, and do not run a separate
+manual clean-consumer installation unless the packaging/release machinery
+itself changed.
 
 ## The one human decision
 
@@ -38,10 +53,11 @@ These settings cannot be stored entirely in Git, so a repository administrator
 must set them once and keep them in place. They were configured on 5 August
 2026:
 
-1. Protect `main`: require pull requests and the **CI / validate** check before
-   merge; restrict direct pushes.
-2. Create a GitHub Actions environment named `npm-publish`, require an
-   approver, and allow only the `main` branch.
+1. Protect `main`: require pull requests and both **CI / validate** checks
+   before merge; restrict direct pushes.
+2. Create a GitHub Actions environment named `npm-publish` and allow only the
+   `main` branch. Do not add a second required reviewer: manually starting the
+   workflow is the single release approval.
 3. Keep the active `v*` tag ruleset and its dedicated write-enabled release
    deploy key. Only the encrypted `RELEASE_TAG_SSH_KEY` Actions secret may
    bypass it; `release.yml` supplies that key to `actions/checkout` solely so

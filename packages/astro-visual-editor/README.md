@@ -11,7 +11,7 @@ A development-only visual editor for Astro with text editing, SEO fields,
 section templates, real drag-and-drop, a reviewable change ledger and validated
 source transactions.
 
-The current public beta is `0.1.0-beta.2`. It is published through npm trusted
+The current public beta is `0.1.0-beta.3`. It is published through npm trusted
 GitHub OIDC with provenance and has passed a clean Astro 7.1.6 registry install
 and production build.
 
@@ -187,7 +187,8 @@ both disabled by default.
 - Unstructured MDX body expressions are refused.
 - Section operations require declared Astro regions.
 - No arbitrary page-wide or cross-region section drops.
-- Receipt reverts survive HMR but not a complete dev-server restart.
+- Checksummed local receipt history survives a complete dev-server restart and
+  refuses unsafe restore when the record or saved file no longer matches.
 - Visual Editability Setup/content inventory and Git-backed history remain
   roadmap work.
 

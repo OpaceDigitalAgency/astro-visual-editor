@@ -425,8 +425,9 @@ Astro integration (development command only)
   cannot be dropped onto arbitrary page locations.
 - It does not infer every import/data dependency or provide the planned full
   page-content inventory.
-- Receipt reversion survives HMR but is held in the dev-server process; restart-
-  persistent/Git-backed history remains future work.
+- Checksummed local receipt history survives a dev-server restart and refuses
+  restore if the record was changed, expired, or the saved file has newer work.
+- Saved history is local and bounded; Git-backed history remains future work.
 - `allowUnsafeSourceText` can intentionally create structural markup and should
   be enabled only by developers reviewing the resulting Git diff.
 
@@ -498,6 +499,8 @@ and maintainer handling of the avatar remain external gates in
 - [<removed internal document>](./<removed internal document>) — release truth and gates.
 - [<removed internal document>](./<removed internal document>) — current test workflow, version sequence
   and takeover plan.
+- [<removed internal document>](./<removed internal document>) — enforced publishing path,
+  GitHub protections and external Astro listing follow-up.
 - [<removed internal document>](./<removed internal document>) — exact legacy-to-package comparison.
 - [<removed internal document>](./<removed internal document>) — remaining roadmap.
 - [Complete research and assessment](./Astro%20Integrated%20CMS%20%26%20Frontend%20Editing_%20Complete%20Research%20%26%20Assessment.md) — market context.

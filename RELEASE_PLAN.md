@@ -1,8 +1,11 @@
 # Astro Visual Editor — Current Release Plan
 
-**Status:** authoritative release and takeover plan  
-**Last verified:** 4 August 2026  
-**Current public version:** `@opacedev/astro-visual-editor@0.1.0-beta.2`  
+**Status:** authoritative release and takeover plan
+
+**Last verified:** 5 August 2026
+
+**Current public version:** `@opacedev/astro-visual-editor@0.1.0-beta.3`
+
 **Current branch:** `main`
 
 This plan replaces the release sequence proposed in the earlier Codex task
@@ -184,6 +187,9 @@ compatible and updates this plan first.
 
 ### `0.1.0-beta.3` — durable review and recovery
 
+**Release status (5 August 2026):** implemented, automated checks pass and the
+owner has accepted the browser workflow for publication.
+
 Deliver the safest next bounded component:
 
 - checksummed, bounded receipt history under an ignored project-local
@@ -291,16 +297,22 @@ This phase needs a separately approved threat model and product brief.
 5. Run `npm ci`, the focused tests, `npm run test:all`, audit and package
    inspection.
 6. Install the packed candidate in a clean external fixture before publication.
-7. Push the release commit and require the Node 22.12/24 CI matrix to pass.
-8. Obtain explicit authority for the new public npm version.
-9. Push the exact matching `v<version>` tag; let `release.yml` publish through
-   the configured npm trusted publisher.
-10. Verify npm version, dist-tag, provenance and anonymous registry install.
-11. Verify the package still appears in qualifying npm searches, is not
+7. Push the release commit through protected `main` and require the Node
+   22.12/24 CI matrix to pass.
+8. Obtain explicit authority for the new public npm version, then start the
+   **Publish package** workflow from `main`. It enforces the document checks,
+   full baseline, clean packed-consumer build, matching tag and npm registry
+   verification before completing publication.
+9. Do not push `v<version>` yourself. The workflow creates the exact matching
+   tag only after its preflight passes, then publishes through the configured
+   npm trusted publisher with provenance.
+10. Verify the package still appears in qualifying npm searches, is not
     blocklisted by Astro and is accepted by its current importer script.
-12. Update `PROJECT.md` with links to immutable CI/release evidence.
+11. Update `PROJECT.md` with links to immutable CI/release evidence.
 
-Never add a long-lived npm publish token to GitHub. The configured trusted
+The enforced workflow and one-time GitHub protection requirements are in
+[RELEASE_GUARDRAILS.md](./RELEASE_GUARDRAILS.md). Never add a long-lived npm
+publish token to GitHub. The configured trusted
 publisher is bound to `OpaceDigitalAgency/astro-visual-editor` and
 `.github/workflows/release.yml`; workflow filename, repository metadata and
 `id-token: write` must remain exact.
@@ -331,9 +343,9 @@ dependency, but production output must remain independent and editor-free.
 
 ## Immediate next takeover task
 
-Implement only `0.1.0-beta.3` durable receipt history and exact pre-commit
-diffs. Do not add remote authentication, Git auto-commit, arbitrary block drops
-or a new public npm version unless the task explicitly authorises publication.
+After beta.3 publication evidence is recorded, implement only the
+`0.1.0-beta.4` Editability Setup and page-inventory scope. Do not add remote
+authentication, Git auto-commit or arbitrary block drops.
 
 Before changing code, read all applicable `AGENTS.md` files, then read in order:
 

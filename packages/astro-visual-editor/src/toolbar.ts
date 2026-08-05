@@ -1,10 +1,15 @@
 import { defineToolbarApp } from 'astro/toolbar';
 import { ChangeHistory, changeKey } from './client/history.js';
+import { renderFileDiffPanel, renderHistoryPanel } from './client/review-panels.js';
 import { regionIdFor, selectorFor, sourceFileFor } from './client/source-resolver.js';
 import { pageSectionStyles, toolbarStyles } from './client/styles.js';
 import {
   APP_ID,
   CONFIG_EVENT,
+  HISTORY_EVENT,
+  HISTORY_RESULT_EVENT,
+  PREVIEW_EVENT,
+  PREVIEW_RESULT_EVENT,
   READY_EVENT,
   RECEIPT_EVENT,
   RECEIPT_RESULT_EVENT,
@@ -16,6 +21,9 @@ import {
 import type {
   ClientEditorConfig,
   EditorChange,
+  HistoryEntry,
+  HistoryResponse,
+  PreviewResponse,
   ReceiptResponse,
   RevertResponse,
   SectionDescriptor,
@@ -34,6 +42,7 @@ const SESSION_QUEUE = `${APP_ID}:queue:v2`;
 const SESSION_CLIENT = `${APP_ID}:client-id`;
 const SESSION_PENDING = `${APP_ID}:pending`;
 const SESSION_RECEIPT = `${APP_ID}:last-receipt`;
+const SESSION_CONFIG = `${APP_ID}:config:v1`;
 let hasUnsavedChanges = false;
 
 const defaultConfig: ClientEditorConfig = {
@@ -168,6 +177,15 @@ function safeParseQueue(): EditorChange[] {
   }
 }
 
+function safeParseConfig(): ClientEditorConfig | undefined {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(SESSION_CONFIG) ?? 'null');
+    return value && typeof value === 'object' ? (value as ClientEditorConfig) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default defineToolbarApp({
   init(canvas, app, server) {
     const clientId = getClientId();
@@ -178,8 +196,10 @@ export default defineToolbarApp({
     const regionAnchors = new WeakMap<HTMLElement, Comment>();
     const listenerController = new AbortController();
     let sectionListenerController = new AbortController();
-    let config = defaultConfig;
-    let configReady = false;
+    const cachedConfig = safeParseConfig();
+    let config = cachedConfig ? { ...defaultConfig, ...cachedConfig } : defaultConfig;
+    let configReady = Boolean(cachedConfig);
+    let configConfirmed = false;
     let active = false;
     let mode: EditorMode = 'text';
     let hovered: HTMLElement | null = null;
@@ -192,6 +212,9 @@ export default defineToolbarApp({
     let receiptPollId: number | undefined;
     let pendingRequestId = sessionStorage.getItem(SESSION_PENDING) ?? undefined;
     let lastReceiptId = sessionStorage.getItem(SESSION_RECEIPT) ?? undefined;
+    let savedHistory: HistoryEntry[] = [];
+    let previewRequestId: string | undefined;
+    let previewInFlight = false;
     let minimized = matchMedia('(max-width: 640px)').matches;
 
     const style = createElement('style');
@@ -221,9 +244,10 @@ export default defineToolbarApp({
       <div class="history-actions">
         <button class="secondary undo" type="button" disabled>Undo</button>
         <button class="secondary redo" type="button" disabled>Redo</button>
+        <button class="secondary show-history" type="button">History</button>
       </div>
       <footer class="actions">
-        <button class="primary commit" type="button" disabled>Commit 0 changes</button>
+        <button class="primary commit" type="button" disabled>Review file changes</button>
         <button class="secondary clear" type="button">Clear</button>
         <button class="secondary revert" type="button" disabled>Revert last commit</button>
       </footer>`;
@@ -260,7 +284,26 @@ export default defineToolbarApp({
     });
     confirmDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Confirm structural change</p><h2 id="ave-confirm-title">Delete this section?</h2><p id="ave-confirm-copy">The section will be removed from the preview and queued. You can undo before committing.</p><div class="dialog-actions"><button class="secondary cancel-delete" type="button">Keep section</button><button class="danger confirm-delete" type="button">Delete section</button></div></div>`;
 
-    canvas.append(style, panel, picker, textDialog, seoDialog, templateDialog, confirmDialog);
+    const historyDialog = createElement('dialog', { 'aria-labelledby': 'ave-history-title' });
+    historyDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Local recovery record</p><h2 id="ave-history-title">Saved changes</h2><p class="field-help">Only unchanged saved files can be restored. This record stays on this computer.</p><div class="history-list"></div><div class="dialog-actions"><button class="secondary close-history" type="button">Close</button></div></div>`;
+
+    const diffDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-diff-title',
+      'aria-describedby': 'ave-diff-help',
+    });
+    diffDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Final safety check</p><h2 id="ave-diff-title">Review file changes</h2><p id="ave-diff-help" class="field-help">These are the exact source lines that will be written. Nothing is saved until you confirm.</p><div class="file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-diff" type="button">Cancel</button><button class="primary confirm-commit" type="button">Commit these changes</button></div></div>`;
+
+    canvas.append(
+      style,
+      panel,
+      picker,
+      textDialog,
+      seoDialog,
+      templateDialog,
+      confirmDialog,
+      historyDialog,
+      diffDialog,
+    );
 
     const ledger = panel.querySelector<HTMLElement>('.ledger')!;
     const message = panel.querySelector<HTMLElement>('.message')!;
@@ -272,6 +315,9 @@ export default defineToolbarApp({
     const revertButton = panel.querySelector<HTMLButtonElement>('.revert')!;
     const undoButton = panel.querySelector<HTMLButtonElement>('.undo')!;
     const redoButton = panel.querySelector<HTMLButtonElement>('.redo')!;
+    const historyButton = panel.querySelector<HTMLButtonElement>('.show-history')!;
+    const historyList = historyDialog.querySelector<HTMLElement>('.history-list')!;
+    const fileDiffList = diffDialog.querySelector<HTMLElement>('.file-diff-list')!;
     const textarea = textDialog.querySelector<HTMLTextAreaElement>('textarea')!;
     const textFile = textDialog.querySelector<HTMLElement>('.dialog-file')!;
     const pickerLabel = picker.querySelector<HTMLElement>('.picker-label')!;
@@ -294,6 +340,20 @@ export default defineToolbarApp({
     enableLightDismiss(confirmDialog, () => {
       deleteTarget = null;
     });
+    enableLightDismiss(historyDialog);
+    enableLightDismiss(diffDialog, () => {
+      previewRequestId = undefined;
+    });
+
+    function renderHistory(): void {
+      renderHistoryPanel(historyList, savedHistory, (entry) => {
+        if (saveInFlight) return;
+        lastReceiptId = entry.receiptId;
+        sessionStorage.setItem(SESSION_RECEIPT, entry.receiptId);
+        historyDialog.close();
+        requestRevert();
+      });
+    }
 
     function serializableQueue(): EditorChange[] {
       return [...queue.values()];
@@ -363,12 +423,15 @@ export default defineToolbarApp({
           ledger.append(row);
         }
       }
-      commitButton.disabled = queue.size === 0 || saveInFlight || !config.writeEnabled;
+      commitButton.disabled =
+        queue.size === 0 || saveInFlight || previewInFlight || !config.writeEnabled;
       commitButton.textContent = saveInFlight
         ? 'Validating and writing…'
-        : pendingRequestId
-          ? `Retry ${queue.size} safely`
-          : `Commit ${queue.size} change${queue.size === 1 ? '' : 's'}`;
+        : previewInFlight
+          ? 'Checking source files…'
+          : pendingRequestId
+            ? `Retry ${queue.size} safely`
+            : `Review ${queue.size} file change${queue.size === 1 ? '' : 's'}`;
       undoButton.disabled = !history.canUndo || saveInFlight;
       redoButton.disabled = !history.canRedo || saveInFlight;
       revertButton.disabled = !lastReceiptId || saveInFlight || !config.writeEnabled;
@@ -454,11 +517,41 @@ export default defineToolbarApp({
       for (const change of changes) {
         if (change.kind === 'text' && change.selector) {
           const element = document.querySelector<HTMLElement>(change.selector);
-          if (element) element.textContent = change.newText;
+          if (element && element.textContent !== change.newText)
+            element.textContent = change.newText;
         } else if (change.kind === 'seo') setSeoPreview(change.after);
         else if (change.kind === 'sections') applySectionState(change, change.after);
       }
     }
+
+    // Astro HMR can replace page content just after the toolbar has restored a
+    // tab's session queue. Reapply text previews when that replacement lands so
+    // the queued value stays visible without changing another tab's queue.
+    let previewFrame: number | undefined;
+    const pageObserver = new MutationObserver(() => {
+      if (!panel.isConnected) {
+        pageObserver.disconnect();
+        if (previewFrame !== undefined) cancelAnimationFrame(previewFrame);
+        return;
+      }
+      if (queue.size === 0 || previewFrame !== undefined) return;
+      previewFrame = requestAnimationFrame(() => {
+        previewFrame = undefined;
+        for (const change of queue.values()) {
+          if (change.kind !== 'text' || !change.selector) continue;
+          const element = document.querySelector<HTMLElement>(change.selector);
+          if (element && element.textContent !== change.newText)
+            element.textContent = change.newText;
+        }
+      });
+    });
+    // Observe the Document itself because Astro may replace the complete
+    // documentElement while keeping the dev toolbar alive.
+    pageObserver.observe(document, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
 
     function replaceQueue(changes: EditorChange[]): void {
       const current = serializableQueue();
@@ -476,6 +569,7 @@ export default defineToolbarApp({
       change();
       applyVisual(serializableQueue());
       pendingRequestId = undefined;
+      previewRequestId = undefined;
       sessionStorage.removeItem(SESSION_PENDING);
       clearMessage();
       renderQueue();
@@ -919,6 +1013,7 @@ export default defineToolbarApp({
       setupSectionControls();
       renderQueue();
       if (mode === 'seo') openSeo();
+      if (mode === 'sections' && active) setMinimized(true);
     }
 
     function setMinimized(value: boolean): void {
@@ -958,7 +1053,14 @@ export default defineToolbarApp({
           section.removeAttribute('tabindex');
           section.removeAttribute('aria-label');
         });
-      for (const dialog of [textDialog, seoDialog, templateDialog, confirmDialog])
+      for (const dialog of [
+        textDialog,
+        seoDialog,
+        templateDialog,
+        confirmDialog,
+        historyDialog,
+        diffDialog,
+      ])
         if (dialog.open) dialog.close();
     }
 
@@ -972,11 +1074,24 @@ export default defineToolbarApp({
       receiptPollId = window.setInterval(requestReceipt, 750);
     }
 
-    function sendSave(): void {
+    function requestPreview(): void {
+      if (queue.size === 0 || saveInFlight || previewInFlight || !config.writeEnabled) return;
+      previewInFlight = true;
+      clearMessage();
+      previewRequestId = crypto.randomUUID();
+      server.send(PREVIEW_EVENT, {
+        clientId,
+        requestId: previewRequestId,
+        changes: serializableQueue(),
+      });
+      renderQueue();
+    }
+
+    function sendSave(requestId?: string): void {
       if (queue.size === 0 || saveInFlight || !config.writeEnabled) return;
       saveInFlight = true;
       clearMessage();
-      pendingRequestId ??= crypto.randomUUID();
+      pendingRequestId ??= requestId ?? crypto.randomUUID();
       sessionStorage.setItem(SESSION_PENDING, pendingRequestId);
       server.send(SAVE_EVENT, {
         clientId,
@@ -994,6 +1109,14 @@ export default defineToolbarApp({
         renderQueue();
       }, config.requestTimeoutMs);
       renderQueue();
+    }
+
+    function requestRevert(): void {
+      if (!lastReceiptId || saveInFlight || !config.writeEnabled) return;
+      const requestId = crypto.randomUUID();
+      saveInFlight = true;
+      renderQueue();
+      server.send(REVERT_EVENT, { clientId, requestId, receiptId: lastReceiptId });
     }
 
     function handleSaveResponse(response: SaveResponse): void {
@@ -1026,7 +1149,7 @@ export default defineToolbarApp({
       const modifier = event.metaKey || event.ctrlKey;
       if (modifier && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        sendSave();
+        requestPreview();
         return;
       }
       if (modifier && event.key.toLowerCase() === 'z') {
@@ -1111,18 +1234,34 @@ export default defineToolbarApp({
     clearButton.addEventListener('click', () => mutate(() => queue.clear()));
     undoButton.addEventListener('click', undo);
     redoButton.addEventListener('click', redo);
-    commitButton.addEventListener('click', sendSave);
-    revertButton.addEventListener('click', () => {
-      if (!lastReceiptId || saveInFlight) return;
+    historyButton.addEventListener('click', () => {
       const requestId = crypto.randomUUID();
-      saveInFlight = true;
-      renderQueue();
-      server.send(REVERT_EVENT, { clientId, requestId, receiptId: lastReceiptId });
+      server.send(HISTORY_EVENT, { clientId, requestId });
+      renderHistory();
+      historyDialog.showModal();
     });
+    historyDialog
+      .querySelector<HTMLButtonElement>('.close-history')!
+      .addEventListener('click', () => historyDialog.close());
+    diffDialog
+      .querySelector<HTMLButtonElement>('.cancel-diff')!
+      .addEventListener('click', () => diffDialog.close('cancel'));
+    diffDialog
+      .querySelector<HTMLButtonElement>('.confirm-commit')!
+      .addEventListener('click', () => {
+        const requestId = previewRequestId;
+        if (!requestId) return;
+        diffDialog.close('commit');
+        sendSave(requestId);
+      });
+    commitButton.addEventListener('click', requestPreview);
+    revertButton.addEventListener('click', requestRevert);
 
     server.on(CONFIG_EVENT, (next: ClientEditorConfig) => {
       config = { ...defaultConfig, ...next };
       configReady = true;
+      configConfirmed = true;
+      sessionStorage.setItem(SESSION_CONFIG, JSON.stringify(next));
       try {
         for (const selector of [
           ...config.editableSelectors,
@@ -1154,6 +1293,18 @@ export default defineToolbarApp({
       pollForPendingReceipt();
     });
     server.on(SAVE_RESULT_EVENT, handleSaveResponse);
+    server.on(PREVIEW_RESULT_EVENT, (response: PreviewResponse) => {
+      if (response.clientId !== clientId || response.requestId !== previewRequestId) return;
+      previewInFlight = false;
+      if (!response.success || !response.diffs) {
+        previewRequestId = undefined;
+        showMessage(response.error ?? 'The file preview was rejected.', 'error');
+      } else {
+        renderFileDiffPanel(fileDiffList, response.diffs);
+        diffDialog.showModal();
+      }
+      renderQueue();
+    });
     server.on(RECEIPT_RESULT_EVENT, (receipt: ReceiptResponse) => {
       if (receipt.clientId !== clientId || receipt.requestId !== pendingRequestId) return;
       if (receipt.response) handleSaveResponse(receipt.response);
@@ -1173,8 +1324,14 @@ export default defineToolbarApp({
           `Restored ${response.files?.length ?? 0} source file${response.files?.length === 1 ? '' : 's'}.`,
           'success',
         );
+        server.send(HISTORY_EVENT, { clientId, requestId: crypto.randomUUID() });
       } else showMessage(response.error ?? 'Revert was refused.', 'error');
       renderQueue();
+    });
+    server.on(HISTORY_RESULT_EVENT, (response: HistoryResponse) => {
+      if (response.clientId !== clientId) return;
+      savedHistory = response.entries;
+      renderHistory();
     });
 
     document.addEventListener('keydown', onDocumentKeydown, {
@@ -1189,13 +1346,6 @@ export default defineToolbarApp({
       },
       { signal: listenerController.signal },
     );
-    window.addEventListener(
-      'beforeunload',
-      (event) => {
-        if (hasUnsavedChanges) event.preventDefault();
-      },
-      { signal: listenerController.signal },
-    );
     const pageStyle = createElement('style', { 'data-astro-ve-page-style': 'true' });
     pageStyle.textContent = pageSectionStyles;
     document.head.append(pageStyle);
@@ -1205,7 +1355,19 @@ export default defineToolbarApp({
       panel.dataset.placement = placement;
       picker.dataset.placement = placement;
     });
-    server.send(READY_EVENT, { clientId, route: window.location.pathname });
+    const announceReady = (): void => {
+      if (panel.isConnected)
+        server.send(READY_EVENT, { clientId, route: window.location.pathname });
+    };
+    if (configReady) replaceQueue(safeParseQueue());
+    announceReady();
+    // The toolbar websocket can reconnect during Astro HMR just as the first
+    // ready event is sent. Retry the handshake until the server confirms the
+    // configuration instead of leaving source actions disabled.
+    const configRetryId = window.setInterval(() => {
+      if (configConfirmed || !panel.isConnected) window.clearInterval(configRetryId);
+      else announceReady();
+    }, 500);
     renderQueue();
   },
   beforeTogglingOff() {

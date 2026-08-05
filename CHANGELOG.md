@@ -6,6 +6,30 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.1.0-beta.3 - 2026-08-05
+
+### Fixed
+
+- Allowed Astro source hot reloads to complete while another tab has queued
+  edits; that tab restores its isolated queue from session storage afterwards.
+
+### Added
+
+- Added an exact per-file source review before any queued batch can be written.
+- Added checksummed, restart-persistent local save history with visible status,
+  files, time and conflict-protected restore controls.
+
+### Changed
+
+- Made the workbench smaller and scrollable, stopped queue controls stretching,
+  grouped section controls into two compact rows, and automatically tucked the
+  panel away while arranging page sections.
+- Replaced tag-triggered publishing with a guarded GitHub Actions release that
+  enforces the complete test baseline, release documents, clean tarball
+  consumer build and published-registry consumer build before it completes.
+- Added `RELEASE_GUARDRAILS.md` with the only permitted release path, required
+  GitHub protections and Astro-directory follow-up.
+
 ### Documentation
 
 - Added an authoritative release and takeover plan beginning from the real

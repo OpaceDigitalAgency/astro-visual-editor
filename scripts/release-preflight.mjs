@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { checkReleaseCandidate } from './check-release-candidate.mjs';
 
 const execFile = promisify(execFileCallback);
 const packagePath = 'packages/astro-visual-editor/package.json';
@@ -20,13 +21,6 @@ if ((isPrerelease && channel !== 'beta') || (!isPrerelease && channel !== 'lates
   );
 }
 
-async function requireText(file, expected) {
-  const contents = await readFile(file, 'utf8');
-  if (!contents.includes(expected)) {
-    throw new Error(`${file} must contain ${JSON.stringify(expected)} before release.`);
-  }
-}
-
 async function run(command, args, options = {}) {
   const result = await execFile(command, args, {
     cwd: options.cwd ?? process.cwd(),
@@ -37,12 +31,7 @@ async function run(command, args, options = {}) {
   return result.stdout.trim();
 }
 
-await requireText('CHANGELOG.md', `## ${packageJson.version}`);
-await requireText('<removed internal document>', `Version \`${packageJson.version}\``);
-await requireText(
-  '<removed internal document>',
-  `**Current public version:** \`${packageJson.name}@${packageJson.version}\``,
-);
+await checkReleaseCandidate(channel);
 
 const status = await run('git', ['status', '--porcelain']);
 if (status) {

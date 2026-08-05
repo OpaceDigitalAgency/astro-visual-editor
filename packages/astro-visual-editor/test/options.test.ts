@@ -8,12 +8,15 @@ describe('normalizeOptions', () => {
     expect(options.allowedExtensions).toContain('.astro');
     expect(options.allowUnsafeSourceText).toBe(false);
     expect(options.allowRemoteDev).toBe(false);
+    expect(options.editabilityRole).toBe('owner');
+    expect(options.editabilityPolicyFile).toBe('astro-visual-editor.policy.json');
     expect(options.sectionTemplates.map((template) => template.id)).toEqual([
       'hero',
       'features',
       'text',
     ]);
     expect(toClientConfig(options)).not.toHaveProperty('allowedExtensions');
+    expect(toClientConfig(options).canManageEditability).toBe(true);
   });
 
   it('preserves user selector mappings without injecting phantom defaults', () => {
@@ -38,5 +41,11 @@ describe('normalizeOptions', () => {
         ],
       }),
     ).toThrow('duplicated');
+    expect(() => normalizeOptions({ editabilityPolicyFile: '../outside.json' })).toThrow(
+      'project root',
+    );
+    expect(
+      toClientConfig(normalizeOptions({ editabilityRole: 'editor' })).canManageEditability,
+    ).toBe(false);
   });
 });

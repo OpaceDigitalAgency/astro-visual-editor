@@ -20,6 +20,13 @@ addressed to a tab/request pair and idempotent. Astro output is compiler-
 validated, structured files use property paths, and network-exposed dev servers
 cannot write unless `allowRemoteDev` is explicitly enabled.
 
+Editability policy is stored in a project-root JSON manifest and is changed only
+after exact diff review. The server accepts policy changes only in local owner
+mode on a loopback development server. Editor mode and every network-exposed
+development server can read/apply the policy but cannot broaden it. Policy allow
+rules do not override explicit ignore annotations, unsafe nested structure,
+unresolved source ownership or the final syntax-aware adapter checks.
+
 Commit receipts and their pre-edit snapshots live in the dev-server process.
 They survive page HMR but not a complete server restart. Always retain Git as
 the durable recovery boundary and review diffs after using the editor.

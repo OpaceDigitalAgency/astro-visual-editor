@@ -1,11 +1,30 @@
 import { defineToolbarApp } from 'astro/toolbar';
 import { ChangeHistory, changeKey } from './client/history.js';
+import {
+  classifyElement,
+  inventoryPage,
+  policyAllowSelectors,
+  type InventoryItem,
+  type InventoryStatus,
+} from './client/editability.js';
+import { renderEditabilityPanel } from './client/editability-panel.js';
 import { renderFileDiffPanel, renderHistoryPanel } from './client/review-panels.js';
-import { regionIdFor, selectorFor, sourceFileFor } from './client/source-resolver.js';
+import {
+  regionIdFor,
+  selectorFor,
+  sourceFileFor,
+  sourceResolutionFor,
+} from './client/source-resolver.js';
 import { pageSectionStyles, toolbarStyles } from './client/styles.js';
 import {
   APP_ID,
   CONFIG_EVENT,
+  EDITABILITY_POLICY_EVENT,
+  EDITABILITY_POLICY_RESULT_EVENT,
+  EDITABILITY_PREVIEW_EVENT,
+  EDITABILITY_PREVIEW_RESULT_EVENT,
+  EDITABILITY_SAVE_EVENT,
+  EDITABILITY_SAVE_RESULT_EVENT,
   HISTORY_EVENT,
   HISTORY_RESULT_EVENT,
   PREVIEW_EVENT,
@@ -20,6 +39,11 @@ import {
 } from './shared/events.js';
 import type {
   ClientEditorConfig,
+  EditabilityEffect,
+  EditabilityPolicy,
+  EditabilityPolicyResponse,
+  EditabilityRule,
+  EditabilityRuleScope,
   EditorChange,
   HistoryEntry,
   HistoryResponse,
@@ -35,7 +59,7 @@ import type {
   TextEditorChange,
 } from './shared/types.js';
 
-type EditorMode = 'text' | 'sections' | 'seo' | 'review';
+type EditorMode = 'text' | 'sections' | 'seo' | 'review' | 'setup';
 type MessageKind = 'error' | 'success' | 'warning';
 
 const SESSION_QUEUE = `${APP_ID}:queue:v2`;
@@ -63,7 +87,11 @@ const defaultConfig: ClientEditorConfig = {
   requestTimeoutMs: 15_000,
   allowUnsafeSourceText: false,
   writeEnabled: false,
+  canManageEditability: false,
+  editabilityPolicyFile: 'astro-visual-editor.policy.json',
 };
+
+const emptyEditabilityPolicy: EditabilityPolicy = { version: 1, rules: [] };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   name: K,
@@ -216,6 +244,14 @@ export default defineToolbarApp({
     let previewRequestId: string | undefined;
     let previewInFlight = false;
     let minimized = matchMedia('(max-width: 640px)').matches;
+    let editabilityPolicy = structuredClone(emptyEditabilityPolicy);
+    let draftEditabilityPolicy = structuredClone(emptyEditabilityPolicy);
+    let editabilityPolicyHash = '';
+    let editabilityRequestId: string | undefined;
+    let editabilityPreviewId: string | undefined;
+    let inventory: InventoryItem[] = [];
+    let inventoryFilter: InventoryStatus | 'all' = 'all';
+    let setupBusy = false;
 
     const style = createElement('style');
     style.textContent = toolbarStyles;
@@ -230,7 +266,7 @@ export default defineToolbarApp({
         <div><p class="eyebrow">Local source workbench</p><h2>Visual Editor</h2>
           <p class="status" data-state="warning"><span class="status-dot" aria-hidden="true"></span><span class="status-copy">Connecting to Astro…</span></p>
         </div>
-        <button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button>
+        <div class="masthead-actions"><button class="icon-button setup-toggle" type="button" aria-label="Open Editability Setup" title="Open Editability Setup" hidden>⚙</button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button></div>
       </header>
       <div class="mode-tabs" role="tablist" aria-label="Editing mode">
         <button class="mode-tab" role="tab" data-mode="text" aria-selected="true">Text</button>
@@ -245,6 +281,11 @@ export default defineToolbarApp({
         <button class="secondary undo" type="button" disabled>Undo</button>
         <button class="secondary redo" type="button" disabled>Redo</button>
         <button class="secondary show-history" type="button">History</button>
+      </div>
+      <div class="setup-actions">
+        <button class="secondary leave-setup" type="button">← Back to editor</button>
+        <button class="primary review-policy" type="button" disabled>Review and save</button>
+        <button class="secondary reload-policy" type="button" hidden>Discard unsaved changes</button>
       </div>
       <footer class="actions">
         <button class="primary commit" type="button" disabled>Review file changes</button>
@@ -293,6 +334,12 @@ export default defineToolbarApp({
     });
     diffDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Final safety check</p><h2 id="ave-diff-title">Review file changes</h2><p id="ave-diff-help" class="field-help">These are the exact source lines that will be written. Nothing is saved until you confirm.</p><div class="file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-diff" type="button">Cancel</button><button class="primary confirm-commit" type="button">Commit these changes</button></div></div>`;
 
+    const policyDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-policy-title',
+      'aria-describedby': 'ave-policy-help',
+    });
+    policyDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Step 2 of 3 · Review</p><h2 id="ave-policy-title">Save this permission change?</h2><p id="ave-policy-help" class="field-help">You chose what can be edited. Check the exact project setting below, then save it to make the permission active. Nothing changes until you save.</p><div class="policy-diff-list file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-policy" type="button">Back to setup</button><button class="primary confirm-policy" type="button">Save and return to editor</button></div></div>`;
+
     canvas.append(
       style,
       panel,
@@ -303,6 +350,7 @@ export default defineToolbarApp({
       confirmDialog,
       historyDialog,
       diffDialog,
+      policyDialog,
     );
 
     const ledger = panel.querySelector<HTMLElement>('.ledger')!;
@@ -324,6 +372,11 @@ export default defineToolbarApp({
     const pickerReview = picker.querySelector<HTMLButtonElement>('.picker-review')!;
     const templateGrid = templateDialog.querySelector<HTMLElement>('.template-grid')!;
     const minimizeButton = panel.querySelector<HTMLButtonElement>('.minimize')!;
+    const setupButton = panel.querySelector<HTMLButtonElement>('.setup-toggle')!;
+    const leaveSetupButton = panel.querySelector<HTMLButtonElement>('.leave-setup')!;
+    const reloadPolicyButton = panel.querySelector<HTMLButtonElement>('.reload-policy')!;
+    const reviewPolicyButton = panel.querySelector<HTMLButtonElement>('.review-policy')!;
+    const policyDiffList = policyDialog.querySelector<HTMLElement>('.policy-diff-list')!;
 
     function enableLightDismiss(dialog: HTMLDialogElement, onClose?: () => void): void {
       dialog.addEventListener('click', (event) => {
@@ -344,6 +397,7 @@ export default defineToolbarApp({
     enableLightDismiss(diffDialog, () => {
       previewRequestId = undefined;
     });
+    enableLightDismiss(policyDialog);
 
     function renderHistory(): void {
       renderHistoryPanel(historyList, savedHistory, (entry) => {
@@ -381,7 +435,173 @@ export default defineToolbarApp({
       status.dataset.state = state;
     }
 
+    function policyIsDirty(): boolean {
+      return JSON.stringify(draftEditabilityPolicy) !== JSON.stringify(editabilityPolicy);
+    }
+
+    function policyChangeCount(): number {
+      const saved = new Map(
+        editabilityPolicy.rules.map((rule) => [`${rule.route}\n${rule.selector}`, rule]),
+      );
+      const draft = new Map(
+        draftEditabilityPolicy.rules.map((rule) => [`${rule.route}\n${rule.selector}`, rule]),
+      );
+      return new Set([...saved.keys(), ...draft.keys()]).size
+        ? [...new Set([...saved.keys(), ...draft.keys()])].filter(
+            (key) => JSON.stringify(saved.get(key)) !== JSON.stringify(draft.get(key)),
+          ).length
+        : 0;
+    }
+
+    function requestPolicyPreview(): void {
+      if (!policyIsDirty() || setupBusy || !config.canManageEditability) return;
+      setupBusy = true;
+      editabilityPreviewId = crypto.randomUUID();
+      server.send(EDITABILITY_PREVIEW_EVENT, {
+        clientId,
+        requestId: editabilityPreviewId,
+        expectedHash: editabilityPolicyHash,
+        policy: draftEditabilityPolicy,
+      });
+      renderInventory();
+    }
+
+    function leaveSetup(): void {
+      if (policyIsDirty()) {
+        requestPolicyPreview();
+        return;
+      }
+      setMode('text');
+    }
+
+    function clearInventoryMarkers(): void {
+      document
+        .querySelectorAll<HTMLElement>('[data-astro-ve-inventory-status]')
+        .forEach((element) => {
+          delete element.dataset.astroVeInventoryStatus;
+          delete element.dataset.astroVeInventoryIndex;
+          delete element.dataset.astroVeInventoryFocus;
+        });
+    }
+
+    function updateSetupDock(): void {
+      document.documentElement.dataset.astroVeSetupDocked = String(active && mode === 'setup');
+    }
+
+    function policyRuleId(effect: EditabilityEffect, scope: EditabilityRuleScope): string {
+      return `${effect}-${scope}-${crypto.randomUUID()}`;
+    }
+
+    function setDraftRule(
+      item: InventoryItem,
+      effect: EditabilityEffect,
+      scope: EditabilityRuleScope,
+      confirmedFile?: string,
+      confirmedPath?: string,
+    ): void {
+      if (!config.canManageEditability || setupBusy) return;
+      const selector = scope === 'selector' ? item.tagName : item.selector;
+      try {
+        document.querySelector(selector);
+      } catch {
+        showMessage(`The selector “${selector}” is not valid in this browser.`, 'error');
+        return;
+      }
+      const route = window.location.pathname;
+      let ruleFile = confirmedFile?.trim();
+      if (!ruleFile && scope === 'element') ruleFile = item.sourceFile;
+      if (!ruleFile && scope === 'selector') {
+        const files = new Set(
+          [...document.querySelectorAll<HTMLElement>(selector)]
+            .map((element) => sourceResolutionFor(element, config, draftEditabilityPolicy))
+            .filter((resolution) => resolution.proven)
+            .map((resolution) => resolution.filePath),
+        );
+        if (files.size === 1) ruleFile = [...files][0];
+      }
+      const rule: EditabilityRule = {
+        id: policyRuleId(effect, scope),
+        effect,
+        scope,
+        route,
+        selector,
+        ...(effect === 'allow' && ruleFile ? { filePath: ruleFile } : {}),
+        ...(effect === 'allow' && scope === 'element' && (confirmedPath || item.sourcePath)
+          ? { sourcePath: (confirmedPath || item.sourcePath)?.trim() }
+          : {}),
+      };
+      draftEditabilityPolicy = {
+        version: 1,
+        rules: [
+          ...draftEditabilityPolicy.rules.filter(
+            (existing) => !(existing.route === route && existing.selector === selector),
+          ),
+          rule,
+        ],
+      };
+      clearMessage();
+      renderInventory();
+      requestPolicyPreview();
+    }
+
+    function removeDraftRule(rule: EditabilityRule): void {
+      draftEditabilityPolicy = {
+        version: 1,
+        rules: draftEditabilityPolicy.rules.filter((candidate) => candidate.id !== rule.id),
+      };
+      clearMessage();
+      renderInventory();
+      requestPolicyPreview();
+    }
+
+    function locateInventoryItem(item: InventoryItem, row: HTMLElement): void {
+      item.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      item.element.dataset.astroVeInventoryFocus = 'true';
+      row.focus({ preventScroll: true });
+      window.setTimeout(() => delete item.element.dataset.astroVeInventoryFocus, 1_400);
+    }
+
+    function renderInventory(): void {
+      clearInventoryMarkers();
+      ledger.setAttribute('aria-label', 'Page editability inventory');
+      inventory = inventoryPage(config, draftEditabilityPolicy);
+      inventory.forEach((item, index) => {
+        item.element.dataset.astroVeInventoryStatus = item.status;
+        item.element.dataset.astroVeInventoryIndex = String(index);
+      });
+      renderEditabilityPanel(ledger, inventory, {
+        policyFile: config.editabilityPolicyFile,
+        canManage: config.canManageEditability,
+        pendingChanges: policyChangeCount(),
+        filter: inventoryFilter,
+        onReview: requestPolicyPreview,
+        onFilter: (filter) => {
+          inventoryFilter = filter;
+          renderInventory();
+        },
+        onLocate: locateInventoryItem,
+        onSetRule: setDraftRule,
+        onRemoveRule: (item) => {
+          if (item.activeRule) removeDraftRule(item.activeRule);
+        },
+      });
+      const pendingChanges = policyChangeCount();
+      reviewPolicyButton.disabled =
+        pendingChanges === 0 || setupBusy || !config.canManageEditability;
+      reviewPolicyButton.textContent = setupBusy
+        ? 'Preparing review…'
+        : `Review and save${pendingChanges > 0 ? ` (${pendingChanges})` : ''}`;
+      reloadPolicyButton.hidden = pendingChanges === 0;
+      reloadPolicyButton.disabled = setupBusy;
+    }
+
     function renderQueue(): void {
+      if (mode === 'setup') {
+        renderInventory();
+        return;
+      }
+      clearInventoryMarkers();
+      ledger.setAttribute('aria-label', 'Queued changes');
       ledger.replaceChildren();
       if (queue.size === 0) {
         const empty = createElement('div', { class: 'empty' });
@@ -447,7 +667,10 @@ export default defineToolbarApp({
       for (const candidate of document.querySelectorAll<HTMLElement>(
         '[data-astro-edit-region], [data-astro-edit-sections]',
       )) {
-        if (regionIdFor(candidate) === regionId && sourceFileFor(candidate, config) === filePath)
+        if (
+          regionIdFor(candidate) === regionId &&
+          sourceFileFor(candidate, config, editabilityPolicy) === filePath
+        )
           return candidate;
       }
       return null;
@@ -601,7 +824,9 @@ export default defineToolbarApp({
       if (!(target instanceof Element) || !configReady) return null;
       let candidate: HTMLElement | null = null;
       try {
-        candidate = target.closest<HTMLElement>(config.editableSelectors.join(','));
+        candidate = target.closest<HTMLElement>(
+          [...config.editableSelectors, ...policyAllowSelectors(editabilityPolicy)].join(','),
+        );
       } catch {
         return null;
       }
@@ -611,28 +836,20 @@ export default defineToolbarApp({
         candidate.closest('[data-astro-ve-ui]')
       )
         return null;
-      if (
-        config.excludeSelectors.some((selector) => {
-          try {
-            return candidate!.matches(selector) || Boolean(candidate!.closest(selector));
-          } catch {
-            return true;
-          }
-        })
-      )
-        return null;
-      if (!candidate.hasAttribute('data-astro-editable') && candidate.children.length > 0)
-        return null;
-      return candidate.textContent?.trim() ? candidate : null;
+      return classifyElement(candidate, config, editabilityPolicy).status === 'editable'
+        ? candidate
+        : null;
     }
 
     function openTextEditor(candidate: HTMLElement): void {
       editing = candidate;
       const selector = selectorFor(candidate);
-      const queued = queue.get(`text:${sourceFileFor(candidate, config)}:${selector}`);
+      const queued = queue.get(
+        `text:${sourceFileFor(candidate, config, editabilityPolicy)}:${selector}`,
+      );
       const existing = queued?.kind === 'text' ? queued : undefined;
       textarea.value = existing?.newText ?? candidate.textContent?.trim() ?? '';
-      textFile.textContent = sourceFileFor(candidate, config);
+      textFile.textContent = sourceFileFor(candidate, config, editabilityPolicy);
       textDialog.showModal();
       textarea.focus();
       textarea.select();
@@ -652,7 +869,22 @@ export default defineToolbarApp({
     }
 
     function onPageClick(event: MouseEvent): void {
-      if (!active || mode !== 'text' || textDialog.open) return;
+      if (!active || textDialog.open) return;
+      if (mode === 'setup') {
+        if (!(event.target instanceof Element)) return;
+        const selected = event.target.closest<HTMLElement>('[data-astro-ve-inventory-status]');
+        const item = inventory.find((candidate) => candidate.element === selected);
+        if (!item) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const rows = [...ledger.querySelectorAll<HTMLElement>('.inventory-item')];
+        const row = rows.find(
+          (candidate) => candidate.querySelector('.inventory-copy')?.textContent === item.text,
+        );
+        if (row) locateInventoryItem(item, row);
+        return;
+      }
+      if (mode !== 'text') return;
       const candidate = editableTarget(event.target);
       if (!candidate) return;
       event.preventDefault();
@@ -664,7 +896,8 @@ export default defineToolbarApp({
       if (!editing) return;
       const newText = textarea.value.trim();
       const selector = selectorFor(editing);
-      const filePath = sourceFileFor(editing, config);
+      const resolution = sourceResolutionFor(editing, config, editabilityPolicy);
+      const filePath = resolution.filePath;
       const key = `text:${filePath}:${selector}`;
       const existing = queue.get(key);
       if (!existing && queue.size >= config.maxChanges) {
@@ -698,8 +931,7 @@ export default defineToolbarApp({
             selector,
             oldText,
             newText,
-            sourcePath:
-              editing?.closest<HTMLElement>('[data-astro-edit-path]')?.dataset.astroEditPath,
+            sourcePath: resolution.sourcePath,
           };
           queue.set(key, change);
         }
@@ -720,11 +952,11 @@ export default defineToolbarApp({
     }
 
     function regionKey(region: HTMLElement): string {
-      return `${sourceFileFor(region, config)}:${regionIdFor(region)}`;
+      return `${sourceFileFor(region, config, editabilityPolicy)}:${regionIdFor(region)}`;
     }
 
     function queueRegion(region: HTMLElement): void {
-      const filePath = sourceFileFor(region, config);
+      const filePath = sourceFileFor(region, config, editabilityPolicy);
       const regionId = regionIdFor(region);
       const key = `sections:${filePath}:${regionId}`;
       const before = initialSections.get(regionKey(region)) ?? descriptors(region);
@@ -927,7 +1159,7 @@ export default defineToolbarApp({
       const values = current?.after ?? seoValues();
       const filePath =
         document.querySelector<HTMLElement>('[data-astro-edit-seo-file]')?.dataset
-          .astroEditSeoFile ?? sourceFileFor(document.documentElement, config);
+          .astroEditSeoFile ?? sourceFileFor(document.documentElement, config, editabilityPolicy);
       seoDialog.querySelector<HTMLElement>('.dialog-file')!.textContent = filePath;
       for (const [field, value] of Object.entries(values)) {
         const input = seoDialog.querySelector<HTMLInputElement | HTMLTextAreaElement>(
@@ -996,7 +1228,10 @@ export default defineToolbarApp({
     }
 
     function setMode(next: EditorMode): void {
+      if (next === 'setup' && mode !== 'setup') clearMessage();
       mode = next;
+      panel.dataset.mode = mode;
+      updateSetupDock();
       restoreHighlight();
       for (const tab of panel.querySelectorAll<HTMLButtonElement>('.mode-tab'))
         tab.setAttribute('aria-selected', String(tab.dataset.mode === mode));
@@ -1009,11 +1244,27 @@ export default defineToolbarApp({
         instructions.textContent = 'Edit page metadata through its syntax-aware source adapter.';
       if (mode === 'review')
         instructions.textContent = 'Review every queued source change before committing the batch.';
-      pickerLabel.textContent = mode === 'sections' ? 'Arrange sections' : 'Tap content to edit';
+      if (mode === 'setup')
+        instructions.textContent =
+          'Review visible page content, then allow or block it without weakening source safety.';
+      setupButton.setAttribute('aria-pressed', String(mode === 'setup'));
+      setupButton.setAttribute(
+        'aria-label',
+        mode === 'setup' ? 'Back to editor' : 'Open Editability Setup',
+      );
+      setupButton.title = mode === 'setup' ? 'Back to editor' : 'Open Editability Setup';
+      setupButton.textContent = mode === 'setup' ? '← Back to editor' : '⚙';
+      pickerLabel.textContent =
+        mode === 'sections'
+          ? 'Arrange sections'
+          : mode === 'setup'
+            ? 'Editability Setup'
+            : 'Tap content to edit';
       setupSectionControls();
       renderQueue();
       if (mode === 'seo') openSeo();
       if (mode === 'sections' && active) setMinimized(true);
+      if (mode === 'setup') setMinimized(false);
     }
 
     function setMinimized(value: boolean): void {
@@ -1027,6 +1278,7 @@ export default defineToolbarApp({
     function activate(): void {
       if (active) return;
       active = true;
+      updateSetupDock();
       panel.dataset.open = 'true';
       setMinimized(minimized);
       document.addEventListener('pointerover', onPointerOver, {
@@ -1042,9 +1294,11 @@ export default defineToolbarApp({
 
     function deactivate(): void {
       active = false;
+      updateSetupDock();
       panel.dataset.open = 'false';
       picker.dataset.open = 'false';
       restoreHighlight();
+      clearInventoryMarkers();
       document.querySelectorAll('[data-astro-ve-ui]').forEach((element) => element.remove());
       document
         .querySelectorAll<HTMLElement>('[data-astro-ve-section-active]')
@@ -1060,6 +1314,7 @@ export default defineToolbarApp({
         confirmDialog,
         historyDialog,
         diffDialog,
+        policyDialog,
       ])
         if (dialog.open) dialog.close();
     }
@@ -1197,6 +1452,10 @@ export default defineToolbarApp({
         tab.addEventListener('click', () => setMode(tab.dataset.mode as EditorMode)),
       );
     minimizeButton.addEventListener('click', () => setMinimized(true));
+    setupButton.addEventListener('click', () =>
+      mode === 'setup' ? leaveSetup() : setMode('setup'),
+    );
+    leaveSetupButton.addEventListener('click', leaveSetup);
     pickerReview.addEventListener('click', () => {
       setMinimized(false);
       if (queue.size) setMode('review');
@@ -1256,12 +1515,40 @@ export default defineToolbarApp({
       });
     commitButton.addEventListener('click', requestPreview);
     revertButton.addEventListener('click', requestRevert);
+    reloadPolicyButton.addEventListener('click', () => {
+      setupBusy = true;
+      editabilityRequestId = crypto.randomUUID();
+      server.send(EDITABILITY_POLICY_EVENT, { clientId, requestId: editabilityRequestId });
+      renderInventory();
+    });
+    reviewPolicyButton.addEventListener('click', requestPolicyPreview);
+    policyDialog
+      .querySelector<HTMLButtonElement>('.cancel-policy')!
+      .addEventListener('click', () => {
+        editabilityPreviewId = undefined;
+        policyDialog.close('cancel');
+      });
+    policyDialog
+      .querySelector<HTMLButtonElement>('.confirm-policy')!
+      .addEventListener('click', () => {
+        if (!editabilityPreviewId) return;
+        setupBusy = true;
+        policyDialog.close('save');
+        server.send(EDITABILITY_SAVE_EVENT, {
+          clientId,
+          requestId: editabilityPreviewId,
+          expectedHash: editabilityPolicyHash,
+          policy: draftEditabilityPolicy,
+        });
+        renderInventory();
+      });
 
     server.on(CONFIG_EVENT, (next: ClientEditorConfig) => {
       config = { ...defaultConfig, ...next };
       configReady = true;
       configConfirmed = true;
       sessionStorage.setItem(SESSION_CONFIG, JSON.stringify(next));
+      setupButton.hidden = !config.canManageEditability;
       try {
         for (const selector of [
           ...config.editableSelectors,
@@ -1291,6 +1578,8 @@ export default defineToolbarApp({
         showMessage(config.remoteWarning, config.writeEnabled ? 'warning' : 'error');
       replaceQueue(safeParseQueue());
       pollForPendingReceipt();
+      editabilityRequestId = crypto.randomUUID();
+      server.send(EDITABILITY_POLICY_EVENT, { clientId, requestId: editabilityRequestId });
     });
     server.on(SAVE_RESULT_EVENT, handleSaveResponse);
     server.on(PREVIEW_RESULT_EVENT, (response: PreviewResponse) => {
@@ -1333,6 +1622,52 @@ export default defineToolbarApp({
       savedHistory = response.entries;
       renderHistory();
     });
+    server.on(EDITABILITY_POLICY_RESULT_EVENT, (response: EditabilityPolicyResponse) => {
+      if (response.clientId !== clientId || response.requestId !== editabilityRequestId) return;
+      setupBusy = false;
+      if (!response.success || !response.policy || response.policyHash === undefined) {
+        showMessage(response.error ?? 'The editability policy could not be loaded.', 'error');
+      } else {
+        editabilityPolicy = structuredClone(response.policy);
+        draftEditabilityPolicy = structuredClone(response.policy);
+        editabilityPolicyHash = response.policyHash;
+        config.canManageEditability = response.canManage ?? config.canManageEditability;
+        setupButton.hidden = !config.canManageEditability;
+        if (mode === 'setup') showMessage('Editability policy loaded from the project.', 'success');
+      }
+      renderQueue();
+    });
+    server.on(EDITABILITY_PREVIEW_RESULT_EVENT, (response: EditabilityPolicyResponse) => {
+      if (response.clientId !== clientId || response.requestId !== editabilityPreviewId) return;
+      setupBusy = false;
+      if (!response.success || !response.diff) {
+        editabilityPreviewId = undefined;
+        showMessage(response.error ?? 'The editability policy preview was rejected.', 'error');
+      } else {
+        renderFileDiffPanel(policyDiffList, [response.diff]);
+        policyDialog.showModal();
+        policyDialog.querySelector<HTMLButtonElement>('.cancel-policy')?.focus();
+      }
+      if (mode === 'setup') renderInventory();
+    });
+    server.on(EDITABILITY_SAVE_RESULT_EVENT, (response: EditabilityPolicyResponse) => {
+      if (response.clientId !== clientId || response.requestId !== editabilityPreviewId) return;
+      setupBusy = false;
+      editabilityPreviewId = undefined;
+      if (!response.success || !response.policy || response.policyHash === undefined) {
+        showMessage(response.error ?? 'The editability policy was not saved.', 'error');
+      } else {
+        editabilityPolicy = structuredClone(response.policy);
+        draftEditabilityPolicy = structuredClone(response.policy);
+        editabilityPolicyHash = response.policyHash;
+        setMode('text');
+        showMessage(
+          `Saved ${response.policyFile ?? config.editabilityPolicyFile}. You can now edit the allowed content.`,
+          'success',
+        );
+      }
+      renderQueue();
+    });
 
     document.addEventListener('keydown', onDocumentKeydown, {
       capture: true,
@@ -1342,6 +1677,7 @@ export default defineToolbarApp({
     document.addEventListener(
       'astro:page-load',
       () => {
+        updateSetupDock();
         if (configReady) replaceQueue(safeParseQueue());
       },
       { signal: listenerController.signal },

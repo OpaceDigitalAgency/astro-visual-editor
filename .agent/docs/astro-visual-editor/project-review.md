@@ -8,6 +8,10 @@ status and external gates are authoritative in [`PROJECT.md`](../../../PROJECT.m
 The current version sequence and takeover gates are maintained in
 [`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md).
 
+> **Release update — 5 August 2026:** Beta 4's bounded Editability Setup and
+> page inventory are implemented, fully validated and owner-accepted for
+> protected publication; `PROJECT.md` is authoritative.
+
 ## Verdict
 
 The repository is a verified standalone public beta for its documented local-
@@ -127,9 +131,10 @@ must be derived from the same transaction inputs used for commit.
 
 ### 4. Editability onboarding
 
-Eligibility and attribution are safe but developer-owned. Add an owner-facing
-inventory that explains editable/excluded/unresolved states and persists
-reviewed policy without bypassing adapter validation.
+The Beta 4 candidate adds an owner-facing inventory for
+editable/excluded/unresolved/unsafe states and persists reviewed project policy
+without bypassing adapter validation. Retain this fail-closed boundary during
+owner acceptance and future attribution work.
 
 ### 5. Test matrix expansion
 
@@ -193,8 +198,6 @@ remain controlled by Astro.
 
 ## Recommended next task
 
-Implement restart-persistent receipt history and exact pre-commit file diffs as
-one bounded component, following the acceptance criteria in the engineering
-handoff and the `0.1.0-beta.3` scope in
-[`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md). Then implement Editability
-Setup/content inventory on top of that durable review model.
+Complete owner localhost acceptance for the implemented Beta 4 Editability
+Setup/content inventory, then use the protected versioning, CI and npm release
+path in [`RELEASE_PLAN.md`](../../../RELEASE_PLAN.md).

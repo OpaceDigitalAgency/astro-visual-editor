@@ -64,6 +64,8 @@ drag event implementation and used move-up/down buttons.
 - Committed Playwright and axe regression tests in CI.
 - Functional compact collapse on desktop, visible section-control tooltips,
   light-dismiss dialogs and semantic structural review summaries.
+- Owner-facing visible-content inventory with reviewed per-element and
+  selector-group editability policy.
 
 ## Deliberate non-parity
 
@@ -86,7 +88,6 @@ messages and targeted DOM/source state.
 These features were not working capabilities of the original editor and remain
 future enhancements:
 
-- visual Editability Setup/content inventory;
 - automatic import/data-flow tracing for every Astro architecture;
 - persistent on-disk or Git-backed edit history across server restarts;
 - authenticated production/client editing;

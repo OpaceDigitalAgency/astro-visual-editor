@@ -60,7 +60,9 @@ async function waitForWorkbenchButtonEnabled(
   while (Date.now() < deadline) {
     try {
       await page.waitForLoadState('domcontentloaded', { timeout: 2_000 });
-      const toolbar = page.locator('astro-dev-toolbar');
+      // Astro can briefly retain the outgoing toolbar while installing its
+      // HMR replacement. Always address the newest live instance.
+      const toolbar = page.locator('astro-dev-toolbar').last();
       const workbench = toolbar.locator('.workbench');
       if (!(await workbench.isVisible())) {
         const opener = toolbar.getByRole('button', { name: 'Visual Editor' });
@@ -260,11 +262,6 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
     await waitForWorkbenchButtonEnabled(pageA, 'Revert last commit');
     await clickRevertWhenStable(pageA);
     await expect.poll(async () => readFile(demoSource, 'utf8')).toBe(originalSource);
-    const toolbarB = pageB.locator('astro-dev-toolbar');
-    const workbenchB = toolbarB.locator('.workbench');
-    if (!(await workbenchB.isVisible()))
-      await toolbarB.getByRole('button', { name: 'Visual Editor' }).click();
-    await workbenchB.getByRole('button', { name: 'Clear' }).click();
   } finally {
     if ((await readFile(demoSource, 'utf8')) !== originalSource)
       await writeFile(demoSource, originalSource);

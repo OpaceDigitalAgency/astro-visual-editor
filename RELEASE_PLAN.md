@@ -4,9 +4,14 @@
 
 **Last verified:** 5 August 2026
 
-**Current public version:** `@opacedev/astro-visual-editor@0.1.0-beta.3`
+**Current public version:** `@opacedev/astro-visual-editor@0.1.0-beta.4`
 
 **Current branch:** `main`
+
+**Candidate working branch:** `codex/beta4-editability-setup`
+
+**Release candidate:** bounded `0.1.0-beta.4` functionality is implemented,
+fully validated and owner-accepted for protected publication.
 
 This plan replaces the release sequence proposed in the earlier Codex task
 **Find easy app testing**. That task remains useful historical context, but its
@@ -50,7 +55,10 @@ Do not describe an eligible package as already listed. Conversely, do not ask a
 future task to resubmit the npm package manually: Astro's documented mechanism
 is the scheduled npm import.
 
-## Current release evidence
+## Most recent completed public evidence
+
+The protected Beta 4 workflow will replace these Beta 3 evidence links after
+publication completes.
 
 | Gate                | Current evidence                                                                                                                                                                                                  |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -214,6 +222,9 @@ Exit criteria:
 
 ### `0.1.0-beta.4` — Editability Setup and page inventory
 
+**Release status (5 August 2026):** implemented, fully validated and accepted by
+the owner for protected publication.
+
 - mark visible content as editable, excluded, unresolved or structurally unsafe;
 - explain every decision in plain language;
 - allow an authorised local owner to review element and selector-group
@@ -226,6 +237,22 @@ Exit criteria:
 Exit criteria include keyboard-accessible setup/conflict flows, reload/HMR and
 fresh-checkout persistence, safe allow/deny tests, and proof that an ordinary
 content editor cannot broaden permissions.
+
+Implemented candidate evidence:
+
+- a compact docked Setup mode keeps the rendered page visible on desktop;
+- the owner flow visibly explains choose, review and save; a permission choice
+  opens review immediately, unsaved choices remain unmistakable, and saving
+  returns directly to normal editing;
+- labelled Back to editor controls replace the previous implicit settings
+  toggle for leaving Setup;
+- the current page is inventoried as editable, blocked, unresolved or unsafe;
+- owners can review per-element and element-group allow/deny rules;
+- unresolved content can confirm a project-relative source file/path;
+- exact `astro-visual-editor.policy.json` changes are reviewed before saving;
+- server-side owner, loopback, conflict, path and schema checks fail closed;
+- saved policy survives reload and a fresh manager/process; and
+- focused unit, browser, keyboard and axe checks pass.
 
 ### `0.1.0-beta.5` — bounded attribution and schema-aware fields
 
@@ -343,9 +370,10 @@ dependency, but production output must remain independent and editor-free.
 
 ## Immediate next takeover task
 
-After beta.3 publication evidence is recorded, implement only the
-`0.1.0-beta.4` Editability Setup and page-inventory scope. Do not add remote
-authentication, Git auto-commit or arbitrary block drops.
+Merge the owner-accepted `0.1.0-beta.4` release through protected `main`, then
+use the guarded Publish package workflow and record the immutable CI, release
+and npm evidence. Do not add remote authentication, Git auto-commit or
+arbitrary block drops.
 
 Before changing code, read all applicable `AGENTS.md` files, then read in order:
 
@@ -356,9 +384,9 @@ Before changing code, read all applicable `AGENTS.md` files, then read in order:
 5. [`SECURITY.md`](./SECURITY.md); and
 6. the current engineering and strategic reviews under `.agent/docs/`.
 
-The next task is complete only when its focused tests and full baseline pass,
-status documents are reconciled, the worktree is clean, and exact push/CI
-evidence is reported.
+The candidate is ready for owner testing only when its focused tests and full
+baseline pass and status documents are reconciled. Public completion still
+requires explicit owner approval plus exact push, CI, npm and registry evidence.
 
 ## Official references
 

@@ -19,6 +19,10 @@ export interface AstroVisualEditorOptions {
   allowUnsafeSourceText?: boolean;
   /** Source writes are refused on non-loopback dev servers unless explicitly enabled. */
   allowRemoteDev?: boolean;
+  /** Local setup capability. Remote dev servers can never manage editability policy. */
+  editabilityRole?: 'owner' | 'editor';
+  /** Project-relative, Git-reviewable editability policy manifest. */
+  editabilityPolicyFile?: string;
 }
 
 export interface NormalizedOptions {
@@ -38,6 +42,8 @@ export interface NormalizedOptions {
   historyLimit: number;
   allowUnsafeSourceText: boolean;
   allowRemoteDev: boolean;
+  editabilityRole: 'owner' | 'editor';
+  editabilityPolicyFile: string;
 }
 
 const defaultTemplates: SectionTemplate[] = [
@@ -120,6 +126,8 @@ const defaults: NormalizedOptions = {
   historyLimit: 50,
   allowUnsafeSourceText: false,
   allowRemoteDev: false,
+  editabilityRole: 'owner',
+  editabilityPolicyFile: 'astro-visual-editor.policy.json',
 };
 
 function positiveInteger(value: number | undefined, fallback: number): number {
@@ -181,6 +189,8 @@ export function normalizeOptions(options: AstroVisualEditorOptions = {}): Normal
     historyLimit: positiveInteger(options.historyLimit, defaults.historyLimit),
     allowUnsafeSourceText: options.allowUnsafeSourceText ?? defaults.allowUnsafeSourceText,
     allowRemoteDev: options.allowRemoteDev ?? defaults.allowRemoteDev,
+    editabilityRole: options.editabilityRole ?? defaults.editabilityRole,
+    editabilityPolicyFile: options.editabilityPolicyFile ?? defaults.editabilityPolicyFile,
   };
 
   validateSelectors('editableSelectors', normalized.editableSelectors);
@@ -189,6 +199,18 @@ export function normalizeOptions(options: AstroVisualEditorOptions = {}): Normal
   validateRelativeMappings('fileMappings', normalized.fileMappings);
   validateRelativeMappings('selectorMappings', normalized.selectorMappings);
   validateTemplates(normalized.sectionTemplates);
+  if (!['owner', 'editor'].includes(normalized.editabilityRole)) {
+    throw new Error('editabilityRole must be owner or editor.');
+  }
+  if (
+    !normalized.editabilityPolicyFile.trim() ||
+    normalized.editabilityPolicyFile.startsWith('/') ||
+    normalized.editabilityPolicyFile.includes('\0') ||
+    normalized.editabilityPolicyFile.includes('/') ||
+    normalized.editabilityPolicyFile.includes('\\')
+  ) {
+    throw new Error('editabilityPolicyFile must be a safe file in the project root.');
+  }
   return normalized;
 }
 
@@ -196,6 +218,7 @@ export function toClientConfig(
   options: NormalizedOptions,
   writeEnabled = true,
   remoteWarning?: string,
+  canManageEditability = options.editabilityRole === 'owner',
 ): ClientEditorConfig {
   return {
     editableSelectors: options.editableSelectors,
@@ -208,6 +231,8 @@ export function toClientConfig(
     requestTimeoutMs: options.requestTimeoutMs,
     allowUnsafeSourceText: options.allowUnsafeSourceText,
     writeEnabled,
+    canManageEditability,
+    editabilityPolicyFile: options.editabilityPolicyFile,
     remoteWarning,
   };
 }

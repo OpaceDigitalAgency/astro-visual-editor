@@ -4,9 +4,14 @@
 
 **Repository:** `/Users/davidbryan/Dropbox/Opace-Sales-Marketing/astro-visual-editor`
 
-**Current branch:** `main`
+**Release branch:** `main`
 
-**Current package version:** `0.1.0-beta.3` published release
+**Candidate working branch:** `codex/beta4-editability-setup`
+
+**Current package version:** `0.1.0-beta.4` owner-accepted release
+
+**Release candidate:** bounded `0.1.0-beta.4` Editability Setup implemented,
+fully validated and owner-accepted for protected publication
 
 **Package name:** `@opacedev/astro-visual-editor`
 
@@ -73,7 +78,7 @@ typed source-adapter and transaction architecture first.
 
 - Automatic source tracing for arbitrary component props, expressions or
   repeated values without explicit annotations.
-- A complete page-content inventory.
+- Automatic schema-aware tracing for every supported import/data-flow pattern.
 - Client-facing authentication, Git commits or pull-request workflow.
 - Restart-persistent on-disk/Git edit history and file-level diff UI.
 - A rendered Astro integrations-directory listing. The npm package and public
@@ -294,6 +299,9 @@ Local-only is a security property, not merely a usage description.
 
 ### Urgent enhancement request — owner-controlled editability setup (P1.0)
 
+**Candidate implementation status (5 August 2026): complete locally, awaiting
+owner browser acceptance before Beta 4 publication.**
+
 Prototype testing showed that code-only `editableSelectors`,
 `excludeSelectors` and `data-astro-editable` annotations are not a sufficient
 product workflow. For example, semantically valid text inside a `<strong>`
@@ -338,6 +346,17 @@ Acceptance criteria:
 
 Design this alongside the page-content inventory and source-resolution
 inspector. Implement it only on top of the hardened P0 foundations.
+
+The candidate uses a docked Setup inventory, a project-root
+`astro-visual-editor.policy.json` manifest, exact diff review and a server-side
+loopback owner gate. Editor mode can read/apply policy but cannot preview or
+save policy changes. Explicit ignore markers, unresolved ownership, unsafe
+nested markup and adapter validation remain fail-closed.
+
+Owner testing also established a guided permission flow: choosing allow or
+block opens exact review immediately, cancelled review displays an explicit
+unsaved warning, saving returns to normal editing, and labelled Back to editor
+controls remain visible throughout Setup.
 
 ### Phase 1 — Maintainable client architecture
 
@@ -548,9 +567,10 @@ Current evidence:
 
 ## Suggested next takeover task
 
-Begin only the `0.1.0-beta.4` Editability Setup and page-inventory scope. The
-beta.3 GitHub/npm release evidence is recorded. Keep Git auto-commit, remote
-providers, authentication and arbitrary block drops outside that bounded task.
+Complete owner localhost acceptance for the implemented `0.1.0-beta.4`
+Editability Setup and page-inventory candidate, then follow the protected
+versioning, CI and npm release procedure. Keep Git auto-commit, remote providers,
+authentication and arbitrary block drops outside that bounded task.
 
 ## Copyable prompt for a new Codex project
 

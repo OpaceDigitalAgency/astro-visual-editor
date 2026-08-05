@@ -12,6 +12,10 @@ The current version sequence and takeover plan are in
 The separate reusable-theme opportunity is specified in
 [`ASTRO_THEME_PRODUCT_PLAN.md`](../../../ASTRO_THEME_PRODUCT_PLAN.md).
 
+> **Release update — 5 August 2026:** the bounded Beta 4 Editability Setup and
+> page inventory described below are implemented, validated and owner-accepted
+> for protected publication. `PROJECT.md` remains authoritative.
+
 ## Executive verdict
 
 Continue the product.
@@ -44,7 +48,7 @@ adding production authentication, GitHub tokens or broad Git automation.
 | Browser resilience         | HMR recovery, navigation state and two-tab request isolation                                                                     | No multi-user collaboration model                          |
 | Mobile/accessibility       | Touch Pick/Review flow, keyboard controls, reduced motion, forced colours and axe gate                                           | Broader assistive-technology coverage can grow             |
 | Production isolation       | No production editor runtime or public write route                                                                               | Therefore no deployed client access                        |
-| Editability administration | Developer selectors, mappings and source annotations                                                                             | No owner-facing setup/inventory UI                         |
+| Editability administration | Guided docked owner inventory, reviewed allow/deny policy and source confirmation implemented and owner-accepted                 | Protected publication and external Astro import            |
 
 ## Interaction findings from owner review
 
@@ -186,6 +190,9 @@ This provides durable safety without automatically staging or committing the
 user's unrelated working-tree changes.
 
 ### Priority 2 — Editability Setup and page-content inventory
+
+**Candidate status:** implemented locally with exact manifest diff review,
+loopback owner enforcement and focused unit/browser evidence.
 
 This is the highest-impact usability enhancement.
 

@@ -2,10 +2,22 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AstroIntegration } from 'astro';
 import { normalizeOptions, toClientConfig, type AstroVisualEditorOptions } from './options.js';
-import { parseReceiptRequest, parseRevertRequest, parseSaveRequest } from './shared/protocol.js';
+import {
+  parseEditabilityPolicyChangeRequest,
+  parseEditabilityPolicyRequest,
+  parseReceiptRequest,
+  parseRevertRequest,
+  parseSaveRequest,
+} from './shared/protocol.js';
 import {
   APP_ID,
   CONFIG_EVENT,
+  EDITABILITY_POLICY_EVENT,
+  EDITABILITY_POLICY_RESULT_EVENT,
+  EDITABILITY_PREVIEW_EVENT,
+  EDITABILITY_PREVIEW_RESULT_EVENT,
+  EDITABILITY_SAVE_EVENT,
+  EDITABILITY_SAVE_RESULT_EVENT,
   HISTORY_EVENT,
   HISTORY_RESULT_EVENT,
   PREVIEW_EVENT,
@@ -19,12 +31,14 @@ import {
   SAVE_RESULT_EVENT,
 } from './shared/events.js';
 import type {
+  EditabilityPolicyResponse,
   HistoryResponse,
   PreviewResponse,
   ReceiptResponse,
   RevertResponse,
   SaveResponse,
 } from './shared/types.js';
+import { EditabilityPolicyManager } from './server/editability-policy.js';
 import { TransactionManager } from './server/transaction-manager.js';
 
 export type { AstroVisualEditorOptions } from './options.js';
@@ -51,6 +65,7 @@ export default function astroVisualEditor(
   let projectRoot = process.cwd();
   let sourceRoot = resolve(process.cwd(), 'src');
   let transactionManager: TransactionManager | undefined;
+  let editabilityPolicyManager: EditabilityPolicyManager | undefined;
 
   return {
     name: 'astro-visual-editor',
@@ -72,6 +87,7 @@ export default function astroVisualEditor(
         if (!options.enabled) return;
         const remote = isRemoteHost(server.config.server.host);
         const writeEnabled = !remote || options.allowRemoteDev;
+        const canManageEditability = !remote && options.editabilityRole === 'owner';
         const remoteWarning = remote
           ? writeEnabled
             ? 'The dev server is network-exposed. Remote writes are explicitly enabled.'
@@ -81,9 +97,14 @@ export default function astroVisualEditor(
         // the manager in the integration closure so idempotency receipts and
         // the safe-revert history survive page-source HMR.
         transactionManager ??= new TransactionManager(projectRoot, sourceRoot, options);
+        editabilityPolicyManager ??= new EditabilityPolicyManager(projectRoot, options);
         const manager = transactionManager;
+        const policyManager = editabilityPolicyManager;
         const sendConfig = () =>
-          toolbar.send(CONFIG_EVENT, toClientConfig(options, writeEnabled, remoteWarning));
+          toolbar.send(
+            CONFIG_EVENT,
+            toClientConfig(options, writeEnabled, remoteWarning, canManageEditability),
+          );
 
         toolbar.on(READY_EVENT, sendConfig);
         toolbar.onAppInitialized(APP_ID, sendConfig);
@@ -96,6 +117,54 @@ export default function astroVisualEditor(
           } catch {
             return;
           }
+        });
+
+        toolbar.on(EDITABILITY_POLICY_EVENT, async (raw: unknown) => {
+          try {
+            const request = parseEditabilityPolicyRequest(raw);
+            toolbar.send(
+              EDITABILITY_POLICY_RESULT_EVENT,
+              await policyManager.load(request.clientId, request.requestId, canManageEditability),
+            );
+          } catch {
+            return;
+          }
+        });
+
+        toolbar.on(EDITABILITY_PREVIEW_EVENT, async (raw: unknown) => {
+          let response: EditabilityPolicyResponse;
+          try {
+            const request = parseEditabilityPolicyChangeRequest(raw, options.maxRequestBytes);
+            response = await policyManager.preview(request, canManageEditability);
+          } catch (error) {
+            const candidate = raw as { clientId?: unknown; requestId?: unknown };
+            response = {
+              clientId: typeof candidate?.clientId === 'string' ? candidate.clientId : 'invalid',
+              requestId: typeof candidate?.requestId === 'string' ? candidate.requestId : 'invalid',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown editability preview error.',
+            };
+          }
+          toolbar.send(EDITABILITY_PREVIEW_RESULT_EVENT, response);
+        });
+
+        toolbar.on(EDITABILITY_SAVE_EVENT, async (raw: unknown) => {
+          let response: EditabilityPolicyResponse;
+          try {
+            const request = parseEditabilityPolicyChangeRequest(raw, options.maxRequestBytes);
+            response = await policyManager.save(request, canManageEditability);
+          } catch (error) {
+            const candidate = raw as { clientId?: unknown; requestId?: unknown };
+            response = {
+              clientId: typeof candidate?.clientId === 'string' ? candidate.clientId : 'invalid',
+              requestId: typeof candidate?.requestId === 'string' ? candidate.requestId : 'invalid',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown editability save error.',
+            };
+          }
+          if (response.success) logger.info(`Updated ${options.editabilityPolicyFile}.`);
+          else logger.warn(`Editability policy rejected: ${response.error}`);
+          toolbar.send(EDITABILITY_SAVE_RESULT_EVENT, response);
         });
 
         toolbar.on(PREVIEW_EVENT, async (raw: unknown) => {

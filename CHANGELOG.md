@@ -8,6 +8,11 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## 0.1.0-beta.3 - 2026-08-05
 
+### Fixed
+
+- Allowed Astro source hot reloads to complete while another tab has queued
+  edits; that tab restores its isolated queue from session storage afterwards.
+
 ### Added
 
 - Added an exact per-file source review before any queued batch can be written.

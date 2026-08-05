@@ -35,13 +35,15 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
           cache: npm
-      - name: Use an OIDC-capable npm CLI
-        run: npm install --global npm@11.19.0
-      - run: npm ci
+      - name: Recheck the frozen release candidate before dependency installation
+        run: node scripts/check-release-candidate.mjs ${{ inputs.channel }}
       - name: Verify the exact main commit passed protected CI
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/verify-required-checks.mjs
+      - name: Use an OIDC-capable npm CLI
+        run: npm install --global npm@11.19.0
+      - run: npm ci
       - name: Enforce release documents and clean-consumer installation
         run: node scripts/release-preflight.mjs ${{ inputs.channel }}
       - name: Create the immutable matching release tag
@@ -56,3 +58,15 @@ jobs:
         run: npm publish --workspace @opacedev/astro-visual-editor --tag ${{ inputs.channel }}
       - name: Verify the exact published registry package
         run: node scripts/verify-published-release.mjs "$(node --print "require('./packages/astro-visual-editor/package.json').version")" ${{ inputs.channel }}
+      - name: Record the completion evidence
+        run: |
+          VERSION="$(node --print "require('./packages/astro-visual-editor/package.json').version")"
+          {
+            echo "## Published $VERSION"
+            echo
+            echo "- Main commit: \`$GITHUB_SHA\`"
+            echo "- npm: https://www.npmjs.com/package/@opacedev/astro-visual-editor/v/$VERSION"
+            echo "- Release workflow: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "- Registry consumer: passed"
+            echo "- Astro directory import: automatic external follow-up"
+          } >> "$GITHUB_STEP_SUMMARY"

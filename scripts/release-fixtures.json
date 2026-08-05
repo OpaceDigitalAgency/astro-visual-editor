@@ -1,0 +1,8 @@
+{
+  "description": "Canonical demo files that localhost acceptance testing may change. Regenerate only after an intentional fixture change.",
+  "files": {
+    "demo/astro-visual-editor.policy.json": "8772df49af2416bdf2f4881dd6f70452b3a0a8c31cf93f4aa1d7cb40ba0537a4",
+    "demo/src/pages/fixtures/article.astro": "e11687bbf53f3b78824290105a02e533e4f96c784947ec0c48e7d45e4ebb0bfa",
+    "demo/src/pages/index.astro": "515ee8124c625b8ceb6ed78400a52b984e5df35e5f8d1170d94f8510089f3bd0"
+  }
+}

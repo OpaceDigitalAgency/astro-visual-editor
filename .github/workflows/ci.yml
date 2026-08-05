@@ -20,6 +20,8 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+      - name: Fail fast on a contaminated or unsynchronised release candidate
+        run: node scripts/check-release-candidate.mjs
       - run: npm ci
       - run: npm run test:ci
       - if: matrix.node-version == '24'

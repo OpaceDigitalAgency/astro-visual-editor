@@ -321,18 +321,24 @@ This phase needs a separately approved threat model and product brief.
 4. Update package version, package README, root README and changelog together.
 5. Use focused tests during development. Once the candidate is ready, run
    `npm run test:all`, audit and package inspection once.
-6. Push the release commit through protected `main` and require the Node
-   22.12/24 CI matrix to pass.
-7. Obtain explicit authority for the new public npm version, then start the
+6. Run the fast release-candidate check, push a pull request and wait for the
+   Node 22.12/24 CI matrix to pass **before** asking the owner to test localhost.
+7. Start localhost from that exact green candidate. Obtain explicit authority
+   for the new public npm version, stop localhost and run the automatic release
+   finaliser to restore demo changes and prove the candidate is unchanged.
+8. Start the approval timer, merge the already-green pull request through
+   protected `main`, wait for its exact CI checks, then start the
    **Publish package** workflow from `main`. It enforces the document checks,
    verifies the exact protected CI results, performs one clean packed-consumer
    build, creates the matching tag and verifies npm after publication.
-8. Do not push `v<version>` yourself. The workflow creates the exact matching
+9. Do not push `v<version>` yourself. The workflow creates the exact matching
    tag only after its preflight passes, then publishes through the configured
    npm trusted publisher with provenance.
-9. Verify the package still appears in qualifying npm searches, is not
-   blocklisted by Astro and is accepted by its current importer script.
-10. Update `PROJECT.md` with links to immutable CI/release evidence.
+10. Verify the package still appears in qualifying npm searches, is not
+    blocklisted by Astro and is accepted by its current importer script.
+11. Use the automatic workflow summary as the immediate immutable evidence.
+    Update `PROJECT.md` later only when a material release-status statement
+    needs changing; do not delay npm completion with a second documentation PR.
 
 The enforced workflow and one-time GitHub protection requirements are in
 [RELEASE_GUARDRAILS.md](./RELEASE_GUARDRAILS.md). Never add a long-lived npm

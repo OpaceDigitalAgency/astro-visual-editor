@@ -516,6 +516,15 @@ Implemented release engineering includes formatting/linting checks, Dependabot,
 the Node 22.12/24 CI matrix, production-isolation and package-content checks, a
 clean packed-tarball consumer test, and an OIDC trusted-publishing workflow.
 
+The approval fast path is enforced in repository code and `AGENTS.md`. The
+versioned candidate and pull-request CI must be complete before localhost owner
+testing. A dependency-free check rejects version/lockfile drift and changed
+canonical demo fixtures before expensive CI work, while the approval finaliser
+backs up and restores localhost edits, refuses a running demo or unrelated
+changes and proves the tested branch still matches its pushed commit. The
+publish workflow records its own completion summary, so an evidence-only pull
+request is not part of the timed npm publication.
+
 The package was bootstrapped interactively as `0.1.0-beta.1`. Beta.2, beta.3 and
 beta.4 were then published from public GitHub-hosted runners with npm OIDC and
 provenance. `beta` currently resolves to beta.4; `latest` intentionally remains

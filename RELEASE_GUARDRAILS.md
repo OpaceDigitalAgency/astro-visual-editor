@@ -35,6 +35,52 @@ run the full baseline after every small correction, and do not run a separate
 manual clean-consumer installation unless the packaging/release machinery
 itself changed.
 
+### Prepare while the owner is testing
+
+The five-minute target begins at the owner's publication approval, not when
+development finishes. To make that target realistic, the complete release
+candidate must already be committed, pushed and green in pull-request CI before
+localhost acceptance begins.
+
+Run this before opening localhost:
+
+```bash
+npm run release:candidate:check -- beta
+```
+
+The fast check runs without installing dependencies and fails immediately when:
+
+- the package, demo dependency or lockfile versions differ;
+- the changelog or release-status documents do not name the version; or
+- localhost testing has changed a canonical demo fixture.
+
+CI runs the same check before starting either full validation job. This prevents
+a simple candidate error from consuming two complete CI jobs.
+
+After the candidate pull request is green, start localhost from that exact
+commit. Owner testing may safely write to the local demo because those changes
+are not part of the already-pushed candidate.
+
+### Owner approval to npm
+
+At owner approval, start the timer immediately, stop the owned localhost server
+and run:
+
+```bash
+npm run release:finalize -- beta
+```
+
+This command makes any localhost demo edits recoverable under the ignored
+`.astro-visual-editor/release-backups/` directory, restores the canonical demo,
+refuses unrelated worktree changes, confirms the branch matches its pushed
+upstream and reruns the fast candidate check. Merge the already-green pull
+request, wait for exact-`main` CI and start **Publish package** once. Do not run
+the full local baseline again after approval.
+
+The target is about five minutes from approval to verified npm publication when
+GitHub-hosted runners and npm respond normally. It is a target, not a guarantee;
+external runner queues and registry latency remain outside this repository.
+
 ## The one human decision
 
 A release is intentionally not started by a code push. An approved maintainer

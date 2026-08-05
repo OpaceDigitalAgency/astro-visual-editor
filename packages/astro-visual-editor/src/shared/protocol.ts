@@ -1,4 +1,7 @@
 import type {
+  EditabilityPolicy,
+  EditabilityPolicyChangeRequest,
+  EditabilityPolicyRequest,
   EditorChange,
   ReceiptRequest,
   RevertRequest,
@@ -109,4 +112,53 @@ export function parseRevertRequest(value: unknown): RevertRequest {
     throw new Error('Revert request failed runtime validation.');
   }
   return value as unknown as RevertRequest;
+}
+
+export function parseEditabilityPolicyRequest(value: unknown): EditabilityPolicyRequest {
+  if (!isRecord(value) || !isString(value.clientId, 200) || !isString(value.requestId, 200)) {
+    throw new Error('Editability policy request failed runtime validation.');
+  }
+  return value as unknown as EditabilityPolicyRequest;
+}
+
+function isEditabilityPolicy(value: unknown): value is EditabilityPolicy {
+  if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.rules)) return false;
+  if (value.rules.length > 500) return false;
+  return value.rules.every(
+    (rule) =>
+      isRecord(rule) &&
+      isString(rule.id, 200) &&
+      (rule.effect === 'allow' || rule.effect === 'deny') &&
+      (rule.scope === 'element' || rule.scope === 'selector') &&
+      isString(rule.route, 4_096) &&
+      isString(rule.selector, 2_000) &&
+      (rule.filePath === undefined || isString(rule.filePath, 4_096)) &&
+      (rule.sourcePath === undefined || isString(rule.sourcePath, 4_096)),
+  );
+}
+
+export function parseEditabilityPolicyChangeRequest(
+  value: unknown,
+  maxRequestBytes: number,
+): EditabilityPolicyChangeRequest {
+  let bytes = Number.POSITIVE_INFINITY;
+  try {
+    bytes = Buffer.byteLength(JSON.stringify(value), 'utf8');
+  } catch {
+    throw new Error('Editability policy request is not serializable.');
+  }
+  if (bytes > maxRequestBytes) {
+    throw new Error(`Editability policy request exceeds the ${maxRequestBytes}-byte limit.`);
+  }
+  if (
+    !isRecord(value) ||
+    !isString(value.clientId, 200) ||
+    !isString(value.requestId, 200) ||
+    typeof value.expectedHash !== 'string' ||
+    value.expectedHash.length > 200 ||
+    !isEditabilityPolicy(value.policy)
+  ) {
+    throw new Error('Editability policy change failed runtime validation.');
+  }
+  return value as unknown as EditabilityPolicyChangeRequest;
 }

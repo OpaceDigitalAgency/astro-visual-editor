@@ -9,7 +9,7 @@
     "dev": "astro dev"
   },
   "dependencies": {
-    "@opacedev/astro-visual-editor": "0.1.0-beta.3",
+    "@opacedev/astro-visual-editor": "0.1.0-beta.4",
     "astro": "^7.1.6"
   },
   "devDependencies": {

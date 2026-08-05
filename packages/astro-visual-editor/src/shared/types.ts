@@ -11,6 +11,24 @@ export interface SectionTemplate {
 
 export type ClientSectionTemplate = SectionTemplate;
 
+export type EditabilityEffect = 'allow' | 'deny';
+export type EditabilityRuleScope = 'element' | 'selector';
+
+export interface EditabilityRule {
+  id: string;
+  effect: EditabilityEffect;
+  scope: EditabilityRuleScope;
+  route: string;
+  selector: string;
+  filePath?: string;
+  sourcePath?: string;
+}
+
+export interface EditabilityPolicy {
+  version: 1;
+  rules: EditabilityRule[];
+}
+
 export interface BaseEditorChange {
   id: string;
   filePath: string;
@@ -62,6 +80,8 @@ export interface ClientEditorConfig {
   requestTimeoutMs: number;
   allowUnsafeSourceText: boolean;
   writeEnabled: boolean;
+  canManageEditability: boolean;
+  editabilityPolicyFile: string;
   remoteWarning?: string;
 }
 
@@ -138,6 +158,26 @@ export interface HistoryEntry {
 export interface HistoryResponse extends ClientMessage {
   requestId: string;
   entries: HistoryEntry[];
+}
+
+export interface EditabilityPolicyRequest extends ClientMessage {
+  requestId: string;
+}
+
+export interface EditabilityPolicyChangeRequest extends EditabilityPolicyRequest {
+  expectedHash: string;
+  policy: EditabilityPolicy;
+}
+
+export interface EditabilityPolicyResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  policy?: EditabilityPolicy;
+  policyHash?: string;
+  policyFile?: string;
+  canManage?: boolean;
+  diff?: FileDiff;
+  error?: string;
 }
 
 export interface ApplyBatchResult {

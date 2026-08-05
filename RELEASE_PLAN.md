@@ -152,7 +152,7 @@ npm pack --workspace @opacedev/astro-visual-editor --dry-run
 
 1. formatting and linting;
 2. package build and TypeScript checks;
-3. 20 unit/adapter/protocol/transaction tests or the documented higher count;
+3. 24 unit/adapter/protocol/transaction tests or the documented higher count;
 4. demo `astro check` and production build;
 5. proof that production output contains no editor runtime or write route;
 6. package-content inspection; and
@@ -295,21 +295,20 @@ This phase needs a separately approved threat model and product brief.
 2. Preserve unrelated user changes and start from a reconciled worktree.
 3. Implement and test one component at a time.
 4. Update package version, package README, root README and changelog together.
-5. Run `npm ci`, the focused tests, `npm run test:all`, audit and package
-   inspection.
-6. Install the packed candidate in a clean external fixture before publication.
-7. Push the release commit through protected `main` and require the Node
+5. Use focused tests during development. Once the candidate is ready, run
+   `npm run test:all`, audit and package inspection once.
+6. Push the release commit through protected `main` and require the Node
    22.12/24 CI matrix to pass.
-8. Obtain explicit authority for the new public npm version, then start the
+7. Obtain explicit authority for the new public npm version, then start the
    **Publish package** workflow from `main`. It enforces the document checks,
-   full baseline, clean packed-consumer build, matching tag and npm registry
-   verification before completing publication.
-9. Do not push `v<version>` yourself. The workflow creates the exact matching
+   verifies the exact protected CI results, performs one clean packed-consumer
+   build, creates the matching tag and verifies npm after publication.
+8. Do not push `v<version>` yourself. The workflow creates the exact matching
    tag only after its preflight passes, then publishes through the configured
    npm trusted publisher with provenance.
-10. Verify the package still appears in qualifying npm searches, is not
-    blocklisted by Astro and is accepted by its current importer script.
-11. Update `PROJECT.md` with links to immutable CI/release evidence.
+9. Verify the package still appears in qualifying npm searches, is not
+   blocklisted by Astro and is accepted by its current importer script.
+10. Update `PROJECT.md` with links to immutable CI/release evidence.
 
 The enforced workflow and one-time GitHub protection requirements are in
 [RELEASE_GUARDRAILS.md](./RELEASE_GUARDRAILS.md). Never add a long-lived npm

@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [22.12, 24]
+        node-version: ['22.12', '24']
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -21,5 +21,8 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:all
+      - run: npm run test:ci
+      - if: matrix.node-version == '24'
+        run: npx playwright install --with-deps chromium
+      - if: matrix.node-version == '24'
+        run: npm run test:e2e

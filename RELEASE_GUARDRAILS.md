@@ -34,22 +34,23 @@ needed. The workflow creates the tag itself after its preflight succeeds.
 
 ## Required GitHub settings
 
-These settings cannot be stored in Git, so a repository administrator must set
-them once and keep them in place. They were not configured when checked on 5
-August 2026:
+These settings cannot be stored entirely in Git, so a repository administrator
+must set them once and keep them in place. They were configured on 5 August
+2026:
 
 1. Protect `main`: require pull requests and the **CI / validate** check before
    merge; restrict direct pushes.
 2. Create a GitHub Actions environment named `npm-publish`, require an
    approver, and allow only the `main` branch.
-3. Add a tag ruleset for `v*` that prevents people from creating or changing
-   release tags outside GitHub Actions.
+3. Keep the active `v*` tag ruleset and its dedicated write-enabled release
+   deploy key. Only the encrypted `RELEASE_TAG_SSH_KEY` Actions secret may
+   bypass it; `release.yml` supplies that key to `actions/checkout` solely so
+   the guarded workflow can create its validated tag.
 4. Keep npm trusted publishing bound only to this repository and
    `.github/workflows/release.yml`; do not add an npm access token.
 
-Without these external GitHub settings, a repository administrator can still
-override the process. No repository file can prevent an administrator from
-doing that.
+Repository administrators can still deliberately change these controls, but an
+ordinary push, maintainer or workflow cannot bypass them.
 
 ## Astro directory follow-up
 

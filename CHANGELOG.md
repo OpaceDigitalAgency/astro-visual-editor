@@ -4,7 +4,32 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.1.0-beta.4 - 2026-08-05
+
+### Added
+
+- Added a docked, owner-facing Editability Setup that inventories visible page
+  content as editable, blocked, unresolved or structurally unsafe.
+- Added reviewed per-element and selector-group allow/deny rules, including a
+  safe workflow for opting `<strong>` labels into editing.
+- Added source-file and structured-path confirmation for unresolved content.
+- Added a project-owned `astro-visual-editor.policy.json` manifest with exact
+  diff review, conflict protection and restart/reload persistence.
+
+### Changed
+
+- Made Editability Setup a guided choose, review and save flow, automatically
+  opening permission review, clearly flagging unsaved choices, and returning
+  directly to normal editing after save with labelled Back to editor controls.
+- Kept Setup notices, the scrolling inventory and the fixed action bar in
+  separate layout rows so saved messages cannot overlap the controls.
+
+### Security
+
+- Editability policy writes are restricted to explicit owner mode on loopback;
+  editor mode and network-exposed development servers cannot broaden policy.
+- Allow rules remain subordinate to explicit exclusions, structural checks,
+  source attribution and syntax-aware adapter validation.
 
 ## 0.1.0-beta.3 - 2026-08-05
 

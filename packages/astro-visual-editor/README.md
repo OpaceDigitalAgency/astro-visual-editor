@@ -11,9 +11,12 @@ A development-only visual editor for Astro with text editing, SEO fields,
 section templates, real drag-and-drop, a reviewable change ledger and validated
 source transactions.
 
-The current public beta is `0.1.0-beta.3`. It is published through npm trusted
+The current public beta is `0.1.0-beta.4`. It is published through npm trusted
 GitHub OIDC with provenance and has passed a clean Astro 7.1.6 registry install
 and production build.
+
+Beta 4 adds an owner-facing Editability Setup with a guided, reviewed policy
+workflow.
 
 It uses Astro's native Dev Toolbar and `astro:server:setup` communication. It
 does not ship an editor client or write endpoint in production.
@@ -26,6 +29,7 @@ Built by [Opace Astro developers](https://opace.agency/services/web-design/astro
 | Sections | Add templates, delete, move or pointer-drag inside declared regions      |
 | SEO      | Edit title, description, keywords, canonical, Open Graph and robots      |
 | Review   | Inspect mixed changes, undo/redo, commit once and conflict-check reverts |
+| Setup    | Inventory visible content and review project-owned allow/deny policy     |
 
 ## Install
 
@@ -96,6 +100,23 @@ visualEditor({
   },
 });
 ```
+
+## Editability Setup
+
+The settings control opens a local owner-only inventory of visible content.
+Each item is labelled editable, blocked, unresolved or structurally unsafe and
+shows the source reason. Owners can review element or selector-group allow/deny
+rules, confirm an unresolved source file/path, inspect the exact JSON diff and
+save `astro-visual-editor.policy.json` in the project root. Choosing a
+permission opens that review immediately. Cancelling clearly marks the choice
+as unsaved, while saving returns directly to normal editing. Labelled **Back to
+editor** controls remain visible throughout setup.
+
+Saved policy survives reloads and other checkouts because it is a normal
+Git-reviewable project file. Allow rules never bypass explicit ignore markers,
+unsafe nested markup, source attribution or adapter validation. Set
+`editabilityRole: 'editor'` when a local user should apply policy without being
+able to change it; network-exposed development servers cannot manage policy.
 
 ## Persistent section regions
 
@@ -174,6 +195,8 @@ interface AstroVisualEditorOptions {
   historyLimit?: number;
   allowUnsafeSourceText?: boolean;
   allowRemoteDev?: boolean;
+  editabilityRole?: 'owner' | 'editor';
+  editabilityPolicyFile?: string;
 }
 ```
 
@@ -189,7 +212,8 @@ both disabled by default.
 - No arbitrary page-wide or cross-region section drops.
 - Checksummed local receipt history survives a complete dev-server restart and
   refuses unsafe restore when the record or saved file no longer matches.
-- Visual Editability Setup/content inventory and Git-backed history remain
+- Visible Editability Setup/content inventory is included in the Beta 4
+  candidate; bounded automatic source tracing and Git-backed history remain
   roadmap work.
 
 Full documentation, feature parity, architecture and release evidence:

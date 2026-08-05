@@ -4,6 +4,9 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 const demoSource = fileURLToPath(new URL('../../demo/src/pages/index.astro', import.meta.url));
+const editabilityPolicySource = fileURLToPath(
+  new URL('../../demo/astro-visual-editor.policy.json', import.meta.url),
+);
 
 async function enableEditor(page: import('@playwright/test').Page) {
   const toolbar = page.locator('astro-dev-toolbar');
@@ -308,4 +311,121 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
     results.violations.filter((item) => item.impact === 'critical' || item.impact === 'serious'),
   ).toEqual([]);
   await context.close();
+});
+
+test('inventories page content and persists reviewed owner allow and deny policy', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const originalPolicy = await readFile(editabilityPolicySource, 'utf8');
+  try {
+    await writeFile(
+      editabilityPolicySource,
+      `${JSON.stringify({ version: 1, rules: [] }, null, 2)}\n`,
+    );
+    await page.reload();
+    await page.setViewportSize({ width: 1440, height: 980 });
+    let { toolbar, workbench } = await enableEditor(page);
+    await workbench.getByRole('button', { name: 'Open Editability Setup' }).click();
+    await expect(workbench.getByRole('heading', { name: 'Editability Setup' })).toBeVisible();
+    await expect(workbench.getByText('9 visible items')).toBeVisible();
+    await expect(workbench.getByRole('button', { name: 'Blocked 3' })).toBeVisible();
+    await expect(workbench.locator('.setup-toggle')).toHaveAccessibleName('Back to editor');
+    await expect(workbench.getByText('Allow or block content')).toBeVisible();
+    expect((await workbench.boundingBox())!.width).toBeLessThanOrEqual(461);
+    expect(
+      await page.evaluate(() => Number.parseFloat(getComputedStyle(document.body).marginLeft)),
+    ).toBeGreaterThanOrEqual(475);
+
+    let previewLabel = workbench.locator('.inventory-item').filter({ hasText: '01 / PREVIEW' });
+    await expect(previewLabel.locator('.inventory-status')).toHaveText('Blocked');
+    await expect(previewLabel.locator('.inventory-reason')).toContainText(
+      'not included by the current editability policy',
+    );
+    await previewLabel.getByRole('button', { name: 'Allow all <strong>' }).click();
+    let policyReview = toolbar
+      .locator('dialog')
+      .filter({ hasText: 'Save this permission change?' });
+    await expect(policyReview).toBeVisible();
+    await expect(policyReview.locator('.diff-line.add')).toContainText(['"selector": "strong"']);
+    await policyReview.getByRole('button', { name: 'Back to setup' }).click();
+    await expect(workbench.getByText('Not saved yet')).toBeVisible();
+    await expect(workbench.getByText('1 permission change will only work')).toBeVisible();
+    await workbench.getByRole('button', { name: 'Review and save (1)' }).click();
+    await expect(policyReview).toBeVisible();
+    await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
+    await expect(workbench.getByText(/You can now edit the allowed content/)).toBeVisible();
+
+    await page.locator('[data-section="preview"] strong').click();
+    let textDialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
+    await expect(textDialog).toBeVisible();
+    await expect(textDialog.locator('.dialog-file')).toHaveText('src/pages/index.astro');
+    await textDialog.getByRole('button', { name: 'Cancel' }).click();
+
+    await workbench.getByRole('button', { name: 'Open Editability Setup' }).click();
+    await expect(workbench.locator('.message')).toBeHidden();
+    const inventoryBox = await workbench.locator('.ledger').boundingBox();
+    const setupActionsBox = await workbench.locator('.setup-actions').boundingBox();
+    expect(inventoryBox!.y + inventoryBox!.height).toBeLessThanOrEqual(setupActionsBox!.y);
+    previewLabel = workbench.locator('.inventory-item').filter({ hasText: '01 / PREVIEW' });
+    await expect(previewLabel.locator('.inventory-status')).toHaveText('Editable');
+    await previewLabel.getByRole('button', { name: 'Block this item' }).click();
+    await expect(previewLabel.locator('.inventory-status')).toHaveText('Blocked');
+    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save this permission change?' });
+    await expect(policyReview.locator('.diff-line.add')).toContainText(['"effect": "deny"']);
+    await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
+    await expect(workbench.getByText(/You can now edit the allowed content/)).toBeVisible();
+
+    await page.reload();
+    ({ toolbar, workbench } = await enableEditor(page));
+    await workbench.getByRole('button', { name: 'Open Editability Setup' }).click();
+    previewLabel = workbench.locator('.inventory-item').filter({ hasText: '01 / PREVIEW' });
+    const reviewLabel = workbench.locator('.inventory-item').filter({ hasText: '02 / REVIEW' });
+    await expect(previewLabel.locator('.inventory-status')).toHaveText('Blocked');
+    await expect(reviewLabel.locator('.inventory-status')).toHaveText('Editable');
+    const results = await new AxeBuilder({ page }).include('astro-dev-toolbar').analyze();
+    expect(
+      results.violations.filter((item) => item.impact === 'critical' || item.impact === 'serious'),
+    ).toEqual([]);
+
+    await page.goto('/fixtures/article');
+    ({ toolbar, workbench } = await enableEditor(page));
+    await workbench.getByRole('button', { name: 'Open Editability Setup' }).press('Enter');
+    const unresolved = workbench
+      .locator('.inventory-item')
+      .filter({ hasText: 'This source needs owner confirmation.' });
+    const unsafe = workbench
+      .locator('.inventory-item')
+      .filter({ hasText: 'Nested formatting must stay structurally safe.' });
+    await expect(unresolved.locator('.inventory-status')).toHaveText('Unresolved');
+    await expect(unsafe.locator('.inventory-status')).toHaveText('Unsafe');
+    await expect(unsafe.getByRole('button', { name: /Allow/ })).toHaveCount(0);
+    await unresolved.locator('[name="file"]').fill('src/pages/fixtures/article.astro');
+    await unresolved.getByRole('button', { name: 'Confirm source and allow' }).click();
+    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save this permission change?' });
+    await expect(
+      policyReview
+        .locator('.diff-line.add')
+        .filter({ hasText: 'src/pages/fixtures/article.astro' }),
+    ).toBeVisible();
+    await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
+    await expect(workbench.getByText(/You can now edit the allowed content/)).toBeVisible();
+    await page.getByText('This source needs owner confirmation.').click();
+    textDialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
+    await expect(textDialog).toBeVisible();
+    await expect(textDialog.locator('.dialog-file')).toHaveText('src/pages/fixtures/article.astro');
+    await textDialog.getByRole('button', { name: 'Cancel' }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await workbench.getByRole('button', { name: 'Open Editability Setup' }).click();
+    await expect(workbench).toBeVisible();
+    expect((await workbench.boundingBox())!.width).toBeLessThanOrEqual(379);
+    expect(
+      (await workbench.getByRole('button', { name: /All / }).boundingBox())!.height,
+    ).toBeGreaterThanOrEqual(44);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+    ).toBeLessThanOrEqual(1);
+  } finally {
+    await writeFile(editabilityPolicySource, originalPolicy);
+  }
 });

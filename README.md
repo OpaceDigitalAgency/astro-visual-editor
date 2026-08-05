@@ -35,6 +35,9 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 > [<removed internal document>](./<removed internal document>) and the future version sequence in
 > [<removed internal document>](./<removed internal document>).
 
+> Beta 4 adds the bounded owner-facing Editability Setup and reviewed project
+> policy workflow.
+
 | At a glance     | Behaviour                                                                         |
 | --------------- | --------------------------------------------------------------------------------- |
 | Editing surface | Astro's native development toolbar on the rendered page                           |
@@ -57,6 +60,10 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 - Recover queued and in-flight work across Astro HMR and navigation.
 - Keep queues and responses isolated between multiple browser tabs.
 - Provide a compact touch Pick mode on narrow screens.
+- Inventory visible page content and explain whether each item is editable,
+  blocked, unresolved or structurally unsafe.
+- Let a loopback site owner review element/group allow and deny rules, inspect
+  the exact policy diff and save it as a Git-reviewable project manifest.
 
 The old editor documented drag-and-drop but only implemented up/down buttons.
 This package provides both genuine drag-and-drop and accessible button/keyboard
@@ -150,6 +157,27 @@ Port 4322 is only a documented demo choice; any free loopback port works. Source
 writes are disabled by default when the dev server is exposed beyond loopback.
 
 ## Editor modes
+
+### Editability Setup
+
+Choose the settings control in the workbench to open the owner-only setup mode.
+On desktop the inventory docks beside the page so the content remains visible.
+It lists each visible text item with its status, plain-language reason, owning
+source file and structured path where known.
+
+An owner can allow or block one stable element or an appropriate element group,
+such as all `<strong>` labels on the current route. Choosing a permission opens
+its exact review immediately; saving returns to the normal editor with the new
+permission active. Cancelling review leaves a prominent **Not saved yet**
+warning and one-click **Review and save** action. A labelled **Back to editor**
+control remains visible throughout setup. Unresolved items can confirm their
+project-relative source file and optional structured path. Every change is
+shown as an exact diff before it is written to
+`astro-visual-editor.policy.json`.
+
+An allow rule only makes an element selectable. It does not override explicit
+`data-astro-edit-ignore` exclusions, unsafe nested structure, missing source
+ownership or syntax-aware adapter validation.
 
 ### Text
 
@@ -316,8 +344,9 @@ Exclude content with:
 <p data-astro-edit-ignore>Managed externally.</p>
 ```
 
-An owner-facing visual Editability Setup and content inventory remain planned.
-Today these policies are developer-owned configuration/source annotations.
+The visual Editability Setup adds project-owned policy on top of these explicit
+annotations. Source exclusions remain authoritative, and saved rules are
+visible in Git rather than being hidden in browser storage.
 
 ## Section templates
 
@@ -363,6 +392,8 @@ interface AstroVisualEditorOptions {
   historyLimit?: number; // 50
   allowUnsafeSourceText?: boolean;
   allowRemoteDev?: boolean;
+  editabilityRole?: 'owner' | 'editor'; // owner on loopback by default
+  editabilityPolicyFile?: string; // project-root JSON manifest
 }
 ```
 
@@ -373,6 +404,11 @@ HTML-escapes structural characters so they remain visible text.
 `allowRemoteDev` permits writes when Astro is bound to a non-loopback host. It
 is off by default because another device on the network could otherwise send
 development-toolbar write messages.
+
+`editabilityRole: 'owner'` enables the local Setup control. Use `editor` to
+apply the saved project policy without allowing that user to broaden it. Policy
+management is always disabled when the development server is network-exposed,
+even if ordinary source writes were explicitly enabled with `allowRemoteDev`.
 
 ## Mobile and accessibility
 
@@ -424,7 +460,8 @@ Astro integration (development command only)
 - Existing sections cannot be moved across unrelated regions, and templates
   cannot be dropped onto arbitrary page locations.
 - It does not infer every import/data dependency or provide the planned full
-  page-content inventory.
+  schema-aware dependency graph; Beta 4 inventories visible content and records
+  reviewed mappings, while bounded automatic import tracing remains Beta 5.
 - Checksummed local receipt history survives a dev-server restart and refuses
   restore if the record was changed, expired, or the saved file has newer work.
 - Saved history is local and bounded; Git-backed history remains future work.

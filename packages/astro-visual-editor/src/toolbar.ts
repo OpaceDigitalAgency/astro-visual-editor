@@ -533,7 +533,9 @@ export default defineToolbarApp({
         }
       });
     });
-    pageObserver.observe(document.documentElement, {
+    // Observe the Document itself because Astro may replace the complete
+    // documentElement while keeping the dev toolbar alive.
+    pageObserver.observe(document, {
       childList: true,
       characterData: true,
       subtree: true,
@@ -1339,7 +1341,18 @@ export default defineToolbarApp({
       panel.dataset.placement = placement;
       picker.dataset.placement = placement;
     });
-    server.send(READY_EVENT, { clientId, route: window.location.pathname });
+    const announceReady = (): void => {
+      if (panel.isConnected)
+        server.send(READY_EVENT, { clientId, route: window.location.pathname });
+    };
+    announceReady();
+    // The toolbar websocket can reconnect during Astro HMR just as the first
+    // ready event is sent. Retry the handshake until the server confirms the
+    // configuration instead of leaving source actions disabled.
+    const configRetryId = window.setInterval(() => {
+      if (configReady || !panel.isConnected) window.clearInterval(configRetryId);
+      else announceReady();
+    }, 500);
     renderQueue();
   },
   beforeTogglingOff() {

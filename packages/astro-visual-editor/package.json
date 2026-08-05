@@ -69,7 +69,7 @@
     "astro": ">=7.1.6 <8.0.0"
   },
   "dependencies": {
-    "@astrojs/compiler": "^2.13.1",
+    "@astrojs/compiler": "^4.0.0",
     "jsonc-parser": "^3.3.1",
     "yaml": "^2.8.3"
   },

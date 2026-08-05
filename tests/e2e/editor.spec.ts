@@ -88,6 +88,17 @@ async function reviewAndCommit(
   await review.getByRole('button', { name: 'Commit these changes' }).click();
 }
 
+async function closePagesAfterHmr(pages: import('@playwright/test').Page[]): Promise<void> {
+  // Closing a whole context while Astro is replacing several documents can
+  // occasionally stall Chromium. Close each page without unload handlers and
+  // let Playwright dispose the now-empty context with the browser fixture.
+  await Promise.all(
+    pages.map(async (page) => {
+      if (!page.isClosed()) await page.close({ runBeforeUnload: false });
+    }),
+  );
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
@@ -241,15 +252,10 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
     await expect(pageA.locator('[data-demo-banner]')).toHaveText('Committed only from tab A', {
       timeout: 15_000,
     });
+    await waitForWorkbenchButtonEnabled(pageB, /Review 1 file change/);
     await expect(pageB.locator('[data-astro-edit-id="hero-title"]')).toHaveText(
       'Queued only in tab B',
     );
-    await expect(
-      pageB
-        .locator('astro-dev-toolbar')
-        .locator('.workbench')
-        .getByRole('button', { name: /Review 1 file change/ }),
-    ).toBeEnabled();
 
     await waitForWorkbenchButtonEnabled(pageA, 'Revert last commit');
     await clickRevertWhenStable(pageA);
@@ -262,7 +268,7 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
   } finally {
     if ((await readFile(demoSource, 'utf8')) !== originalSource)
       await writeFile(demoSource, originalSource);
-    await context.close();
+    await closePagesAfterHmr([pageA, pageB]);
   }
 });
 

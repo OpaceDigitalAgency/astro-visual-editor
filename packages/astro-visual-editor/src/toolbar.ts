@@ -1302,13 +1302,6 @@ export default defineToolbarApp({
       },
       { signal: listenerController.signal },
     );
-    window.addEventListener(
-      'beforeunload',
-      (event) => {
-        if (hasUnsavedChanges) event.preventDefault();
-      },
-      { signal: listenerController.signal },
-    );
     const pageStyle = createElement('style', { 'data-astro-ve-page-style': 'true' });
     pageStyle.textContent = pageSectionStyles;
     document.head.append(pageStyle);

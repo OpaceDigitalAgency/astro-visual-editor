@@ -27,7 +27,8 @@ place:
 - `name`, `description`, `repository` and `homepage` are complete;
 - the homepage is the canonical Opace product page;
 - category keywords include Dev Toolbar, Performance + SEO, Utilities and UI;
-- npm search returns beta.2 for both qualifying keywords;
+- npm search eligibility is proven for both qualifying keywords; beta.3 registry
+  search reindexing is externally pending;
 - the package is not in Astro's importer blocklist;
 - Astro's current unmodified `update-integrations --unsafe` script was run
   locally against the live registry and generated the expected catalogue entry;
@@ -51,18 +52,18 @@ is the scheduled npm import.
 
 ## Current release evidence
 
-| Gate                | Current evidence                                                                                                       |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Public npm package  | [`@opacedev/astro-visual-editor@0.1.0-beta.2`](https://www.npmjs.com/package/@opacedev/astro-visual-editor)            |
-| npm tags            | Both `latest` and `beta` resolve to beta.2 while no stable release exists                                              |
-| Trusted publication | GitHub-hosted `release.yml` workflow, npm OIDC and SLSA provenance verified on beta.2                                  |
-| Main CI             | Node 22.12 and 24 matrix green on the beta.2 lineage and the latest documentation commit                               |
-| Package validation  | Build, type checks, production-isolation scan, package inspection and dependency audit pass                            |
-| Automated behaviour | 20 Vitest tests and four committed Chromium workflows                                                                  |
-| Registry consumer   | Clean Astro 7.1.6 install, automatic config update and production build pass                                           |
-| Importer inputs     | Package returned by npm searches; correct metadata; not blocklisted; Astro's own importer generated the expected entry |
-| Astro listing       | Not yet publicly rendered; wait for and verify the external scheduled import                                           |
-| Avatar              | Request open in Astro issue #2597                                                                                      |
+| Gate                | Current evidence                                                                                                                                                                                                  |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public npm package  | [`@opacedev/astro-visual-editor@0.1.0-beta.3`](https://www.npmjs.com/package/@opacedev/astro-visual-editor)                                                                                                       |
+| npm tags            | `beta` resolves to beta.3; `latest` intentionally remains beta.2 until stable promotion                                                                                                                           |
+| Trusted publication | Protected [release run #30994165501](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/30994165501) created the tag, published by npm OIDC with provenance and verified the registry package |
+| Main CI             | Node 22.12 and 24 passed beta.3 in [run #30994045901](https://github.com/OpaceDigitalAgency/astro-visual-editor/actions/runs/30994045901)                                                                         |
+| Package validation  | Build, type checks, production-isolation scan, package inspection and dependency audit pass                                                                                                                       |
+| Automated behaviour | 24 Vitest tests and four committed Chromium workflows                                                                                                                                                             |
+| Registry consumer   | Exact beta.3 clean Astro 7.1.6 install and production build pass                                                                                                                                                  |
+| Importer inputs     | Package returned by npm searches; correct metadata; not blocklisted; Astro's own importer generated the expected entry                                                                                            |
+| Astro listing       | Not yet publicly rendered; wait for and verify the external scheduled import                                                                                                                                      |
+| Avatar              | Request open in Astro issue #2597                                                                                                                                                                                 |
 
 ## Review of “Find easy app testing”
 

@@ -12,21 +12,31 @@ async function enableEditor(page: import('@playwright/test').Page) {
 }
 
 async function restoreFromHistory(page: import('@playwright/test').Page): Promise<void> {
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  // The source commit can queue one final Astro HMR navigation after reload.
-  // Let that navigation settle before addressing the replacement toolbar.
+  // Do not force a reload while Astro is already applying the source-write
+  // HMR update; two competing navigations can abort one another in Chromium.
   await page.waitForTimeout(1_000);
-  const { toolbar, workbench } = await enableEditor(page);
-  await workbench
-    .getByRole('button', { name: 'History' })
-    .evaluate((button: HTMLButtonElement) => button.click());
-  const restore = toolbar
+  await waitForWorkbenchButtonEnabled(page, 'History');
+  const historyButtons = page
+    .locator('astro-dev-toolbar')
+    .locator('.workbench')
+    .getByRole('button', { name: 'History' });
+  for (let index = (await historyButtons.count()) - 1; index >= 0; index -= 1) {
+    const history = historyButtons.nth(index);
+    if (await history.isEnabled()) {
+      await history.evaluate((button: HTMLButtonElement) => button.click());
+      break;
+    }
+  }
+  const restores = page
+    .locator('astro-dev-toolbar')
     .locator('dialog')
     .filter({ hasText: 'Saved changes' })
-    .getByRole('button', { name: /Restore saved changes/ })
-    .first();
-  await expect(restore).toBeVisible();
-  await restore.evaluate((button: HTMLButtonElement) => button.click());
+    .getByRole('button', { name: /Restore saved changes/ });
+  await expect(restores.filter({ visible: true }).first()).toBeVisible();
+  await restores
+    .filter({ visible: true })
+    .first()
+    .evaluate((button: HTMLButtonElement) => button.click());
 }
 
 async function waitForWorkbenchButtonEnabled(

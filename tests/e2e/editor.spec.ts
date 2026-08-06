@@ -19,6 +19,9 @@ const complexRouteSource = fileURLToPath(
 const complexComponentSource = fileURLToPath(
   new URL('../../demo/src/components/EvidenceGrid.astro', import.meta.url),
 );
+const complexHeroSource = fileURLToPath(
+  new URL('../../demo/src/components/SourceHero.astro', import.meta.url),
+);
 const complexLayoutSource = fileURLToPath(
   new URL('../../demo/src/layouts/DemoLayout.astro', import.meta.url),
 );
@@ -195,9 +198,9 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
     .first()
     .boundingBox())!;
   expect(firstControlsBox.width).toBeLessThanOrEqual(155);
-  const source = page.getByRole('button', { name: 'Drag preview to reorder' });
-  await expect(source).toHaveAttribute('title', 'Drag preview to reorder');
-  await expect(source).toHaveAttribute('data-tooltip', 'Drag preview to reorder');
+  const source = page.getByRole('button', { name: 'Drag Section: 01 / PREVIEW to reorder' });
+  await expect(source).toHaveAttribute('title', 'Drag Section: 01 / PREVIEW to reorder');
+  await expect(source).toHaveAttribute('data-tooltip', 'Drag Section: 01 / PREVIEW to reorder');
   const target = page.locator('[data-section="review"]');
   const sourceBox = (await source.boundingBox())!;
   const targetBox = (await target.boundingBox())!;
@@ -223,7 +226,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
   await workbench.getByRole('tab', { name: 'Sections' }).click();
 
-  await page.getByRole('button', { name: 'Add section after preview' }).click();
+  await page.getByRole('button', { name: 'Add section after Section: 01 / PREVIEW' }).click();
   await toolbar
     .locator('dialog')
     .filter({ hasText: 'Add a section' })
@@ -234,7 +237,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
   await workbench.getByRole('tab', { name: 'Sections' }).click();
 
-  await page.getByRole('button', { name: 'Delete section review' }).click();
+  await page.getByRole('button', { name: 'Delete section Section: 02 / REVIEW' }).click();
   await toolbar.getByRole('button', { name: 'Delete section', exact: true }).click();
   await expect(page.locator('[data-section="review"]')).toHaveCount(0);
   await picker.getByRole('button', { name: /Review 1/ }).click();
@@ -408,6 +411,7 @@ test('enables and persists complex sections without source annotations', async (
   test.setTimeout(90_000);
   const originalPolicy = await readFile(editabilityPolicySource, 'utf8');
   const originalRoute = await readFile(complexRouteSource, 'utf8');
+  const originalHero = await readFile(complexHeroSource, 'utf8');
   try {
     await writeFile(
       editabilityPolicySource,
@@ -473,7 +477,30 @@ test('enables and persists complex sections without source annotations', async (
       'open',
       '',
     );
-    await workbench.getByRole('button', { name: 'Back to editor' }).first().click();
+
+    await workbench
+      .locator('.section-setup')
+      .getByRole('button', { name: 'Select on page' })
+      .click();
+    await page.getByRole('button', { name: 'Review the source map' }).click();
+    await expect(policyReview).toContainText('src/components/SourceHero.astro');
+    await expect(policyReview).toContainText('astro:children:element:section:0');
+    await policyReview.getByRole('button', { name: 'Save settings' }).click();
+
+    const savedPolicy = JSON.parse(await readFile(editabilityPolicySource, 'utf8')) as {
+      regions: Array<{ selector: string; filePath: string }>;
+    };
+    expect(savedPolicy.regions).toContainEqual(
+      expect.objectContaining({
+        selector: 'main > section.hero',
+        filePath: 'src/components/SourceHero.astro',
+      }),
+    );
+    expect(
+      savedPolicy.regions.some((region) => region.selector.includes('data-astro-edit-file')),
+    ).toBe(false);
+
+    ({ toolbar, workbench } = await enableEditor(page));
     await workbench.getByRole('tab', { name: 'Sections' }).click();
     const picker = toolbar.locator('.picker');
     await expect(picker).toBeVisible();
@@ -484,7 +511,7 @@ test('enables and persists complex sections without source annotations', async (
     await workbench.getByRole('button', { name: 'Select another section on page' }).click();
     await toolbar.getByRole('button', { name: 'Cancel' }).click();
     const deleteHero = page.getByRole('button', {
-      name: /Delete section source-hero-[a-f0-9]+/u,
+      name: /Delete section Section: A page assembled from trusted sources/u,
     });
     await expect(deleteHero).toBeVisible();
     await deleteHero.click();
@@ -496,25 +523,43 @@ test('enables and persists complex sections without source annotations', async (
     await workbench.getByRole('button', { name: 'Close changes tray, 0 queued changes' }).click();
     await expect(picker).toBeVisible();
     await picker.getByRole('button', { name: 'Expand' }).click();
-    const moveHero = page.getByRole('button', { name: /Move source-hero-[a-f0-9]+ down/u });
+    const moveHero = page.getByRole('button', {
+      name: /Move Section: A page assembled from trusted sources down/u,
+    });
     await expect(moveHero).toBeVisible();
     await moveHero.click();
     await expect(page.locator('main > *').first()).toHaveClass(/shared-note/u);
-    await expect(workbench.locator('.change-summary')).toContainText('Reordered 4 sections');
-    await workbench.getByRole('button', { name: 'Open changes tray, 1 queued change' }).click();
-    await workbench.getByRole('button', { name: /Review and save \(1\)/ }).click();
+    const moveAction = page.getByRole('button', {
+      name: 'Move Button: Review the source map up',
+    });
+    await expect(moveAction).toBeVisible();
+    await moveAction.click();
+    await expect(page.locator('section.hero > :not([data-astro-ve-ui])').nth(2)).toHaveText(
+      'Review the source map',
+    );
+    await expect(workbench.locator('.change-summary')).toHaveCount(2);
+    await workbench.getByRole('button', { name: 'Open changes tray, 2 queued changes' }).click();
+    await workbench.getByRole('button', { name: /Review and save \(2\)/ }).click();
     await expect(workbench.locator('.message')).toBeHidden();
     const review = toolbar.locator('dialog').filter({ hasText: 'Review and save' });
     await expect(review).toBeVisible();
+    await expect(review).toContainText('src/pages/fixtures/complex.astro');
+    await expect(review).toContainText('src/components/SourceHero.astro');
     await review.getByRole('button', { name: 'Save changes' }).dispatchEvent('click');
     await expect
       .poll(async () => readFile(complexRouteSource, 'utf8'))
       .toMatch(/<p[\s\S]*?<SourceHero/u);
+    await expect
+      .poll(async () => readFile(complexHeroSource, 'utf8'))
+      .toMatch(/<\/h1>[\s\S]*?<button[\s\S]*?<p[\s\S]*?class="summary"/u);
     await restoreFromHistory(page);
     await expect.poll(async () => readFile(complexRouteSource, 'utf8')).toBe(originalRoute);
+    await expect.poll(async () => readFile(complexHeroSource, 'utf8')).toBe(originalHero);
   } finally {
     if ((await readFile(complexRouteSource, 'utf8')) !== originalRoute)
       await writeFile(complexRouteSource, originalRoute);
+    if ((await readFile(complexHeroSource, 'utf8')) !== originalHero)
+      await writeFile(complexHeroSource, originalHero);
     await writeFile(editabilityPolicySource, originalPolicy);
   }
 });
@@ -679,7 +724,7 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   await picker.getByRole('button', { name: 'Expand' }).click();
   await workbench.getByRole('tab', { name: 'Sections' }).click();
   await expect(workbench).toBeHidden();
-  const move = page.getByRole('button', { name: 'Move preview down' });
+  const move = page.getByRole('button', { name: 'Move Section: 01 / PREVIEW down' });
   await move.focus();
   await move.press('Enter');
   await expect(

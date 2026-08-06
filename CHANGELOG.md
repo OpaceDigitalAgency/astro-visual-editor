@@ -28,6 +28,9 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Added browser coverage that enables four mixed component/element blocks on
   the complex fixture, reorders them, commits the exact Astro diff and restores
   the source.
+- Added nested region coverage that enables a component's direct text and
+  button children independently, reorders them alongside a parent-page move,
+  saves both files atomically and restores both sources.
 
 ### Changed
 
@@ -63,6 +66,9 @@ The project follows [Semantic Versioning](https://semver.org/).
   automatically accepting only a uniquely scored structural source match.
 - Matched parsed Astro literal nodes before considering quoted-value fallback,
   preventing identical words in annotations from causing false ambiguity.
+- Made the section picker describe its direct-child boundary and allow an
+  inner component region to be enabled separately, with readable Heading,
+  Text, Button, Card and Section control labels.
 
 ### Fixed
 
@@ -73,6 +79,14 @@ The project follows [Semantic Versioning](https://semver.org/).
   merely because its container had the same number of children.
 - Added composed-page regressions for delete and Undo, guarded section-source
   confirmation, and one atomic JSON, Markdown frontmatter and SEO batch.
+- Prevented generated section metadata from becoming persistent CSS selectors
+  or biasing nested source discovery toward the parent page file.
+- Kept section controls outside the host element so headings, paragraphs and
+  buttons remain valid HTML while their source-owned region is being edited.
+- Added a bounded source-preview timeout that preserves queued changes and
+  offers a safe retry instead of leaving the editor on “Checking source files”.
+- Aligned source-discovery and save-time hashes for multiline Astro closing
+  tags, preventing a valid nested reorder from being rejected or malformed.
 
 ## 0.1.0-beta.4 - 2026-08-05
 

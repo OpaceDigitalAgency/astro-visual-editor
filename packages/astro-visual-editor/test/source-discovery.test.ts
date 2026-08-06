@@ -49,6 +49,55 @@ describe('syntax-aware source discovery', () => {
     expect(edited).toContain('<aside><p>Only the second value</p></aside>');
   });
 
+  it('keeps discovered section fingerprints aligned with multiline Astro closing tags', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ave-discovery-'));
+    const sourceRoot = join(root, 'src');
+    await mkdir(join(sourceRoot, 'pages'), { recursive: true });
+    const source = `<section>
+  <p>Summary</p>
+  <button type="button">Action</button
+  >
+</section>\n`;
+    await writeFile(join(sourceRoot, 'pages', 'index.astro'), source);
+
+    const response = await discoverSectionRegions(
+      root,
+      sourceRoot,
+      {
+        clientId: 'client',
+        requestId: 'request',
+        route: '/',
+        selector: 'section',
+        itemCount: 2,
+        itemTags: ['p', 'button'],
+        hintedFilePath: 'src/pages/index.astro',
+      },
+      normalizeOptions(),
+    );
+    const candidate = response.candidates?.find(
+      (item) => item.sourcePath === 'astro:children:element:section:0',
+    );
+    expect(candidate).toBeDefined();
+
+    const edited = await applyAstroSections(
+      source,
+      {
+        kind: 'sections',
+        id: 'reorder',
+        route: '/',
+        filePath: 'src/pages/index.astro',
+        regionId: 'content',
+        sourcePath: candidate!.sourcePath,
+        before: candidate!.items,
+        after: [...candidate!.items].reverse(),
+      },
+      [],
+    );
+
+    expect(edited.indexOf('<button')).toBeLessThan(edited.indexOf('<p>'));
+    expect(edited).toContain('</button\n  >');
+  });
+
   it('discovers JSON, YAML and Markdown frontmatter paths without regex guessing', async () => {
     const root = await mkdtemp(join(tmpdir(), 'ave-discovery-'));
     const sourceRoot = join(root, 'src');

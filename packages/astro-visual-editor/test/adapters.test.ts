@@ -1,4 +1,5 @@
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -23,6 +24,10 @@ const emptySeo: SeoValues = {
   ogDescription: '',
   robots: '',
 };
+
+function sectionSourceKey(source: string): string {
+  return createHash('sha256').update(source).digest('hex').slice(0, 20);
+}
 
 describe('source adapters', () => {
   it('updates formatted multiline Astro text using its rendered whitespace', async () => {
@@ -229,6 +234,40 @@ describe('source adapters', () => {
     );
     expect(result).not.toContain('data-section="hero"');
     expect(result).toContain('Section heading');
+  });
+
+  it('preserves multiline Astro closing brackets when mapped elements are reordered', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    const text = '<p>Summary</p>';
+    const button = '<button type="button">Action</button\n  >';
+    await writeFile(page, `<section>\n  ${text}\n  ${button}\n</section>`);
+    await applyChangeBatch(
+      root,
+      src,
+      [
+        {
+          kind: 'sections',
+          id: 'mapped-elements',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          regionId: 'mapped',
+          sourcePath: 'astro:children:element:section:0',
+          before: [
+            { id: 'summary', sourceKey: sectionSourceKey(text) },
+            { id: 'action', sourceKey: sectionSourceKey(button) },
+          ],
+          after: [
+            { id: 'action', sourceKey: sectionSourceKey(button) },
+            { id: 'summary', sourceKey: sectionSourceKey(text) },
+          ],
+        },
+      ],
+      normalizeOptions(),
+    );
+    const result = await readFile(page, 'utf8');
+    expect(result.indexOf('<button')).toBeLessThan(result.indexOf('<p>'));
+    expect(result).toContain('</button\n  >');
   });
 
   it('refuses stale SEO state and unstructured MDX expression editing', async () => {

@@ -326,6 +326,7 @@ export default defineToolbarApp({
     let deleteTarget: HTMLElement | null = null;
     let saveInFlight = false;
     let timeoutId: number | undefined;
+    let previewTimeoutId: number | undefined;
     let receiptPollId: number | undefined;
     let pendingRequestId = sessionStorage.getItem(SESSION_PENDING) ?? undefined;
     let lastReceiptId = sessionStorage.getItem(SESSION_RECEIPT) ?? undefined;
@@ -670,6 +671,7 @@ export default defineToolbarApp({
     function applySectionRegionPolicy(policy: EditabilityPolicy): void {
       clearGeneratedSectionMappings();
       initialSections.clear();
+      const claimedRegions = new Set<HTMLElement>();
       for (const regionRule of policy.regions ?? []) {
         if (regionRule.route !== window.location.pathname) continue;
         let matches: NodeListOf<HTMLElement>;
@@ -680,6 +682,7 @@ export default defineToolbarApp({
         }
         if (matches.length !== 1) continue;
         const region = matches[0]!;
+        if (claimedRegions.has(region)) continue;
         const children = [...region.children].filter(
           (child): child is HTMLElement => child instanceof HTMLElement,
         );
@@ -694,6 +697,7 @@ export default defineToolbarApp({
           child.dataset.section = item.id;
           child.dataset.astroEditSourceKey = item.sourceKey;
         });
+        claimedRegions.add(region);
       }
     }
 
@@ -779,7 +783,7 @@ export default defineToolbarApp({
       setupPickerTitle.textContent = kind === 'section' ? 'Select a page section' : 'Select text';
       setupPickerLabel.textContent =
         kind === 'section'
-          ? 'Hover to highlight a whole region, then click it.'
+          ? 'Choose the container whose direct items you want to move. Select inside a major block to enable its text, buttons or cards separately.'
           : 'Hover to highlight text, then click it.';
       setupPagePicker.dataset.open = 'true';
     }
@@ -847,7 +851,7 @@ export default defineToolbarApp({
         const title = createElement('strong');
         title.textContent = regionLabel(region);
         const description = createElement('span');
-        description.textContent = `${childCount} item${childCount === 1 ? '' : 's'} inside`;
+        description.textContent = `Moves its ${childCount} direct item${childCount === 1 ? '' : 's'} independently`;
         copy.append(title, description);
         const choose = createElement('button', { class: 'primary', type: 'button' });
         choose.textContent = 'Choose';
@@ -866,6 +870,13 @@ export default defineToolbarApp({
       regionDialog.showModal();
     }
 
+    function nestedInsideGeneratedRegion(region: HTMLElement): boolean {
+      return (
+        region.dataset.astroVeGeneratedSection === 'true' ||
+        Boolean(region.parentElement?.closest('[data-astro-ve-generated-region="true"]'))
+      );
+    }
+
     function beginSectionDiscovery(region: HTMLElement): void {
       const children = [...region.children].filter((child) => child instanceof HTMLElement);
       sectionDiscoveryElement = region;
@@ -873,6 +884,9 @@ export default defineToolbarApp({
       setupBusy = true;
       if (regionDialog.open) regionDialog.close('discover');
       const resolution = sourceResolutionFor(region, config, draftEditabilityPolicy);
+      const nestedGeneratedRegion = nestedInsideGeneratedRegion(region);
+      const hintedFilePath =
+        resolution.proven && !nestedGeneratedRegion ? resolution.filePath : undefined;
       server.send(SECTION_DISCOVERY_EVENT, {
         clientId,
         requestId: sectionDiscoveryRequestId,
@@ -881,7 +895,7 @@ export default defineToolbarApp({
         itemCount: children.length,
         containerTag: region.tagName.toLowerCase(),
         itemTags: children.map((child) => child.tagName.toLowerCase()),
-        hintedFilePath: resolution.proven ? resolution.filePath : undefined,
+        hintedFilePath,
       });
       showMessage(`Checking “${regionLabel(region)}” against its source…`, 'warning');
     }
@@ -894,7 +908,12 @@ export default defineToolbarApp({
         config,
         draftEditabilityPolicy,
       );
-      if (resolution.proven && resolution.filePath === candidate.filePath) score += 6;
+      if (
+        resolution.proven &&
+        !nestedInsideGeneratedRegion(sectionDiscoveryElement) &&
+        resolution.filePath === candidate.filePath
+      )
+        score += 6;
       if (candidate.containerTag === sectionDiscoveryElement.tagName.toLowerCase()) score += 4;
       const renderedTags = [...sectionDiscoveryElement.children]
         .filter((child): child is HTMLElement => child instanceof HTMLElement)
@@ -958,9 +977,13 @@ export default defineToolbarApp({
             .map((child) => child.tagName.toLowerCase())
         : [];
       const isSafeAutomaticMatch = (candidate: SectionRegionCandidate): boolean => {
-        if (resolution?.proven && resolution.filePath === candidate.filePath) return true;
+        if (
+          resolution?.proven &&
+          !nestedInsideGeneratedRegion(sectionDiscoveryElement!) &&
+          resolution.filePath === candidate.filePath
+        )
+          return true;
         return (
-          candidate.confidence === 'exact' &&
           candidate.containerTag === sectionDiscoveryElement?.tagName.toLowerCase() &&
           candidate.itemTags?.length === renderedTags.length &&
           candidate.itemTags.every((tag, index) => tag === renderedTags[index])
@@ -1685,6 +1708,10 @@ export default defineToolbarApp({
     }
 
     function editableRegion(section: HTMLElement): HTMLElement | null {
+      const parentRegion = section.parentElement?.closest<HTMLElement>(
+        '[data-astro-edit-region], [data-astro-edit-sections]',
+      );
+      if (parentRegion && directSections(parentRegion).includes(section)) return parentRegion;
       return section.closest<HTMLElement>('[data-astro-edit-region], [data-astro-edit-sections]');
     }
 
@@ -1709,6 +1736,21 @@ export default defineToolbarApp({
         .trim();
       if (text) return compactLabel(text, 90);
       return descriptorLabel({ id: section.dataset.section! });
+    }
+
+    function sectionControlLabel(section: HTMLElement): string {
+      const kind = /^H[1-6]$/u.test(section.tagName)
+        ? 'Heading'
+        : section.tagName === 'BUTTON'
+          ? 'Button'
+          : section.tagName === 'P'
+            ? 'Text'
+            : section.tagName === 'SECTION'
+              ? 'Section'
+              : section.tagName === 'ARTICLE'
+                ? 'Card'
+                : 'Block';
+      return `${kind}: ${sectionReviewLabel(section)}`;
     }
 
     function sameSectionStructure(
@@ -1805,21 +1847,22 @@ export default defineToolbarApp({
         ensureAnchor(region);
         for (const section of directSections(region)) {
           const id = section.dataset.section!;
+          const label = sectionControlLabel(section);
           sectionNodes.set(id, section);
           section.dataset.astroVeSectionActive = 'true';
           section.tabIndex = 0;
-          section.setAttribute('aria-label', `Editable section ${id}`);
+          section.setAttribute('aria-label', `Editable section ${label}`);
           const controls = createElement('div', {
             class: 'astro-ve-section-controls',
             'data-astro-ve-ui': 'true',
             role: 'toolbar',
-            'aria-label': `Controls for section ${id}`,
+            'aria-label': `Controls for ${label}`,
           });
-          addControl(controls, `Add section before ${id}`, '+↑', () =>
+          addControl(controls, `Add section before ${label}`, '+↑', () =>
             openTemplates(section, 'before'),
           );
-          addControl(controls, `Move ${id} up`, '↑', () => moveSection(section, -1));
-          const drag = addControl(controls, `Drag ${id} to reorder`, '⠿', () => undefined);
+          addControl(controls, `Move ${label} up`, '↑', () => moveSection(section, -1));
+          const drag = addControl(controls, `Drag ${label} to reorder`, '⠿', () => undefined);
           drag.classList.add('astro-ve-drag-handle');
           drag.draggable = true;
           drag.addEventListener('dragstart', (event) => {
@@ -1835,16 +1878,28 @@ export default defineToolbarApp({
               .querySelectorAll('[data-astro-ve-drag-over]')
               .forEach((node) => node.removeAttribute('data-astro-ve-drag-over'));
           });
-          addControl(controls, `Move ${id} down`, '↓', () => moveSection(section, 1));
-          addControl(controls, `Add section after ${id}`, '+↓', () =>
+          addControl(controls, `Move ${label} down`, '↓', () => moveSection(section, 1));
+          addControl(controls, `Add section after ${label}`, '+↓', () =>
             openTemplates(section, 'after'),
           );
-          addControl(controls, `Delete section ${id}`, '×', () => {
+          addControl(controls, `Delete section ${label}`, '×', () => {
             deleteTarget = section;
             confirmDialog.showModal();
             confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
           });
-          section.append(controls);
+          region.append(controls);
+          const regionRect = region.getBoundingClientRect();
+          const sectionRect = section.getBoundingClientRect();
+          controls.style.setProperty(
+            'top',
+            `${sectionRect.top - regionRect.top + region.scrollTop + 10}px`,
+            'important',
+          );
+          controls.style.setProperty(
+            'right',
+            `${regionRect.right - sectionRect.right + region.scrollLeft + 10}px`,
+            'important',
+          );
           section.addEventListener('dragover', onSectionDragOver, {
             signal: sectionListenerController.signal,
           });
@@ -2133,6 +2188,16 @@ export default defineToolbarApp({
         requestId: previewRequestId,
         changes: serializableQueue(),
       });
+      window.clearTimeout(previewTimeoutId);
+      previewTimeoutId = window.setTimeout(() => {
+        previewInFlight = false;
+        previewRequestId = undefined;
+        showMessage(
+          'The source check did not complete. Your changes are still queued; try Review and save again.',
+          'warning',
+        );
+        renderQueue();
+      }, config.requestTimeoutMs);
       renderQueue();
     }
 
@@ -2414,6 +2479,7 @@ export default defineToolbarApp({
     server.on(SAVE_RESULT_EVENT, handleSaveResponse);
     server.on(PREVIEW_RESULT_EVENT, (response: PreviewResponse) => {
       if (response.clientId !== clientId || response.requestId !== previewRequestId) return;
+      window.clearTimeout(previewTimeoutId);
       previewInFlight = false;
       if (!response.success || !response.diffs) {
         previewRequestId = undefined;

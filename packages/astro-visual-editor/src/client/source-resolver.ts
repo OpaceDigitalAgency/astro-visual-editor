@@ -35,8 +35,9 @@ export function sourceResolutionFor(
   config: ClientEditorConfig,
   policy?: EditabilityPolicy,
 ): SourceResolution {
-  const explicit = element.closest<HTMLElement>('[data-astro-edit-file]')?.dataset.astroEditFile;
-  const sourcePath = element.closest<HTMLElement>('[data-astro-edit-path]')?.dataset.astroEditPath;
+  const annotatedOwner = element.closest<HTMLElement>('[data-astro-edit-file]');
+  const explicit = annotatedOwner?.dataset.astroEditFile;
+  const sourcePath = annotatedOwner?.dataset.astroEditPath;
   if (explicit) {
     return {
       filePath: explicit,
@@ -105,19 +106,26 @@ export function selectorFor(element: HTMLElement): string {
   if (element.id) return `#${CSS.escape(element.id)}`;
   const editableId = element.dataset.astroEditId;
   if (editableId) return `[data-astro-edit-id="${CSS.escape(editableId)}"]`;
-  const explicitFile = element.dataset.astroEditFile?.trim();
-  const explicitPath = element.dataset.astroEditPath?.trim();
+  const generatedRegion = element.dataset.astroVeGeneratedRegion === 'true';
+  const explicitFile = generatedRegion ? undefined : element.dataset.astroEditFile?.trim();
+  const explicitPath = generatedRegion ? undefined : element.dataset.astroEditPath?.trim();
   if (explicitFile && explicitPath) {
     return `[data-astro-edit-file="${CSS.escape(explicitFile)}"][data-astro-edit-path="${CSS.escape(explicitPath)}"]`;
   }
-  const sectionId = element.closest<HTMLElement>('[data-section]')?.dataset.section;
+  const sectionOwner = element.closest<HTMLElement>('[data-section]');
+  const sectionId =
+    sectionOwner?.dataset.astroVeGeneratedSection === 'true'
+      ? undefined
+      : sectionOwner?.dataset.section;
   const parts: string[] = [];
   let current: HTMLElement | null = element;
   while (current && parts.length < 5 && current !== document.body) {
     let part = current.tagName.toLowerCase();
-    if (current.dataset.section) part += `[data-section="${CSS.escape(current.dataset.section)}"]`;
+    const generatedSection = current.dataset.astroVeGeneratedSection === 'true';
+    if (current.dataset.section && !generatedSection)
+      part += `[data-section="${CSS.escape(current.dataset.section)}"]`;
     else if (current.classList.length > 0) part += `.${CSS.escape(current.classList[0] ?? '')}`;
-    if (!current.dataset.section && current.parentElement) {
+    if ((!current.dataset.section || generatedSection) && current.parentElement) {
       let matchingSiblings: Element[] = [];
       try {
         matchingSiblings = [...current.parentElement.children].filter((sibling) =>
@@ -134,7 +142,7 @@ export function selectorFor(element: HTMLElement): string {
       }
     }
     parts.unshift(part);
-    if (current.dataset.section) break;
+    if (current.dataset.section && !generatedSection) break;
     current = current.parentElement;
   }
   const selector = parts.join(' > ');

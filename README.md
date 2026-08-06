@@ -200,6 +200,11 @@ without adding editor attributes to the site's components. The candidate
 supports contiguous Astro component/element children and complete JSON/JSONC
 or YAML arrays, with every complete item hash-checked before reordering.
 
+Each enabled container moves only its direct items. To move content inside a
+major block—for example its heading, paragraph, button or cards—select that
+inner block separately in Setup. Parent and inner regions can then be reordered
+in the same reviewed multi-file save while each remains tied to its own source.
+
 Projects can also declare a source-owned region directly and give every section
 a stable ID:
 
@@ -268,6 +273,8 @@ selectors and complete before/after values remain available under
 - clear all;
 - a single validated commit;
 - idempotent retry if the response is delayed;
+- a bounded source check that keeps the queue intact and offers a retry if the
+  development connection stops responding;
 - revert the latest successful receipt while its files remain unchanged.
 
 Structural rows use semantic summaries such as **Reordered 3 sections** or

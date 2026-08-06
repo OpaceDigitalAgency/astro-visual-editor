@@ -52,6 +52,16 @@ function nodeEndOffset(source: string, node: AstroNode): number {
   if (!node.position) throw new Error('Astro compiler did not provide a source start position.');
   if (node.position.end) {
     const end = node.position.end.offset;
+    if (node.type === 'element' && node.name) {
+      const raw = source.slice(node.position.start.offset, end);
+      if (raw.includes(`</${node.name}`) && !raw.trimEnd().endsWith('>')) {
+        const closingBracket = source.indexOf('>', end);
+        const nextTag = source.indexOf('<', end);
+        if (closingBracket !== -1 && (nextTag === -1 || closingBracket < nextTag)) {
+          return closingBracket + 1;
+        }
+      }
+    }
     if (node.type === 'component' || node.type === 'custom-element') {
       const raw = source.slice(node.position.start.offset, end);
       if (!raw.includes(`</${node.name ?? ''}`)) {

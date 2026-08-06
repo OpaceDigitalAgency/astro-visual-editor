@@ -252,6 +252,7 @@ export const pageSectionStyles = String.raw`
     html[data-astro-ve-setup-docked="true"] body { width: calc(100% - 476px) !important; margin-left: 476px !important; }
   }
   [data-astro-ve-section-active="true"] { position: relative !important; outline: 3px solid #8fc7ee !important; outline-offset: -3px; }
+  [data-astro-edit-region], [data-astro-edit-sections] { position: relative !important; }
   [data-astro-ve-drag-over="true"] { outline: 4px dashed #8fc7ee !important; outline-offset: -5px; }
   [data-astro-ve-dragging="true"] { opacity: .55 !important; }
   [data-astro-ve-ui] { box-sizing: border-box; }

@@ -42,6 +42,10 @@ The project follows [Semantic Versioning](https://semver.org/).
   text permissions, with current-route mappings and reviewed removal controls.
 - Preserved draft section mappings when text permission rules are added or
   removed, so independent setup changes cannot discard one another.
+- Replaced developer-facing section and text setup with one consistent visual
+  picker: readable labels, on-page hover highlighting and click selection.
+- Moved syntax paths and file candidates behind collapsed technical details,
+  automatically accepting only a uniquely scored structural source match.
 - Matched parsed Astro literal nodes before considering quoted-value fallback,
   preventing identical words in annotations from causing false ambiguity.
 

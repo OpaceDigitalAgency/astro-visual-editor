@@ -132,6 +132,11 @@ The settings control opens local owner-only controls for **Section regions**
 and **Text permissions**. Section regions can be added and removed for the
 current route without adding editor attributes to site components. The text
 inventory lists visible content.
+Both areas support the same owner workflow: choose a readable item from the
+list or use **Select on page** to hover, highlight and click the exact content.
+Syntax-aware verification then runs silently. File paths and source locators
+stay inside collapsed technical details unless the match is genuinely
+ambiguous.
 Each item is labelled editable, blocked, unresolved or structurally unsafe and
 shows the source reason. Owners can review element or selector-group allow/deny
 rules, discover and confirm an unresolved source candidate, inspect the exact
@@ -149,9 +154,10 @@ able to change it; network-exposed development servers cannot manage policy.
 
 ## Persistent section regions
 
-In Editor Setup, an owner can choose **Set up page sections**; the same action
-is also available in Sections mode. The owner selects an existing rendered
-container and confirms the corresponding source structure.
+In Editor Setup, an owner can choose **Select section on page** or **Choose from
+list**; the same visual setup is available in Sections mode. The owner selects
+an existing rendered container by its visible label, and the editor silently
+uses a unique structural source match.
 The mapping is stored in the project policy; site components do not need editor
 attributes. The candidate supports contiguous Astro component/element children
 and complete JSON/JSONC or YAML array items. Source blocks and structured items

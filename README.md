@@ -157,6 +157,10 @@ It exposes both **Section regions** and **Text permissions**. Section regions
 map existing page containers to syntax-aware source structures for safe
 reordering, while the text inventory lists each visible item with its status,
 plain-language reason, owning source file and structured path where known.
+Both use the same non-technical interaction: choose a readable item from the
+list or select it directly on the page with hover highlighting. Source
+verification runs behind that visual choice; technical paths stay collapsed
+unless ambiguity requires explicit confirmation.
 
 An owner can allow or block one stable element or an appropriate element group,
 such as all `<strong>` labels on the current route. Choosing a permission opens
@@ -168,7 +172,7 @@ project-relative source file and optional structured path. Every change is
 shown as an exact diff before it is written to
 `astro-visual-editor.policy.json`.
 
-Choosing **Find exact source** searches supported project files with Astro,
+Choosing **Find source and allow editing** searches supported project files with Astro,
 Markdown/frontmatter, JSON/JSONC and YAML parsers. It lists every exact
 candidate with its line and structured path. The owner confirms one candidate,
 and repeated Astro literals remain separate stale-checked nodes instead of
@@ -187,12 +191,12 @@ Keyboard users can focus editable content and press `Alt+Enter`.
 
 ### Sections
 
-An owner can choose **Set up page sections**, select an existing
-rendered container and confirm its syntax-aware source structure. This stores a
-project policy mapping without adding editor attributes to the site's
-components. The candidate supports contiguous Astro component/element children
-and complete JSON/JSONC or YAML arrays, with every complete item hash-checked
-before reordering.
+An owner can choose **Select section on page** or **Choose from list**, then
+select an existing container by its visible label. The editor automatically
+uses a unique structural source match and stores a project policy mapping
+without adding editor attributes to the site's components. The candidate
+supports contiguous Astro component/element children and complete JSON/JSONC
+or YAML arrays, with every complete item hash-checked before reordering.
 
 Projects can also declare a source-owned region directly and give every section
 a stable ID:

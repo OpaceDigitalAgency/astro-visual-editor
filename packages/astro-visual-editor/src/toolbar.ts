@@ -268,6 +268,9 @@ export default defineToolbarApp({
     let sectionDiscoveryRequestId: string | undefined;
     let sectionDiscoveryElement: HTMLElement | undefined;
     let sectionCandidates: SectionRegionCandidate[] = [];
+    let setupPickerKind: 'text' | 'section' | undefined;
+    let setupPickerTarget: HTMLElement | undefined;
+    let setupPickerCandidates: HTMLElement[] = [];
 
     const style = createElement('style');
     style.textContent = toolbarStyles;
@@ -312,6 +315,15 @@ export default defineToolbarApp({
     const picker = createElement('div', { class: 'picker', 'data-open': 'false' });
     picker.innerHTML = `<span class="picker-label">Tap content to edit</span><button class="secondary picker-review" type="button" title="Expand editor and review queued changes">Review 0</button><button class="icon-button picker-close" type="button" aria-label="Disable Visual Editor" title="Disable Visual Editor">×</button>`;
 
+    const setupPagePicker = createElement('div', {
+      class: 'setup-page-picker',
+      'data-open': 'false',
+      'data-astro-ve-ui': 'true',
+      role: 'status',
+      'aria-live': 'polite',
+    });
+    setupPagePicker.innerHTML = `<div><strong class="setup-picker-title">Select on page</strong><span class="setup-picker-help">Move over the page, then click the item you want.</span></div><span class="setup-picker-label">Nothing selected yet</span><button class="secondary cancel-setup-picker" type="button">Cancel</button>`;
+
     const textDialog = createElement('dialog', {
       'aria-labelledby': 'ave-text-title',
       'aria-describedby': 'ave-text-file',
@@ -354,30 +366,37 @@ export default defineToolbarApp({
       'aria-labelledby': 'ave-policy-title',
       'aria-describedby': 'ave-policy-help',
     });
-    policyDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Step 2 of 3 · Review</p><h2 id="ave-policy-title">Save these editor settings?</h2><p id="ave-policy-help" class="field-help">Check the exact project setting below, then save it to make the text permissions or section mappings active. Nothing changes until you save.</p><div class="policy-diff-list file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-policy" type="button">Back to setup</button><button class="primary confirm-policy" type="button">Save and return to editor</button></div></div>`;
+    policyDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Ready to enable</p><h2 id="ave-policy-title">Save these editor choices?</h2><p id="ave-policy-help" class="field-help">This saves which text and sections can be maintained on this page. It does not change the page content.</p><details class="technical-details policy-technical"><summary>Review technical project change</summary><div class="policy-diff-list file-diff-list"></div></details><div class="dialog-actions"><button class="secondary cancel-policy" type="button">Keep editing</button><button class="primary confirm-policy" type="button">Save settings</button></div></div>`;
 
     const sourceDialog = createElement('dialog', {
       'aria-labelledby': 'ave-source-title',
       'aria-describedby': 'ave-source-help',
     });
-    sourceDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Syntax-aware source discovery</p><h2 id="ave-source-title">Confirm the exact source</h2><p id="ave-source-help" class="field-help">Select the source field that produced this rendered text. Ambiguous matches are never guessed.</p><div class="source-candidate-list"></div><div class="dialog-actions"><button class="secondary cancel-source" value="cancel" type="submit">Cancel</button><button class="primary confirm-source" type="button">Confirm mapping</button></div></form>`;
+    sourceDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">One safety check</p><h2 id="ave-source-title">Which source owns this text?</h2><p id="ave-source-help" class="field-help">More than one exact source match exists, so the editor will not guess. Choose only if you recognise the owner.</p><div class="source-candidate-list"></div><div class="dialog-actions"><button class="secondary cancel-source" value="cancel" type="submit">Cancel safely</button><button class="primary confirm-source" type="button">Use selected source</button></div></form>`;
 
     const regionDialog = createElement('dialog', {
       'aria-labelledby': 'ave-region-title',
       'aria-describedby': 'ave-region-help',
     });
-    regionDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Section setup</p><h2 id="ave-region-title">Choose a page region</h2><p id="ave-region-help" class="field-help">Choose an existing container whose direct children should be reorderable. The site source is not changed just to enable the editor.</p><div class="region-candidate-list source-candidate-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary discover-region-source" type="button">Find exact source structure</button></div></form>`;
+    regionDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Page sections</p><h2 id="ave-region-title">Choose sections to reorder</h2><p id="ave-region-help" class="field-help">Choose a named page area below, or select it directly on the page. Source verification runs automatically.</p><div class="region-candidate-list friendly-region-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary pick-region-on-page" type="button">Select section on page</button></div></form>`;
 
     const regionSourceDialog = createElement('dialog', {
       'aria-labelledby': 'ave-region-source-title',
       'aria-describedby': 'ave-region-source-help',
     });
-    regionSourceDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Syntax-aware section discovery</p><h2 id="ave-region-source-title">Confirm the source structure</h2><p id="ave-region-source-help" class="field-help">Select the contiguous Astro children or structured JSON/YAML array that corresponds to the rendered region. Every complete source item is hash-checked before a reorder.</p><div class="region-source-candidate-list source-candidate-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary confirm-region-source" type="button">Save section mapping</button></div></form>`;
+    regionSourceDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">One safety check</p><h2 id="ave-region-source-title">Which source owns this section?</h2><p id="ave-region-source-help" class="field-help">The page selection is complete, but more than one source structure could produce it. Choose only if you recognise the owner; otherwise cancel safely.</p><div class="region-source-candidate-list source-candidate-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel safely</button><button class="primary confirm-region-source" type="button">Use selected source</button></div></form>`;
+
+    const permissionDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-permission-title',
+      'aria-describedby': 'ave-permission-help',
+    });
+    permissionDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Text editing</p><h2 id="ave-permission-title">Choose what can be edited</h2><p id="ave-permission-help" class="field-help permission-copy"></p><details class="technical-details"><summary>Technical details</summary><p class="dialog-file permission-source"></p></details><div class="dialog-actions permission-actions"><button class="secondary cancel-permission" type="button">Cancel</button></div></div>`;
 
     canvas.append(
       style,
       panel,
       picker,
+      setupPagePicker,
       textDialog,
       seoDialog,
       templateDialog,
@@ -388,6 +407,7 @@ export default defineToolbarApp({
       sourceDialog,
       regionDialog,
       regionSourceDialog,
+      permissionDialog,
     );
 
     const ledger = panel.querySelector<HTMLElement>('.ledger')!;
@@ -416,6 +436,11 @@ export default defineToolbarApp({
     const reloadPolicyButton = panel.querySelector<HTMLButtonElement>('.reload-policy')!;
     const reviewPolicyButton = panel.querySelector<HTMLButtonElement>('.review-policy')!;
     const policyDiffList = policyDialog.querySelector<HTMLElement>('.policy-diff-list')!;
+    const setupPickerTitle = setupPagePicker.querySelector<HTMLElement>('.setup-picker-title')!;
+    const setupPickerLabel = setupPagePicker.querySelector<HTMLElement>('.setup-picker-label')!;
+    const permissionCopy = permissionDialog.querySelector<HTMLElement>('.permission-copy')!;
+    const permissionSource = permissionDialog.querySelector<HTMLElement>('.permission-source')!;
+    const permissionActions = permissionDialog.querySelector<HTMLElement>('.permission-actions')!;
 
     function enableLightDismiss(dialog: HTMLDialogElement, onClose?: () => void): void {
       dialog.addEventListener('click', (event) => {
@@ -437,6 +462,9 @@ export default defineToolbarApp({
       previewRequestId = undefined;
     });
     enableLightDismiss(policyDialog);
+    enableLightDismiss(permissionDialog, () => {
+      if (mode === 'setup') renderInventory();
+    });
 
     function renderHistory(): void {
       renderHistoryPanel(historyList, savedHistory, (entry) => {
@@ -593,108 +621,205 @@ export default defineToolbarApp({
       );
     }
 
+    function compactLabel(value: string, maximum = 72): string {
+      const clean = value.replace(/\s+/gu, ' ').trim();
+      return clean.length > maximum ? `${clean.slice(0, maximum - 1).trimEnd()}…` : clean;
+    }
+
+    function regionLabel(region: HTMLElement): string {
+      const labelledBy = region.getAttribute('aria-labelledby');
+      const labelledText = labelledBy
+        ? document.getElementById(labelledBy)?.textContent?.trim()
+        : undefined;
+      const directHeading = [...region.children].find(
+        (child): child is HTMLElement =>
+          child instanceof HTMLElement && /^H[1-4]$/u.test(child.tagName),
+      );
+      const explicit =
+        region.getAttribute('aria-label') ??
+        labelledText ??
+        directHeading?.textContent?.trim() ??
+        region.dataset.section;
+      if (explicit) return compactLabel(explicit);
+      if (region.tagName === 'MAIN') return 'Main page content';
+      const heading = region.querySelector<HTMLElement>('h1, h2, h3, h4');
+      if (heading?.textContent?.trim()) return compactLabel(heading.textContent);
+      if (region.tagName === 'ARTICLE') return 'Article or content card';
+      const identity = region.id || [...region.classList].find((name) => name.length > 2);
+      if (identity)
+        return compactLabel(
+          identity.replace(/[-_]+/gu, ' ').replace(/\b\w/gu, (letter) => letter.toUpperCase()),
+        );
+      return `${region.tagName.toLowerCase()} content area`;
+    }
+
+    function clearSetupPickerHighlight(): void {
+      setupPickerTarget?.removeAttribute('data-astro-ve-setup-pick');
+      setupPickerTarget = undefined;
+    }
+
+    function stopSetupPagePicker(restoreSetup = true): void {
+      clearSetupPickerHighlight();
+      setupPickerKind = undefined;
+      setupPickerCandidates = [];
+      setupPagePicker.dataset.open = 'false';
+      if (restoreSetup) {
+        panel.dataset.open = String(active);
+        updateSetupDock();
+        if (mode === 'setup') renderInventory();
+      }
+    }
+
+    function startSetupPagePicker(kind: 'text' | 'section'): void {
+      if (regionDialog.open) regionDialog.close('pick-on-page');
+      setupPickerKind = kind;
+      setupPickerCandidates =
+        kind === 'section'
+          ? sectionRegionElements()
+          : inventory.map((item) => item.element).filter((element) => element.isConnected);
+      clearInventoryMarkers();
+      document.documentElement.dataset.astroVeSetupDocked = 'false';
+      panel.dataset.open = 'false';
+      picker.dataset.open = 'false';
+      setupPickerTitle.textContent = kind === 'section' ? 'Select a page section' : 'Select text';
+      setupPickerLabel.textContent =
+        kind === 'section'
+          ? 'Hover to highlight a whole region, then click it.'
+          : 'Hover to highlight text, then click it.';
+      setupPagePicker.dataset.open = 'true';
+    }
+
+    function setupPickerCandidate(target: EventTarget | null): HTMLElement | undefined {
+      if (!(target instanceof Element)) return undefined;
+      const matches = setupPickerCandidates.filter(
+        (candidate) => candidate === target || candidate.contains(target),
+      );
+      if (!matches.length) return undefined;
+      return matches.sort((left, right) => {
+        const leftSemantic = /^(MAIN|ARTICLE|SECTION)$/u.test(left.tagName) ? 0 : 1;
+        const rightSemantic = /^(MAIN|ARTICLE|SECTION)$/u.test(right.tagName) ? 0 : 1;
+        if (leftSemantic !== rightSemantic) return leftSemantic - rightSemantic;
+        const leftArea = left.getBoundingClientRect().width * left.getBoundingClientRect().height;
+        const rightArea =
+          right.getBoundingClientRect().width * right.getBoundingClientRect().height;
+        return leftArea - rightArea;
+      })[0];
+    }
+
+    function openPermissionChoice(item: InventoryItem): void {
+      permissionCopy.textContent = `“${compactLabel(item.text)}” is currently ${item.status}.`;
+      permissionSource.textContent = `${item.sourceFile}${item.sourcePath ? ` → ${item.sourcePath}` : ''}`;
+      permissionActions.querySelectorAll('.permission-choice').forEach((button) => button.remove());
+      const action = createElement('button', {
+        class: `permission-choice ${item.status === 'editable' ? 'danger' : 'primary'}`,
+        type: 'button',
+      });
+      if (item.status === 'editable') {
+        action.textContent = 'Block editing this text';
+        action.addEventListener('click', () => {
+          permissionDialog.close('choose');
+          setDraftRule(item, 'deny', 'element');
+        });
+        permissionActions.append(action);
+      } else if (item.canAllow) {
+        action.textContent =
+          item.status === 'unresolved'
+            ? 'Find source and allow editing'
+            : 'Allow editing this text';
+        action.addEventListener('click', () => {
+          permissionDialog.close('choose');
+          if (item.status === 'unresolved') requestSourceDiscovery(item);
+          else setDraftRule(item, 'allow', 'element');
+        });
+        permissionActions.append(action);
+      }
+      permissionDialog.showModal();
+      permissionDialog
+        .querySelector<HTMLButtonElement>('.permission-choice, .cancel-permission')
+        ?.focus();
+    }
+
     function openRegionSetup(): void {
       const list = regionDialog.querySelector<HTMLElement>('.region-candidate-list')!;
       list.replaceChildren();
       const regions = sectionRegionElements();
-      regions.forEach((region, index) => {
-        const selector = selectorFor(region);
+      regions.forEach((region) => {
         const childCount = [...region.children].filter(
           (child) => child instanceof HTMLElement,
         ).length;
-        const label = createElement('label', { class: 'source-candidate' });
-        const input = createElement('input', {
-          type: 'radio',
-          name: 'region-candidate',
-          value: selector,
-        });
-        if (index === 0) input.checked = true;
-        const copy = createElement('span');
+        const row = createElement('article', { class: 'friendly-region' });
+        const copy = createElement('div');
         const title = createElement('strong');
-        title.textContent = `${region.tagName.toLowerCase()} with ${childCount} direct items`;
-        const code = createElement('code');
-        code.textContent = selector;
-        copy.append(title, code);
-        label.append(input, copy);
-        list.append(label);
+        title.textContent = regionLabel(region);
+        const description = createElement('span');
+        description.textContent = `${childCount} item${childCount === 1 ? '' : 's'} inside`;
+        copy.append(title, description);
+        const choose = createElement('button', { class: 'primary', type: 'button' });
+        choose.textContent = 'Choose';
+        choose.setAttribute('aria-label', `Choose ${regionLabel(region)}`);
+        choose.addEventListener('click', () => beginSectionDiscovery(region));
+        row.append(copy, choose);
+        list.append(row);
       });
       if (!regions.length) {
         const empty = createElement('div', { class: 'empty' });
         empty.textContent = 'No visible container with two or more direct items was found.';
         list.append(empty);
       }
-      regionDialog.querySelector<HTMLButtonElement>('.discover-region-source')!.disabled =
+      regionDialog.querySelector<HTMLButtonElement>('.pick-region-on-page')!.disabled =
         regions.length === 0;
       regionDialog.showModal();
     }
 
-    function requestSectionDiscovery(): void {
-      const selected = regionDialog.querySelector<HTMLInputElement>(
-        'input[name="region-candidate"]:checked',
-      );
-      if (!selected) return;
-      const matches = document.querySelectorAll<HTMLElement>(selected.value);
-      if (matches.length !== 1) {
-        showMessage('The chosen page region is no longer unique.', 'error');
-        return;
-      }
-      const region = matches[0]!;
+    function beginSectionDiscovery(region: HTMLElement): void {
       const children = [...region.children].filter((child) => child instanceof HTMLElement);
       sectionDiscoveryElement = region;
       sectionDiscoveryRequestId = crypto.randomUUID();
       setupBusy = true;
-      regionDialog.close('discover');
+      if (regionDialog.open) regionDialog.close('discover');
       const resolution = sourceResolutionFor(region, config, draftEditabilityPolicy);
       server.send(SECTION_DISCOVERY_EVENT, {
         clientId,
         requestId: sectionDiscoveryRequestId,
         route: window.location.pathname,
-        selector: selected.value,
+        selector: selectorFor(region),
         itemCount: children.length,
+        containerTag: region.tagName.toLowerCase(),
+        itemTags: children.map((child) => child.tagName.toLowerCase()),
         hintedFilePath: resolution.proven ? resolution.filePath : undefined,
       });
-      showMessage('Matching the rendered region to syntax-aware source structures…', 'warning');
+      showMessage(`Checking “${regionLabel(region)}” against its source…`, 'warning');
     }
 
-    function renderSectionCandidates(candidates: SectionRegionCandidate[]): void {
-      const list = regionSourceDialog.querySelector<HTMLElement>('.region-source-candidate-list')!;
-      list.replaceChildren();
-      candidates.forEach((candidate, index) => {
-        const label = createElement('label', { class: 'source-candidate' });
-        const input = createElement('input', {
-          type: 'radio',
-          name: 'region-source-candidate',
-          value: candidate.id,
-        });
-        if (index === 0) input.checked = true;
-        const copy = createElement('span');
-        const file = createElement('strong');
-        file.textContent = `${candidate.filePath}:${candidate.line}`;
-        const path = createElement('code');
-        path.textContent = candidate.sourcePath;
-        const reason = createElement('small');
-        reason.textContent = candidate.reason;
-        copy.append(file, path, reason);
-        label.append(input, copy);
-        list.append(label);
-      });
-      if (!candidates.length) {
-        const empty = createElement('div', { class: 'empty' });
-        empty.textContent = 'No matching contiguous Astro source structure was found.';
-        list.append(empty);
-      }
-      regionSourceDialog.querySelector<HTMLButtonElement>('.confirm-region-source')!.disabled =
-        candidates.length === 0;
-      regionSourceDialog.showModal();
-    }
-
-    function confirmSectionCandidate(): void {
-      if (!sectionDiscoveryElement) return;
-      const selected = regionSourceDialog.querySelector<HTMLInputElement>(
-        'input[name="region-source-candidate"]:checked',
+    function sectionCandidateScore(candidate: SectionRegionCandidate): number {
+      if (!sectionDiscoveryElement) return 0;
+      let score = candidate.confidence === 'exact' ? 2 : 0;
+      const resolution = sourceResolutionFor(
+        sectionDiscoveryElement,
+        config,
+        draftEditabilityPolicy,
       );
-      const candidate = sectionCandidates.find((item) => item.id === selected?.value);
-      if (!candidate) return;
+      if (resolution.proven && resolution.filePath === candidate.filePath) score += 6;
+      if (candidate.containerTag === sectionDiscoveryElement.tagName.toLowerCase()) score += 4;
+      const renderedTags = [...sectionDiscoveryElement.children]
+        .filter((child): child is HTMLElement => child instanceof HTMLElement)
+        .map((child) => child.tagName.toLowerCase());
+      candidate.itemTags?.forEach((tag, index) => {
+        if (tag === renderedTags[index]) score += 2;
+      });
+      return score;
+    }
+
+    function sourceKind(candidate: { filePath: string }): string {
+      if (/\/layouts?\//u.test(candidate.filePath)) return 'Page layout';
+      if (/\/components?\//u.test(candidate.filePath)) return 'Reusable component';
+      if (/\/pages?\//u.test(candidate.filePath)) return 'Page template';
+      if (/\.(jsonc?|ya?ml)$/u.test(candidate.filePath)) return 'Structured site data';
+      return 'Project source';
+    }
+
+    function saveSectionCandidate(candidate: SectionRegionCandidate): void {
+      if (!sectionDiscoveryElement) return;
       const regionRule: SectionRegionRule = {
         id: `region-${crypto.randomUUID()}`,
         route: window.location.pathname,
@@ -715,8 +840,67 @@ export default defineToolbarApp({
       };
       sectionDiscoveryElement = undefined;
       sectionCandidates = [];
-      regionSourceDialog.close('confirm');
+      if (regionSourceDialog.open) regionSourceDialog.close('confirm');
       requestPolicyPreview();
+    }
+
+    function renderSectionCandidates(candidates: SectionRegionCandidate[]): void {
+      const list = regionSourceDialog.querySelector<HTMLElement>('.region-source-candidate-list')!;
+      list.replaceChildren();
+      const ranked = candidates
+        .map((candidate) => ({ candidate, score: sectionCandidateScore(candidate) }))
+        .sort(
+          (left, right) =>
+            right.score - left.score ||
+            left.candidate.filePath.localeCompare(right.candidate.filePath),
+        );
+      if (
+        ranked[0] &&
+        (ranked.length === 1 || (ranked[0].score >= 3 && ranked[0].score > ranked[1]!.score))
+      ) {
+        saveSectionCandidate(ranked[0].candidate);
+        return;
+      }
+      ranked.forEach(({ candidate }, index) => {
+        const label = createElement('label', { class: 'source-candidate' });
+        const input = createElement('input', {
+          type: 'radio',
+          name: 'region-source-candidate',
+          value: candidate.id,
+        });
+        if (index === 0) input.checked = true;
+        const copy = createElement('span');
+        const file = createElement('strong');
+        file.textContent = sourceKind(candidate);
+        const reason = createElement('small');
+        reason.textContent = `Contains ${candidate.items.length} reorderable items.`;
+        const technical = createElement('details', { class: 'technical-details' });
+        const summary = createElement('summary');
+        summary.textContent = 'Technical details';
+        const path = createElement('code');
+        path.textContent = `${candidate.filePath}:${candidate.line} → ${candidate.sourcePath}`;
+        technical.append(summary, path);
+        copy.append(file, reason, technical);
+        label.append(input, copy);
+        list.append(label);
+      });
+      if (!candidates.length) {
+        const empty = createElement('div', { class: 'empty' });
+        empty.textContent = 'No matching contiguous Astro source structure was found.';
+        list.append(empty);
+      }
+      regionSourceDialog.querySelector<HTMLButtonElement>('.confirm-region-source')!.disabled =
+        candidates.length === 0;
+      regionSourceDialog.showModal();
+    }
+
+    function confirmSectionCandidate(): void {
+      const selected = regionSourceDialog.querySelector<HTMLInputElement>(
+        'input[name="region-source-candidate"]:checked',
+      );
+      const candidate = sectionCandidates.find((item) => item.id === selected?.value);
+      if (!candidate) return;
+      saveSectionCandidate(candidate);
     }
 
     function requestPolicyPreview(): void {
@@ -851,6 +1035,16 @@ export default defineToolbarApp({
     function renderSourceCandidates(candidates: SourceCandidate[], searchedFiles = 0): void {
       const list = sourceDialog.querySelector<HTMLElement>('.source-candidate-list')!;
       list.replaceChildren();
+      const exact = candidates.filter((candidate) => candidate.confidence === 'exact');
+      const automatic =
+        exact.length === 1 ? exact[0] : candidates.length === 1 ? candidates[0] : undefined;
+      if (automatic && sourceDiscoveryItem) {
+        const item = sourceDiscoveryItem;
+        sourceDiscoveryItem = undefined;
+        sourceCandidates = [];
+        setDraftRule(item, 'allow', 'element', automatic.filePath, automatic.sourcePath);
+        return;
+      }
       if (!candidates.length) {
         const empty = createElement('div', { class: 'empty' });
         empty.textContent = `No exact writable source value was found in ${searchedFiles} supported files.`;
@@ -866,12 +1060,16 @@ export default defineToolbarApp({
           if (index === 0) input.checked = true;
           const copy = createElement('span');
           const file = createElement('strong');
-          file.textContent = `${candidate.filePath}:${candidate.line}`;
-          const path = createElement('code');
-          path.textContent = candidate.sourcePath ?? 'literal value';
+          file.textContent = sourceKind(candidate);
           const reason = createElement('small');
-          reason.textContent = candidate.reason;
-          copy.append(file, path, reason);
+          reason.textContent = 'Contains the exact selected text.';
+          const technical = createElement('details', { class: 'technical-details' });
+          const summary = createElement('summary');
+          summary.textContent = 'Technical details';
+          const path = createElement('code');
+          path.textContent = `${candidate.filePath}:${candidate.line} → ${candidate.sourcePath ?? 'literal value'}`;
+          technical.append(summary, path);
+          copy.append(file, reason, technical);
           label.append(input, copy);
           list.append(label);
         });
@@ -907,6 +1105,8 @@ export default defineToolbarApp({
         onLocate: locateInventoryItem,
         onDiscoverSource: requestSourceDiscovery,
         onAddSectionRegion: openRegionSetup,
+        onPickSectionRegion: () => startSetupPagePicker('section'),
+        onPickText: () => startSetupPagePicker('text'),
         onRemoveSectionRegion: (region) => {
           draftEditabilityPolicy = {
             ...draftEditabilityPolicy,
@@ -959,9 +1159,9 @@ export default defineToolbarApp({
             type: 'button',
           });
           enable.textContent = existingRegions
-            ? 'Enable another section region'
-            : 'Set up page sections';
-          enable.addEventListener('click', openRegionSetup);
+            ? 'Select another section on page'
+            : 'Select section on page';
+          enable.addEventListener('click', () => startSetupPagePicker('section'));
           ledger.append(enable);
         }
       } else {
@@ -1213,6 +1413,22 @@ export default defineToolbarApp({
     }
 
     function onPointerOver(event: PointerEvent): void {
+      if (setupPickerKind) {
+        const candidate = setupPickerCandidate(event.target);
+        if (candidate === setupPickerTarget) return;
+        clearSetupPickerHighlight();
+        setupPickerTarget = candidate;
+        if (candidate) {
+          candidate.dataset.astroVeSetupPick = 'true';
+          setupPickerLabel.textContent =
+            setupPickerKind === 'section'
+              ? `${regionLabel(candidate)} · ${candidate.children.length} items`
+              : compactLabel(candidate.textContent ?? 'Selected text');
+        } else {
+          setupPickerLabel.textContent = 'Move over page content to highlight it.';
+        }
+        return;
+      }
       if (!active || mode !== 'text' || textDialog.open) return;
       const candidate = editableTarget(event.target);
       if (candidate === hovered) return;
@@ -1227,6 +1443,24 @@ export default defineToolbarApp({
 
     function onPageClick(event: MouseEvent): void {
       if (!active || textDialog.open) return;
+      if (setupPickerKind) {
+        const candidate = setupPickerCandidate(event.target);
+        if (!candidate) return;
+        const kind = setupPickerKind;
+        event.preventDefault();
+        event.stopPropagation();
+        stopSetupPagePicker(false);
+        panel.dataset.open = String(active);
+        updateSetupDock();
+        if (kind === 'section') {
+          beginSectionDiscovery(candidate);
+        } else {
+          const item = inventory.find((entry) => entry.element === candidate);
+          if (item) openPermissionChoice(item);
+          else if (mode === 'setup') renderInventory();
+        }
+        return;
+      }
       if (mode === 'setup') {
         if (!(event.target instanceof Element)) return;
         const selected = event.target.closest<HTMLElement>('[data-astro-ve-inventory-status]');
@@ -1635,7 +1869,7 @@ export default defineToolbarApp({
         else {
           setMinimized(false);
           showMessage(
-            'No section region is enabled on this page yet. Use “Set up page sections” here or open Editor Setup to map an existing page container safely.',
+            'No section region is enabled on this page yet. Choose “Select section on page”, then hover and click the area you want to reorder.',
             'warning',
           );
         }
@@ -1661,6 +1895,10 @@ export default defineToolbarApp({
         capture: true,
         signal: listenerController.signal,
       });
+      document.addEventListener('pointermove', onPointerOver, {
+        capture: true,
+        signal: listenerController.signal,
+      });
       document.addEventListener('click', onPageClick, {
         capture: true,
         signal: listenerController.signal,
@@ -1670,6 +1908,7 @@ export default defineToolbarApp({
 
     function deactivate(): void {
       active = false;
+      stopSetupPagePicker(false);
       updateSetupDock();
       panel.dataset.open = 'false';
       picker.dataset.open = 'false';
@@ -1691,6 +1930,9 @@ export default defineToolbarApp({
         historyDialog,
         diffDialog,
         policyDialog,
+        permissionDialog,
+        regionDialog,
+        regionSourceDialog,
       ])
         if (dialog.open) dialog.close();
     }
@@ -1777,6 +2019,11 @@ export default defineToolbarApp({
 
     function onDocumentKeydown(event: KeyboardEvent): void {
       if (!active) return;
+      if (setupPickerKind && event.key === 'Escape') {
+        event.preventDefault();
+        stopSetupPagePicker(true);
+        return;
+      }
       const modifier = event.metaKey || event.ctrlKey;
       if (modifier && event.key.toLowerCase() === 's') {
         event.preventDefault();
@@ -1934,8 +2181,14 @@ export default defineToolbarApp({
         setDraftRule(item, 'allow', 'element', candidate.filePath, candidate.sourcePath);
       });
     regionDialog
-      .querySelector<HTMLButtonElement>('.discover-region-source')!
-      .addEventListener('click', requestSectionDiscovery);
+      .querySelector<HTMLButtonElement>('.pick-region-on-page')!
+      .addEventListener('click', () => startSetupPagePicker('section'));
+    setupPagePicker
+      .querySelector<HTMLButtonElement>('.cancel-setup-picker')!
+      .addEventListener('click', () => stopSetupPagePicker(true));
+    permissionDialog
+      .querySelector<HTMLButtonElement>('.cancel-permission')!
+      .addEventListener('click', () => permissionDialog.close('cancel'));
     regionSourceDialog
       .querySelector<HTMLButtonElement>('.confirm-region-source')!
       .addEventListener('click', confirmSectionCandidate);

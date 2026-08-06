@@ -240,6 +240,8 @@ export interface SectionDiscoveryRequest extends ClientMessage {
   route: string;
   selector: string;
   itemCount: number;
+  containerTag?: string;
+  itemTags?: string[];
   hintedFilePath?: string;
 }
 
@@ -249,6 +251,8 @@ export interface SectionRegionCandidate {
   sourcePath: string;
   line: number;
   confidence: 'exact' | 'likely';
+  containerTag?: string;
+  itemTags?: string[];
   reason: string;
   items: SectionRegionItem[];
 }

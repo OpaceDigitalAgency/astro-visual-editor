@@ -359,32 +359,33 @@ test('enables and persists complex sections without source annotations', async (
     await expect(workbench.getByRole('heading', { name: 'Section regions' })).toBeVisible();
     await expect(workbench.getByText('0 enabled')).toBeVisible();
     await expect(workbench.getByRole('heading', { name: 'Text permissions' })).toBeVisible();
-    await workbench.getByRole('button', { name: 'Set up page sections' }).click();
+    await workbench.getByRole('button', { name: 'Select section on page' }).click();
+    const evidenceHeading = page.getByRole('heading', {
+      name: 'One rendered page, several deliberate owners',
+    });
+    await evidenceHeading.hover();
+    await expect(page.locator('section.evidence')).toHaveAttribute(
+      'data-astro-ve-setup-pick',
+      'true',
+    );
+    await expect(toolbar.locator('.setup-picker-label')).toContainText(
+      'One rendered page, several deliberate owners',
+    );
+    await toolbar.getByRole('button', { name: 'Cancel' }).click();
+    await expect(workbench).toBeVisible();
 
-    const regionDialog = toolbar.locator('dialog').filter({ hasText: 'Choose a page region' });
-    const mainRegion = regionDialog
-      .locator('label')
-      .filter({ hasText: 'main with 4 direct items' });
-    await expect(mainRegion).toBeVisible();
-    await mainRegion.click();
-    await regionDialog.getByRole('button', { name: 'Find exact source structure' }).click();
-
-    const sourceDialog = toolbar
+    await workbench.getByRole('button', { name: 'Choose from list' }).click();
+    const regionDialog = toolbar
       .locator('dialog')
-      .filter({ hasText: 'Confirm the source structure' });
-    const routeCandidate = sourceDialog
-      .locator('label')
-      .filter({ hasText: 'src/pages/fixtures/complex.astro' })
-      .filter({ hasText: 'astro:children:component:DemoLayout:0' });
-    await expect(routeCandidate).toBeVisible();
-    await routeCandidate.click();
-    await sourceDialog.getByRole('button', { name: 'Save section mapping' }).click();
+      .filter({ hasText: 'Choose sections to reorder' });
+    await regionDialog.getByRole('button', { name: 'Choose Main page content' }).click();
 
     const policyReview = toolbar
       .locator('dialog')
-      .filter({ hasText: 'Save these editor settings?' });
+      .filter({ hasText: 'Save these editor choices?' });
     await expect(policyReview).toContainText('astro:children:component:DemoLayout:0');
-    await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
+    await expect(policyReview.locator('.policy-technical')).not.toHaveAttribute('open', '');
+    await policyReview.getByRole('button', { name: 'Save settings' }).click();
 
     ({ toolbar, workbench } = await enableEditor(page));
     await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
@@ -398,14 +399,10 @@ test('enables and persists complex sections without source annotations', async (
     await expect(picker).toBeVisible();
     await picker.getByRole('button', { name: 'Expand' }).click();
     await expect(
-      workbench.getByRole('button', { name: 'Enable another section region' }),
+      workbench.getByRole('button', { name: 'Select another section on page' }),
     ).toBeVisible();
-    await workbench.getByRole('button', { name: 'Enable another section region' }).click();
-    await toolbar
-      .locator('dialog')
-      .filter({ hasText: 'Choose a page region' })
-      .getByRole('button', { name: 'Cancel' })
-      .click();
+    await workbench.getByRole('button', { name: 'Select another section on page' }).click();
+    await toolbar.getByRole('button', { name: 'Cancel' }).click();
     const moveHero = page.getByRole('button', { name: /Move source-hero-[a-f0-9]+ down/u });
     await expect(moveHero).toBeVisible();
     await moveHero.click();
@@ -594,6 +591,15 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   await picker.getByRole('button', { name: /Review 1/ }).click();
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
 
+  await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
+  await workbench.getByRole('button', { name: 'Select text on page' }).click();
+  await page.locator('[data-astro-edit-id="hero-lead"]').tap();
+  const permissionChoice = toolbar
+    .locator('dialog')
+    .filter({ hasText: 'Choose what can be edited' });
+  await expect(permissionChoice).toBeVisible();
+  await permissionChoice.getByRole('button', { name: 'Cancel' }).tap();
+
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   const results = await new AxeBuilder({ page }).include('astro-dev-toolbar').analyze();
@@ -629,21 +635,33 @@ test('inventories page content and persists reviewed owner allow and deny policy
       await page.evaluate(() => Number.parseFloat(getComputedStyle(document.body).marginLeft)),
     ).toBeGreaterThanOrEqual(475);
 
+    await workbench.getByRole('button', { name: 'Select text on page' }).click();
+    const heroHeading = page.getByRole('heading', { name: 'Edit Astro where you can see it' });
+    await heroHeading.hover();
+    await expect(heroHeading).toHaveAttribute('data-astro-ve-setup-pick', 'true');
+    await heroHeading.click();
+    const permissionChoice = toolbar
+      .locator('dialog')
+      .filter({ hasText: 'Choose what can be edited' });
+    await expect(permissionChoice).toContainText('currently editable');
+    await expect(permissionChoice.getByText('Technical details')).toBeVisible();
+    await permissionChoice.getByRole('button', { name: 'Cancel' }).click();
+
     let previewLabel = workbench.locator('.inventory-item').filter({ hasText: '01 / PREVIEW' });
     await expect(previewLabel.locator('.inventory-status')).toHaveText('Blocked');
     await expect(previewLabel.locator('.inventory-reason')).toContainText(
       'not included by the current editability policy',
     );
     await previewLabel.getByRole('button', { name: 'Allow all <strong>' }).click();
-    let policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor settings?' });
+    let policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor choices?' });
     await expect(policyReview).toBeVisible();
     await expect(policyReview.locator('.diff-line.add')).toContainText(['"selector": "strong"']);
-    await policyReview.getByRole('button', { name: 'Back to setup' }).click();
+    await policyReview.getByRole('button', { name: 'Keep editing' }).click();
     await expect(workbench.getByText('Not saved yet')).toBeVisible();
     await expect(workbench.getByText('1 editor setting will only work')).toBeVisible();
     await workbench.getByRole('button', { name: 'Review and save (1)' }).click();
     await expect(policyReview).toBeVisible();
-    await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
+    await policyReview.getByRole('button', { name: 'Save settings' }).click();
     await expect(
       workbench.getByText(/text permissions and section mappings are now active/),
     ).toBeVisible();
@@ -664,9 +682,9 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await expect(previewLabel.locator('.inventory-status')).toHaveText('Editable');
     await previewLabel.getByRole('button', { name: 'Block this item' }).click();
     await expect(previewLabel.locator('.inventory-status')).toHaveText('Blocked');
-    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor settings?' });
+    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor choices?' });
     await expect(policyReview.locator('.diff-line.add')).toContainText(['"effect": "deny"']);
-    await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
+    await policyReview.getByRole('button', { name: 'Save settings' }).click();
     await expect(
       workbench.getByText(/text permissions and section mappings are now active/),
     ).toBeVisible();
@@ -696,23 +714,15 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await expect(unresolved.locator('.inventory-status')).toHaveText('Unresolved');
     await expect(unsafe.locator('.inventory-status')).toHaveText('Unsafe');
     await expect(unsafe.getByRole('button', { name: /Allow/ })).toHaveCount(0);
-    await unresolved.getByRole('button', { name: 'Find exact source' }).click();
-    const sourceDiscovery = toolbar
-      .locator('dialog')
-      .filter({ hasText: 'Confirm the exact source' });
-    const articleCandidate = sourceDiscovery
-      .locator('label')
-      .filter({ hasText: 'src/pages/fixtures/article.astro' });
-    await expect(articleCandidate).toBeVisible();
-    await articleCandidate.click();
-    await sourceDiscovery.getByRole('button', { name: 'Confirm mapping' }).click();
-    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor settings?' });
+    await unresolved.getByRole('button', { name: 'Find source and allow editing' }).click();
+    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor choices?' });
+    await policyReview.getByText('Review technical project change').click();
     await expect(
       policyReview
         .locator('.diff-line.add')
         .filter({ hasText: 'src/pages/fixtures/article.astro' }),
     ).toBeVisible();
-    await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
+    await policyReview.getByRole('button', { name: 'Save settings' }).click();
     await expect(
       workbench.getByText(/text permissions and section mappings are now active/),
     ).toBeVisible();

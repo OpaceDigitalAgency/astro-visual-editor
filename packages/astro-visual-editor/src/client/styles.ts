@@ -93,7 +93,7 @@ export const toolbarStyles = String.raw`
   .template-card:hover, .template-card:focus-visible { border-color: #ff8a4c; outline: 2px solid rgba(255,138,76,.35); }
   .inventory-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 3px 2px 9px; }
   .setup-guide { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; margin: 0 0 10px; padding: 0; list-style: none; }
-  .setup-guide li { display: grid; grid-template-columns: 24px minmax(0,1fr); align-items: center; gap: 6px; min-height: 48px; padding: 6px; color: #899199; background: #181b1e; border: 1px solid #30353a; border-radius: 9px; }
+  .setup-guide li { display: grid; grid-template-columns: 24px minmax(0,1fr); align-items: center; gap: 6px; min-height: 48px; padding: 6px; color: #aeb4bb; background: #181b1e; border: 1px solid #30353a; border-radius: 9px; }
   .setup-guide li[data-state="active"] { color: #fff; background: #34251e; border-color: #a95531; }
   .setup-guide li[data-state="complete"] { color: #c9f7de; background: #183128; border-color: #2d624b; }
   .setup-guide-number { display: inline-grid; place-items: center; width: 24px; height: 24px; border: 1px solid currentColor; border-radius: 50%; font-size: 10px; font-weight: 800; }
@@ -118,7 +118,20 @@ export const toolbarStyles = String.raw`
   .section-region-item code { margin-top: 3px; color: #ffab7a; font-size: 9px; }
   .section-region-item button { min-height: 40px; padding: 6px 9px; font-size: 10px; }
   .add-section-region { width: 100%; min-height: 44px; }
+  .setup-picker-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .setup-picker-actions button { min-height: 44px; padding-inline: 8px; font-size: 10px; }
   .text-settings-heading { margin: 2px 2px 8px; }
+  .pick-text-on-page { width: 100%; min-height: 44px; margin-top: 8px; }
+  .friendly-region-list { display: grid; gap: 8px; max-height: min(52vh,480px); margin-top: 14px; overflow: auto; }
+  .friendly-region { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 12px; background: #1c2023; border: 1px solid #3a4147; border-radius: 10px; }
+  .friendly-region strong, .friendly-region span { display: block; }
+  .friendly-region span { margin-top: 4px; color: #b5bbc1; font-size: 10px; }
+  .friendly-region button { min-height: 42px; padding: 7px 11px; }
+  .setup-page-picker { position: fixed; z-index: 2147483647; left: 50%; bottom: 24px; display: none; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 10px; width: min(620px,calc(100vw - 24px)); padding: 10px; color: #fff; background: rgba(20,22,24,.98); border: 1px solid #ff8a4c; border-radius: 14px; box-shadow: 0 18px 60px rgba(0,0,0,.6); transform: translateX(-50%); pointer-events: none; font: 12px/1.35 Inter,system-ui,sans-serif; }
+  .setup-page-picker[data-open="true"] { display: grid; }
+  .setup-page-picker strong, .setup-page-picker span { display: block; }
+  .setup-page-picker span { color: #c3c8cd; }
+  .setup-page-picker button { min-height: 42px; pointer-events: auto; }
   .inventory-filters { display: flex; gap: 5px; overflow-x: auto; padding: 0 0 8px; scrollbar-width: thin; }
   .inventory-filter { min-width: max-content; min-height: 44px; padding: 6px 10px; color: #bbc1c7; background: #1c2023; border: 1px solid #343a40; border-radius: 999px; cursor: pointer; font-size: 10px; font-weight: 720; }
   .inventory-filter[aria-pressed="true"] { color: #fff; background: #3a2a22; border-color: #ad5934; }
@@ -154,6 +167,9 @@ export const toolbarStyles = String.raw`
   .source-candidate strong, .source-candidate code { overflow-wrap: anywhere; }
   .source-candidate code { color: #ffab7a; font-size: 11px; }
   .source-candidate small { color: #b5bbc1; line-height: 1.4; }
+  .technical-details { margin-top: 8px; color: #aeb4bb; font-size: 10px; }
+  .technical-details summary { min-height: 32px; cursor: pointer; font-weight: 700; }
+  .technical-details code, .technical-details .dialog-file { display: block; margin-top: 5px; color: #ffab7a; overflow-wrap: anywhere; }
   .seo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
   .seo-grid .wide { grid-column: 1 / -1; }
   .picker { display: none; align-items: center; gap: 8px; min-height: 48px; padding: 6px; color: #fff; background: #151719; border: 1px solid #3a4046; border-radius: 999px; box-shadow: 0 12px 35px rgba(0,0,0,.45); font: 12px/1.2 Inter,system-ui,sans-serif; }
@@ -172,6 +188,9 @@ export const toolbarStyles = String.raw`
     .pending-policy { grid-template-columns: 1fr; }
     .setup-actions { grid-template-columns: 1fr; }
     .setup-actions .reload-policy { grid-column: auto; }
+    .setup-picker-actions { grid-template-columns: 1fr; }
+    .setup-page-picker { grid-template-columns: 1fr auto; bottom: 12px; }
+    .setup-page-picker > div { grid-column: 1 / -1; }
   }
   @media (forced-colors: active) { * { forced-color-adjust: auto; } }
   @media (prefers-reduced-motion: no-preference) {
@@ -194,6 +213,7 @@ export const pageSectionStyles = String.raw`
   [data-astro-ve-inventory-status="unresolved"] { outline-color: rgba(240,189,91,.92) !important; }
   [data-astro-ve-inventory-status="unsafe"] { outline-color: rgba(241,124,124,.92) !important; }
   [data-astro-ve-inventory-focus="true"] { outline: 4px solid #ff7a3d !important; outline-offset: 5px !important; }
+  [data-astro-ve-setup-pick="true"] { outline: 4px solid #ff7a3d !important; outline-offset: 5px !important; cursor: pointer !important; box-shadow: 0 0 0 8px rgba(255,122,61,.18) !important; }
   .astro-ve-section-controls { position: absolute !important; z-index: 2147483000 !important; top: 10px !important; right: 10px !important; display: grid !important; grid-template-columns: repeat(3,38px) !important; gap: 4px !important; width: fit-content !important; padding: 5px !important; color: #fff !important; background: rgba(18,20,22,.96) !important; border: 1px solid #515860 !important; border-radius: 11px !important; box-shadow: 0 8px 24px rgba(0,0,0,.38) !important; font: 700 12px/1 system-ui,sans-serif !important; }
   .astro-ve-section-controls button { position: relative !important; width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important; padding: 0 !important; color: inherit !important; background: #292e33 !important; border: 1px solid #454c53 !important; border-radius: 8px !important; cursor: pointer !important; font: inherit !important; }
   .astro-ve-section-controls button:hover, .astro-ve-section-controls button:focus-visible { background: #3a4147 !important; outline: 3px solid #ffb08a !important; outline-offset: 1px !important; }

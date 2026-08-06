@@ -176,6 +176,8 @@ function structuredRegionCandidates(
         sourcePath,
         line: 1,
         confidence,
+        containerTag: 'data',
+        itemTags: [],
         reason: `${itemCount} ordered items in the structured array ${path}. Every complete item is hash-checked before reordering.`,
         items: mapped,
       },
@@ -496,6 +498,10 @@ async function astroRegionCandidates(
       sourcePath,
       line: node.position.start.line ?? lineAt(source, node.position.start.offset),
       confidence,
+      containerTag: node.type === 'element' ? name.toLowerCase() : name,
+      itemTags: children.map((child) =>
+        child.type === 'element' ? (child.name ?? child.type).toLowerCase() : (child.name ?? '*'),
+      ),
       reason: `${itemCount} contiguous source-owned Astro children inside <${name}>. The exact source blocks are hash-checked before reordering.`,
       items,
     });

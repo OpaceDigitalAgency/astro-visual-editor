@@ -131,6 +131,10 @@ import Proof from '../components/Proof.astro';
     );
     const candidate = discovery.candidates?.find((item) => item.sourcePath.includes(':Layout:'));
     expect(candidate).toBeDefined();
+    expect(candidate).toMatchObject({
+      containerTag: 'Layout',
+      itemTags: ['Hero', 'p', 'Proof'],
+    });
     const before = candidate!.items;
     const result = await applyAstroSections(
       source,
@@ -174,6 +178,7 @@ import Proof from '../components/Proof.astro';
     const yamlCandidate = discovery.candidates?.find((item) => item.filePath.endsWith('.yaml'));
     expect(jsonCandidate).toBeDefined();
     expect(yamlCandidate).toBeDefined();
+    expect(jsonCandidate).toMatchObject({ containerTag: 'data', itemTags: [] });
     const change = (candidate: SectionRegionCandidate) => ({
       kind: 'sections' as const,
       id: 'sections',

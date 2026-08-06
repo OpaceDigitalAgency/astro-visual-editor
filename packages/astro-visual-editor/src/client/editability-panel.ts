@@ -17,6 +17,8 @@ interface EditabilityPanelOptions {
   onLocate(item: InventoryItem, row: HTMLElement): void;
   onDiscoverSource(item: InventoryItem): void;
   onAddSectionRegion(): void;
+  onPickSectionRegion(): void;
+  onPickText(): void;
   onRemoveSectionRegion(region: SectionRegionRule): void;
   onSetRule(
     item: InventoryItem,
@@ -99,6 +101,10 @@ function renderInventoryRow(
   const source = element('div', { class: 'inventory-source' });
   source.textContent = `${item.sourceFile}${item.sourcePath ? ` → ${item.sourcePath}` : ''}`;
   source.title = item.sourceReason;
+  const technical = element('details', { class: 'technical-details' });
+  const technicalSummary = element('summary');
+  technicalSummary.textContent = 'Technical details';
+  technical.append(technicalSummary, source);
   const controls = element('div', { class: 'inventory-controls' });
   const locate = element('button', { class: 'secondary', type: 'button' });
   locate.textContent = 'Show on page';
@@ -131,13 +137,17 @@ function renderInventoryRow(
       controls.append(group);
     }
   }
-  row.append(top, copy, reason, source, controls);
+  row.append(top, copy, reason, technical, controls);
   if (item.status === 'unresolved' && options.canManage) {
     const discover = element('button', { class: 'primary discover-source', type: 'button' });
-    discover.textContent = 'Find exact source';
+    discover.textContent = 'Find source and allow editing';
     discover.addEventListener('click', () => options.onDiscoverSource(item));
     row.append(discover);
-    row.append(renderSourceForm(item, index, options.onSetRule));
+    const manual = element('details', { class: 'technical-details' });
+    const manualSummary = element('summary');
+    manualSummary.textContent = 'Enter source manually';
+    manual.append(manualSummary, renderSourceForm(item, index, options.onSetRule));
+    row.append(manual);
   }
   return row;
 }
@@ -234,12 +244,20 @@ export function renderEditabilityPanel(
     sectionSetup.append(empty);
   }
   if (options.canManage) {
-    const addRegion = element('button', { class: 'primary add-section-region', type: 'button' });
+    const regionActions = element('div', { class: 'setup-picker-actions' });
+    const pickRegion = element('button', {
+      class: 'primary add-section-region',
+      type: 'button',
+    });
+    pickRegion.textContent = 'Select section on page';
+    pickRegion.addEventListener('click', options.onPickSectionRegion);
+    const addRegion = element('button', { class: 'secondary', type: 'button' });
     addRegion.textContent = options.sectionRegions.length
-      ? 'Add another section region'
-      : 'Set up page sections';
+      ? 'Choose another from list'
+      : 'Choose from list';
     addRegion.addEventListener('click', options.onAddSectionRegion);
-    sectionSetup.append(addRegion);
+    regionActions.append(pickRegion, addRegion);
+    sectionSetup.append(regionActions);
   }
   const textHeading = element('div', { class: 'text-settings-heading' });
   const textTitle = element('h4');
@@ -247,6 +265,12 @@ export function renderEditabilityPanel(
   const textHelp = element('p');
   textHelp.textContent = 'Choose which visible text can be edited and confirm unresolved sources.';
   textHeading.append(textTitle, textHelp);
+  if (options.canManage) {
+    const pickText = element('button', { class: 'primary pick-text-on-page', type: 'button' });
+    pickText.textContent = 'Select text on page';
+    pickText.addEventListener('click', options.onPickText);
+    textHeading.append(pickText);
+  }
   const pending = element('div', {
     class: 'pending-policy',
     role: 'status',

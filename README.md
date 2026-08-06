@@ -139,6 +139,10 @@ Suggested review path:
 5. Commit only when you intentionally want to modify `demo/src/pages/index.astro`;
    use **Revert last commit** immediately afterwards to test safe restoration.
 6. Narrow the viewport to exercise compact Pick mode and the Review sheet.
+7. Use **Complex sources** in the workbench to open `/fixtures/complex`. Queue
+   the shared JSON hero title and the Content Collection title, review the
+   two-file diff, then commit and restore it from History. The fixture proves
+   layout, component, JSON and Markdown-frontmatter ownership in one route.
 
 Port 4322 is only a documented demo choice; any free loopback port works. Source
 writes are disabled by default when the dev server is exposed beyond loopback.
@@ -287,6 +291,23 @@ For Markdown frontmatter:
 Unstructured MDX body edits are refused because replacing text across expression
 boundaries cannot yet be proven safe.
 
+When a project renders an explicit source annotation from a direct import or
+Content Collection field, it can also declare the provenance and known shared
+routes. The editor shows this context before an edit is queued:
+
+```astro
+<h1
+  data-astro-edit-file="src/data/homepage.json"
+  data-astro-edit-path="hero.title"
+  data-astro-edit-origin="a direct JSON import"
+  data-astro-edit-shared-routes="/,/pricing"
+>
+  {homepage.hero.title}
+</h1>
+```
+
+These hints explain a supported mapping; they never bypass adapter validation.
+
 ### Selector mappings
 
 ```js
@@ -370,6 +391,7 @@ interface AstroVisualEditorOptions {
   selectorMappings?: Record<string, string>;
   allowedExtensions?: Array<'.astro' | '.md' | '.mdx' | '.json' | '.jsonc' | '.yaml' | '.yml'>;
   sectionTemplates?: SectionTemplate[];
+  demoPages?: Array<{ id: string; label: string; path: string; description: string }>;
   maxChanges?: number; // 100
   maxTextLength?: number; // 10,000
   maxRequestBytes?: number; // 1,000,000
@@ -383,6 +405,11 @@ interface AstroVisualEditorOptions {
   editabilityPolicyFile?: string; // project-root JSON manifest
 }
 ```
+
+`demoPages` is optional and local-only. It is intended for a project's test
+fixture, not application navigation. When two or more entries are supplied,
+the workbench displays a compact route switcher and warns before leaving queued
+preview changes.
 
 `allowUnsafeSourceText` permits raw markup insertion into literal Astro text
 nodes. It is an expert escape hatch and remains off by default. The normal mode

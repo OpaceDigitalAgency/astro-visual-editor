@@ -1,0 +1,95 @@
+---
+import { getCollection } from 'astro:content';
+import EvidenceGrid from '../../components/EvidenceGrid.astro';
+import SourceHero from '../../components/SourceHero.astro';
+import DemoLayout from '../../layouts/DemoLayout.astro';
+import content from '../../data/complex-page.json';
+
+const [caseStudy] = await getCollection('caseStudies');
+const collectionSource = 'src/content/case-studies/harbour.md';
+const dataSource = 'src/data/complex-page.json';
+---
+
+<DemoLayout title="Complex source fixture">
+  <SourceHero {...content.hero} />
+  <p
+    class="shared-note"
+    data-astro-edit-file={dataSource}
+    data-astro-edit-path="shared.notice"
+    data-astro-edit-origin="a direct JSON import"
+    data-astro-edit-shared-routes="/,/fixtures/complex"
+  >
+    {content.shared.notice}
+  </p>
+  <EvidenceGrid items={content.evidence} />
+  <section class="collection" aria-labelledby="collection-title">
+    <p class="kicker">Content Collection</p>
+    <h2
+      id="collection-title"
+      data-demo-collection-title
+      data-astro-edit-file={collectionSource}
+      data-astro-edit-path="frontmatter.title"
+      data-astro-edit-origin="a Content Collection field"
+    >
+      {caseStudy.data.title}
+    </h2>
+    <p
+      data-astro-edit-file={collectionSource}
+      data-astro-edit-path="frontmatter.summary"
+      data-astro-edit-origin="a Content Collection field"
+    >
+      {caseStudy.data.summary}
+    </p>
+    <p
+      class="client"
+      data-astro-edit-file={collectionSource}
+      data-astro-edit-path="frontmatter.client"
+      data-astro-edit-origin="a Content Collection field"
+    >
+      {caseStudy.data.client}
+    </p>
+  </section>
+</DemoLayout>
+
+<style>
+  .shared-note {
+    margin: 25px 0 0;
+    padding: 13px 15px;
+    color: #f8dfaa;
+    background: #302818;
+    border: 1px solid #65522b;
+    border-radius: 11px;
+    line-height: 1.5;
+  }
+  .collection {
+    max-width: 760px;
+    padding: 56px 0;
+  }
+  .kicker {
+    color: #ff9f69;
+    font:
+      800 11px/1.2 ui-monospace,
+      monospace;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .collection h2 {
+    margin: 12px 0;
+    font-size: clamp(2rem, 5vw, 4rem);
+    line-height: 0.95;
+    letter-spacing: -0.06em;
+  }
+  .collection p {
+    color: #c8cdd2;
+    font-size: 1.1rem;
+    line-height: 1.65;
+  }
+  .collection .client {
+    color: #ffad82;
+    font:
+      800 12px/1.2 ui-monospace,
+      monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+</style>

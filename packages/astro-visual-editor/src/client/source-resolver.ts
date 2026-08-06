@@ -10,6 +10,24 @@ export interface SourceResolution {
   sourcePath?: string;
   proven: boolean;
   reason: string;
+  sharedRouteCount?: number;
+}
+
+function sharedRouteCount(element: HTMLElement): number | undefined {
+  const routes = element
+    .closest<HTMLElement>('[data-astro-edit-shared-routes]')
+    ?.dataset.astroEditSharedRoutes?.split(',')
+    .map((route) => route.trim())
+    .filter(Boolean);
+  return routes && routes.length > 1 ? new Set(routes).size : undefined;
+}
+
+function annotatedReason(element: HTMLElement): string {
+  const origin = element.closest<HTMLElement>('[data-astro-edit-origin]')?.dataset.astroEditOrigin;
+  const shared = sharedRouteCount(element);
+  const originCopy = origin ? ` Confirmed as ${origin.replaceAll('-', ' ')}.` : '';
+  const sharedCopy = shared ? ` This value is shared by ${shared} routes.` : '';
+  return `Confirmed by a source annotation.${originCopy}${sharedCopy}`;
 }
 
 export function sourceResolutionFor(
@@ -24,7 +42,8 @@ export function sourceResolutionFor(
       filePath: explicit,
       sourcePath,
       proven: true,
-      reason: 'Confirmed by a source annotation.',
+      reason: annotatedReason(element),
+      sharedRouteCount: sharedRouteCount(element),
     };
   }
   for (const [selector, filePath] of Object.entries(config.selectorMappings)) {

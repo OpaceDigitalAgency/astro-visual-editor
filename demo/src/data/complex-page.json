@@ -1,0 +1,25 @@
+{
+  "hero": {
+    "eyebrow": "Multi-source testing fixture",
+    "title": "A page assembled from trusted sources",
+    "summary": "Edit JSON-backed content, component output and collection metadata without losing its source trail.",
+    "action": "Review the source map"
+  },
+  "evidence": [
+    {
+      "label": "Layout",
+      "value": "Shared navigation and footer"
+    },
+    {
+      "label": "Component",
+      "value": "Reusable hero and proof cards"
+    },
+    {
+      "label": "Data",
+      "value": "Direct JSON properties"
+    }
+  ],
+  "shared": {
+    "notice": "This release-note banner is intentionally shared by the simple and complex demo routes."
+  }
+}

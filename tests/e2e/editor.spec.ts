@@ -7,10 +7,19 @@ const demoSource = fileURLToPath(new URL('../../demo/src/pages/index.astro', imp
 const editabilityPolicySource = fileURLToPath(
   new URL('../../demo/astro-visual-editor.policy.json', import.meta.url),
 );
+const complexJsonSource = fileURLToPath(
+  new URL('../../demo/src/data/complex-page.json', import.meta.url),
+);
+const complexCollectionSource = fileURLToPath(
+  new URL('../../demo/src/content/case-studies/harbour.md', import.meta.url),
+);
 
 async function enableEditor(page: import('@playwright/test').Page) {
-  const toolbar = page.locator('astro-dev-toolbar');
-  await toolbar.getByRole('button', { name: 'Visual Editor' }).click();
+  const toolbar = page.locator('astro-dev-toolbar').last();
+  const workbench = toolbar.locator('.workbench');
+  if (!(await workbench.isVisible().catch(() => false))) {
+    await toolbar.getByRole('button', { name: 'Visual Editor' }).click();
+  }
   return { toolbar, workbench: toolbar.locator('.workbench') };
 }
 
@@ -83,7 +92,12 @@ async function reviewAndCommit(
   await expect(review).toBeVisible();
   expect(await review.locator('.diff-line.remove').count()).toBeGreaterThan(0);
   expect(await review.locator('.diff-line.add').count()).toBeGreaterThan(0);
-  await review.getByRole('button', { name: 'Commit these changes' }).click();
+  const commit = review.getByRole('button', { name: 'Commit these changes' });
+  await expect(commit).toBeEnabled();
+  // The click intentionally writes source and can replace the toolbar before
+  // Playwright finishes its pointer action. Dispatch once from the confirmed
+  // enabled control, then let the caller verify the resulting HMR state.
+  await commit.dispatchEvent('click');
 }
 
 async function closePagesAfterHmr(pages: import('@playwright/test').Page[]): Promise<void> {
@@ -113,6 +127,8 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await page.setViewportSize({ width: 1440, height: 980 });
   const { toolbar, workbench } = await enableEditor(page);
   await expect(workbench).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Simple demo' })).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Complex sources' })).toBeVisible();
   const workbenchBox = (await workbench.boundingBox())!;
   expect(workbenchBox.width).toBeLessThanOrEqual(401);
   expect(workbenchBox.height).toBeLessThanOrEqual(611);
@@ -201,6 +217,62 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(page).toHaveTitle('Queued browser SEO title');
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(page).toHaveTitle('Astro Visual Editor demo');
+});
+
+test('switches to the composed fixture and safely writes JSON plus collection frontmatter', async ({
+  page,
+}) => {
+  test.setTimeout(75_000);
+  const originalJson = await readFile(complexJsonSource, 'utf8');
+  const originalCollection = await readFile(complexCollectionSource, 'utf8');
+  try {
+    const { workbench } = await enableEditor(page);
+    await workbench.getByRole('button', { name: 'Complex sources' }).click();
+    await expect(page).toHaveURL(/\/fixtures\/complex$/);
+    await expect(page.locator('[data-demo-json-title]')).toHaveText(
+      'A page assembled from trusted sources',
+    );
+    const { toolbar, workbench: complexWorkbench } = await enableEditor(page);
+
+    await page.locator('[data-demo-json-title]').click();
+    let dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
+    await expect(dialog).toContainText('src/data/complex-page.json → hero.title');
+    await expect(dialog).toContainText('Shared source: this edit will affect 2 routes.');
+    await dialog.locator('textarea').fill('A safely updated JSON title');
+    await dialog.getByRole('button', { name: 'Queue change' }).click();
+
+    await page.locator('[data-demo-collection-title]').click();
+    dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
+    await expect(dialog).toContainText('src/content/case-studies/harbour.md → frontmatter.title');
+    await dialog.locator('textarea').fill('Harbour launch plan, reviewed');
+    await dialog.getByRole('button', { name: 'Queue change' }).click();
+    await expect(
+      complexWorkbench.getByRole('button', { name: /Review 2 file changes/ }),
+    ).toBeEnabled();
+
+    await complexWorkbench.getByRole('button', { name: /Review 2 file changes/ }).click();
+    const review = toolbar.locator('dialog').filter({ hasText: 'Review file changes' });
+    await expect(review).toContainText('src/data/complex-page.json');
+    await expect(review).toContainText('src/content/case-studies/harbour.md');
+    await review.getByRole('button', { name: 'Commit these changes' }).click();
+    await expect
+      .poll(async () => readFile(complexJsonSource, 'utf8'))
+      .toContain('A safely updated JSON title');
+    await expect
+      .poll(async () => readFile(complexCollectionSource, 'utf8'))
+      .toContain('Harbour launch plan, reviewed');
+
+    await restoreFromHistory(page);
+    await expect.poll(async () => readFile(complexJsonSource, 'utf8')).toBe(originalJson);
+    await expect
+      .poll(async () => readFile(complexCollectionSource, 'utf8'))
+      .toBe(originalCollection);
+  } finally {
+    if ((await readFile(complexJsonSource, 'utf8')) !== originalJson)
+      await writeFile(complexJsonSource, originalJson);
+    if ((await readFile(complexCollectionSource, 'utf8')) !== originalCollection)
+      await writeFile(complexCollectionSource, originalCollection);
+  }
 });
 
 test('commits through HMR and restores from durable History', async ({ page }) => {
@@ -355,6 +427,7 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await expect(policyReview).toBeVisible();
     await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
     await expect(workbench.getByText(/You can now edit the allowed content/)).toBeVisible();
+    ({ toolbar, workbench } = await enableEditor(page));
 
     await page.locator('[data-section="preview"] strong').click();
     let textDialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
@@ -375,6 +448,7 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await expect(policyReview.locator('.diff-line.add')).toContainText(['"effect": "deny"']);
     await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
     await expect(workbench.getByText(/You can now edit the allowed content/)).toBeVisible();
+    ({ toolbar, workbench } = await enableEditor(page));
 
     await page.reload();
     ({ toolbar, workbench } = await enableEditor(page));
@@ -410,6 +484,7 @@ test('inventories page content and persists reviewed owner allow and deny policy
     ).toBeVisible();
     await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
     await expect(workbench.getByText(/You can now edit the allowed content/)).toBeVisible();
+    ({ toolbar, workbench } = await enableEditor(page));
     await page.getByText('This source needs owner confirmation.').click();
     textDialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
     await expect(textDialog).toBeVisible();

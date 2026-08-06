@@ -1,0 +1,98 @@
+---
+interface Item {
+  label: string;
+  value: string;
+}
+
+interface Props {
+  items: Item[];
+}
+
+const { items } = Astro.props;
+const source = 'src/data/complex-page.json';
+---
+
+<section class="evidence" aria-labelledby="evidence-title">
+  <div>
+    <p class="kicker">What this route proves</p>
+    <h2 id="evidence-title" data-astro-edit-file="src/components/EvidenceGrid.astro">
+      One rendered page, several deliberate owners
+    </h2>
+  </div>
+  <div class="grid">
+    {
+      items.map((item, index) => (
+        <article>
+          <strong
+            data-astro-edit-file={source}
+            data-astro-edit-path={`evidence.${index}.label`}
+            data-astro-edit-origin="a direct JSON import"
+          >
+            {item.label}
+          </strong>
+          <p
+            data-astro-edit-file={source}
+            data-astro-edit-path={`evidence.${index}.value`}
+            data-astro-edit-origin="a direct JSON import"
+          >
+            {item.value}
+          </p>
+        </article>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .evidence {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 34px;
+    padding: 54px 0;
+    border-bottom: 1px solid #30353a;
+  }
+  .kicker {
+    color: #ff9f69;
+    font:
+      800 11px/1.2 ui-monospace,
+      monospace;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  h2 {
+    margin: 12px 0 0;
+    font-size: clamp(1.8rem, 4vw, 3.1rem);
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  article {
+    min-height: 138px;
+    padding: 17px;
+    background: #191c1f;
+    border: 1px solid #30353a;
+    border-radius: 14px;
+  }
+  strong {
+    display: block;
+    color: #ffad82;
+    font:
+      800 11px/1.2 ui-monospace,
+      monospace;
+    text-transform: uppercase;
+  }
+  article p {
+    color: #d2d6da;
+    line-height: 1.55;
+  }
+  @media (max-width: 760px) {
+    .evidence,
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

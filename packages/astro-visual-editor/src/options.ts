@@ -1,4 +1,9 @@
-import type { ClientEditorConfig, EditableFileExtension, SectionTemplate } from './shared/types.js';
+import type {
+  ClientEditorConfig,
+  DemoPage,
+  EditableFileExtension,
+  SectionTemplate,
+} from './shared/types.js';
 
 export interface AstroVisualEditorOptions {
   enabled?: boolean;
@@ -8,6 +13,8 @@ export interface AstroVisualEditorOptions {
   selectorMappings?: Record<string, string>;
   allowedExtensions?: EditableFileExtension[];
   sectionTemplates?: SectionTemplate[];
+  /** Optional local routes exposed as a compact switcher for a project's test fixture. */
+  demoPages?: DemoPage[];
   maxChanges?: number;
   maxTextLength?: number;
   maxRequestBytes?: number;
@@ -33,6 +40,7 @@ export interface NormalizedOptions {
   selectorMappings: Record<string, string>;
   allowedExtensions: EditableFileExtension[];
   sectionTemplates: SectionTemplate[];
+  demoPages: DemoPage[];
   maxChanges: number;
   maxTextLength: number;
   maxRequestBytes: number;
@@ -117,6 +125,7 @@ const defaults: NormalizedOptions = {
   selectorMappings: {},
   allowedExtensions: ['.astro', '.md', '.mdx', '.json', '.jsonc', '.yaml', '.yml'],
   sectionTemplates: defaultTemplates,
+  demoPages: [],
   maxChanges: 100,
   maxTextLength: 10_000,
   maxRequestBytes: 1_000_000,
@@ -163,6 +172,24 @@ function validateTemplates(templates: SectionTemplate[]): void {
   }
 }
 
+function validateDemoPages(pages: DemoPage[]): void {
+  const ids = new Set<string>();
+  const paths = new Set<string>();
+  for (const page of pages) {
+    if (!/^[a-z][a-z0-9-]*$/u.test(page.id) || ids.has(page.id)) {
+      throw new Error(`Demo page id is invalid or duplicated: ${page.id}`);
+    }
+    if (!page.path.startsWith('/') || page.path.includes('://') || paths.has(page.path)) {
+      throw new Error(`Demo page path is invalid or duplicated: ${page.path}`);
+    }
+    if (!page.label.trim() || !page.description.trim()) {
+      throw new Error(`Demo page ${page.id} needs a label and description.`);
+    }
+    ids.add(page.id);
+    paths.add(page.path);
+  }
+}
+
 export function normalizeOptions(options: AstroVisualEditorOptions = {}): NormalizedOptions {
   const normalized: NormalizedOptions = {
     enabled: options.enabled ?? defaults.enabled,
@@ -180,6 +207,7 @@ export function normalizeOptions(options: AstroVisualEditorOptions = {}): Normal
     sectionTemplates: options.sectionTemplates?.length
       ? options.sectionTemplates.map((template) => ({ ...template }))
       : defaults.sectionTemplates.map((template) => ({ ...template })),
+    demoPages: options.demoPages?.map((page) => ({ ...page })) ?? [],
     maxChanges: positiveInteger(options.maxChanges, defaults.maxChanges),
     maxTextLength: positiveInteger(options.maxTextLength, defaults.maxTextLength),
     maxRequestBytes: positiveInteger(options.maxRequestBytes, defaults.maxRequestBytes),
@@ -199,6 +227,7 @@ export function normalizeOptions(options: AstroVisualEditorOptions = {}): Normal
   validateRelativeMappings('fileMappings', normalized.fileMappings);
   validateRelativeMappings('selectorMappings', normalized.selectorMappings);
   validateTemplates(normalized.sectionTemplates);
+  validateDemoPages(normalized.demoPages);
   if (!['owner', 'editor'].includes(normalized.editabilityRole)) {
     throw new Error('editabilityRole must be owner or editor.');
   }
@@ -226,6 +255,7 @@ export function toClientConfig(
     fileMappings: options.fileMappings,
     selectorMappings: options.selectorMappings,
     sectionTemplates: options.sectionTemplates,
+    demoPages: options.demoPages,
     maxChanges: options.maxChanges,
     maxTextLength: options.maxTextLength,
     requestTimeoutMs: options.requestTimeoutMs,

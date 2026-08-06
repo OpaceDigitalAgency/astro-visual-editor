@@ -88,6 +88,20 @@ JSON, JSONC and YAML require an exact path:
 </h1>
 ```
 
+Explicit source annotations may also explain their provenance and identify
+known shared routes. The editor displays that context before queueing an edit:
+
+```astro
+<h1
+  data-astro-edit-file="src/data/home.json"
+  data-astro-edit-path="hero.title"
+  data-astro-edit-origin="a direct JSON import"
+  data-astro-edit-shared-routes="/,/pricing"
+>
+  {home.hero.title}
+</h1>
+```
+
 Selector and route mappings are also supported:
 
 ```js
@@ -186,6 +200,7 @@ interface AstroVisualEditorOptions {
   selectorMappings?: Record<string, string>;
   allowedExtensions?: Array<'.astro' | '.md' | '.mdx' | '.json' | '.jsonc' | '.yaml' | '.yml'>;
   sectionTemplates?: SectionTemplate[];
+  demoPages?: Array<{ id: string; label: string; path: string; description: string }>;
   maxChanges?: number;
   maxTextLength?: number;
   maxRequestBytes?: number;
@@ -199,6 +214,9 @@ interface AstroVisualEditorOptions {
   editabilityPolicyFile?: string;
 }
 ```
+
+`demoPages` is an optional local-demo route switcher. It is intended for test
+fixtures and is not application navigation.
 
 `allowUnsafeSourceText` and `allowRemoteDev` are expert escape hatches and are
 both disabled by default.

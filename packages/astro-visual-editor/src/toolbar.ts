@@ -82,6 +82,7 @@ const defaultConfig: ClientEditorConfig = {
   fileMappings: {},
   selectorMappings: {},
   sectionTemplates: [],
+  demoPages: [],
   maxChanges: 100,
   maxTextLength: 10_000,
   requestTimeoutMs: 15_000,
@@ -274,7 +275,7 @@ export default defineToolbarApp({
         <button class="mode-tab" role="tab" data-mode="seo" aria-selected="false">SEO</button>
         <button class="mode-tab" role="tab" data-mode="review" aria-selected="false">Review</button>
       </div>
-      <div class="instructions">Click visible text, or focus it and press Alt+Enter.</div>
+      <div class="instructions"><span class="instructions-copy">Click visible text, or focus it and press Alt+Enter.</span><nav class="demo-surfaces" aria-label="Demo test pages" hidden></nav></div>
       <div class="ledger" aria-live="polite" aria-label="Queued changes"></div>
       <p class="message" role="status" aria-live="polite"></p>
       <div class="history-actions">
@@ -300,7 +301,7 @@ export default defineToolbarApp({
       'aria-labelledby': 'ave-text-title',
       'aria-describedby': 'ave-text-file',
     });
-    textDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Preview before writing</p><h2 id="ave-text-title">Edit text</h2><p id="ave-text-file" class="dialog-file"></p><label for="ave-text-value">Replacement text</label><textarea id="ave-text-value" required></textarea><p class="field-help">The owning adapter validates syntax before any source file is written.</p><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary queue-text" type="button">Queue change</button></div></form>`;
+    textDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Preview before writing</p><h2 id="ave-text-title">Edit text</h2><p id="ave-text-file" class="dialog-file"></p><p class="source-warning" hidden></p><label for="ave-text-value">Replacement text</label><textarea id="ave-text-value" required></textarea><p class="field-help">The owning adapter validates syntax before any source file is written.</p><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary queue-text" type="button">Queue change</button></div></form>`;
 
     const seoDialog = createElement('dialog', {
       'aria-labelledby': 'ave-seo-title',
@@ -357,7 +358,8 @@ export default defineToolbarApp({
     const message = panel.querySelector<HTMLElement>('.message')!;
     const status = panel.querySelector<HTMLElement>('.status')!;
     const statusCopy = panel.querySelector<HTMLElement>('.status-copy')!;
-    const instructions = panel.querySelector<HTMLElement>('.instructions')!;
+    const instructions = panel.querySelector<HTMLElement>('.instructions-copy')!;
+    const demoSurfaces = panel.querySelector<HTMLElement>('.demo-surfaces')!;
     const commitButton = panel.querySelector<HTMLButtonElement>('.commit')!;
     const clearButton = panel.querySelector<HTMLButtonElement>('.clear')!;
     const revertButton = panel.querySelector<HTMLButtonElement>('.revert')!;
@@ -368,6 +370,7 @@ export default defineToolbarApp({
     const fileDiffList = diffDialog.querySelector<HTMLElement>('.file-diff-list')!;
     const textarea = textDialog.querySelector<HTMLTextAreaElement>('textarea')!;
     const textFile = textDialog.querySelector<HTMLElement>('.dialog-file')!;
+    const sourceWarning = textDialog.querySelector<HTMLElement>('.source-warning')!;
     const pickerLabel = picker.querySelector<HTMLElement>('.picker-label')!;
     const pickerReview = picker.querySelector<HTMLButtonElement>('.picker-review')!;
     const templateGrid = templateDialog.querySelector<HTMLElement>('.template-grid')!;
@@ -407,6 +410,30 @@ export default defineToolbarApp({
         historyDialog.close();
         requestRevert();
       });
+    }
+
+    function renderDemoSurfaces(): void {
+      demoSurfaces.replaceChildren();
+      demoSurfaces.hidden = config.demoPages.length < 2;
+      for (const page of config.demoPages) {
+        const button = createElement('button', {
+          class: 'demo-surface',
+          type: 'button',
+          title: page.description,
+          'aria-current': page.path === window.location.pathname ? 'page' : 'false',
+        });
+        button.textContent = page.label;
+        button.addEventListener('click', () => {
+          if (page.path === window.location.pathname) return;
+          if (
+            queue.size > 0 &&
+            !window.confirm('Switch demo pages and discard this local preview?')
+          )
+            return;
+          window.location.assign(page.path);
+        });
+        demoSurfaces.append(button);
+      }
     }
 
     function serializableQueue(): EditorChange[] {
@@ -849,7 +876,12 @@ export default defineToolbarApp({
       );
       const existing = queued?.kind === 'text' ? queued : undefined;
       textarea.value = existing?.newText ?? candidate.textContent?.trim() ?? '';
-      textFile.textContent = sourceFileFor(candidate, config, editabilityPolicy);
+      const resolution = sourceResolutionFor(candidate, config, editabilityPolicy);
+      textFile.textContent = `${resolution.filePath}${resolution.sourcePath ? ` → ${resolution.sourcePath}` : ''}`;
+      sourceWarning.hidden = !resolution.sharedRouteCount;
+      sourceWarning.textContent = resolution.sharedRouteCount
+        ? `Shared source: this edit will affect ${resolution.sharedRouteCount} routes.`
+        : '';
       textDialog.showModal();
       textarea.focus();
       textarea.select();
@@ -1547,6 +1579,7 @@ export default defineToolbarApp({
       config = { ...defaultConfig, ...next };
       configReady = true;
       configConfirmed = true;
+      renderDemoSurfaces();
       sessionStorage.setItem(SESSION_CONFIG, JSON.stringify(next));
       setupButton.hidden = !config.canManageEditability;
       try {

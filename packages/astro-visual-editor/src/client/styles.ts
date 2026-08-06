@@ -26,7 +26,12 @@ export const toolbarStyles = String.raw`
   .mode-tab { min-width: 0; min-height: 36px; padding: 4px; color: #aeb4bb; background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 750; }
   .mode-tab[aria-selected="true"] { color: #fff; background: #2b2f33; border-color: #474d53; }
   .mode-tab:focus-visible { outline: 2px solid #ffad82; outline-offset: 1px; }
-  .instructions { grid-row: 3; padding: 8px 12px; color: #c5cad0; background: #1b1e21; border-bottom: 1px solid #2a2e32; font-size: 11px; }
+  .instructions { grid-row: 3; display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: #c5cad0; background: #1b1e21; border-bottom: 1px solid #2a2e32; font-size: 11px; }
+  .instructions-copy { min-width: 0; }
+  .demo-surfaces { display: flex; flex: 0 0 auto; gap: 4px; max-width: 54%; overflow-x: auto; }
+  .demo-surface { min-width: max-content; min-height: 32px; padding: 5px 9px; color: #bfc5cb; background: #24282c; border: 1px solid #3a4046; border-radius: 999px; cursor: pointer; font-size: 10px; font-weight: 760; }
+  .demo-surface[aria-current="page"] { color: #fff3eb; background: #4a2b1e; border-color: #bd6840; }
+  .demo-surface:focus-visible { outline: 2px solid #ffad82; outline-offset: 1px; }
   .ledger { grid-row: 4; min-height: 92px; overflow: auto; padding: 8px; overscroll-behavior: contain; scrollbar-gutter: stable; }
   .empty { display: grid; place-items: center; min-height: 78px; padding: 13px; text-align: center; color: #858d95; border: 1px dashed #3b4147; border-radius: 10px; }
   .change { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; padding: 10px; margin-bottom: 7px; background: #1e2124; border: 1px solid #30353a; border-radius: 10px; }
@@ -65,6 +70,7 @@ export const toolbarStyles = String.raw`
   dialog::backdrop { background: rgba(7,9,10,.72); backdrop-filter: blur(5px); }
   .dialog-body { padding: 20px; }
   .dialog-file { margin: 5px 0 16px; overflow-wrap: anywhere; color: #ffab7a; font: 600 11px/1.45 ui-monospace, monospace; }
+  .source-warning { margin: -7px 0 14px; padding: 8px 10px; color: #ffe4a8; background: #352d18; border: 1px solid #66562b; border-radius: 9px; font-size: 11px; }
   label { display: block; margin: 12px 0 6px; color: #d4d8dc; font-size: 12px; font-weight: 720; }
   input, textarea { width: 100%; min-height: 44px; padding: 11px 12px; color: #fff; background: #0f1113; border: 1px solid #454c53; border-radius: 10px; }
   textarea { min-height: 150px; resize: vertical; line-height: 1.55; }
@@ -135,6 +141,8 @@ export const toolbarStyles = String.raw`
   .picker button { min-height: 36px; min-width: 36px; border-radius: 999px; }
   @media (max-width: 640px) {
     .workbench { width: calc(100vw - 12px); max-height: min(72vh, 680px); border-radius: 16px 16px 8px 8px; }
+    .instructions { align-items: flex-start; }
+    .demo-surfaces { max-width: 100%; }
     .template-grid { grid-template-columns: 1fr; } .seo-grid { grid-template-columns: 1fr; }
     .seo-grid .wide { grid-column: auto; } .actions { grid-template-columns: 1fr auto; }
     .revert { grid-column: 1 / -1; }

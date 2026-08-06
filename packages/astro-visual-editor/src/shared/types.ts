@@ -11,6 +11,14 @@ export interface SectionTemplate {
 
 export type ClientSectionTemplate = SectionTemplate;
 
+/** Optional local routes shown by a project's demonstration configuration. */
+export interface DemoPage {
+  id: string;
+  label: string;
+  path: string;
+  description: string;
+}
+
 export type EditabilityEffect = 'allow' | 'deny';
 export type EditabilityRuleScope = 'element' | 'selector';
 
@@ -75,6 +83,7 @@ export interface ClientEditorConfig {
   fileMappings: Record<string, string>;
   selectorMappings: Record<string, string>;
   sectionTemplates: ClientSectionTemplate[];
+  demoPages: DemoPage[];
   maxChanges: number;
   maxTextLength: number;
   requestTimeoutMs: number;

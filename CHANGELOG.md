@@ -4,6 +4,26 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## 0.1.0-beta.5 - 2026-08-05
+
+### Added
+
+- Added a composed demo page that renders through a shared layout and reusable
+  components while sourcing editable values from direct JSON imports and an
+  Astro Content Collection entry.
+- Added an optional, local-only demo-page switcher so testers can move between
+  the original single-file fixture and the composed-source fixture.
+- Added visible structured source paths and a shared-route warning before an
+  affected value is queued for editing.
+- Added browser coverage that reviews, commits and safely restores a JSON
+  property and Markdown frontmatter field in one multi-file batch.
+
+### Changed
+
+- Kept source annotations and syntax-aware adapters as the final authority:
+  the richer fixture demonstrates supported provenance rather than guessing
+  through arbitrary component expressions.
+
 ## 0.1.0-beta.4 - 2026-08-05
 
 ### Added

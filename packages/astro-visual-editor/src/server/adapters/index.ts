@@ -2,7 +2,12 @@ import type { NormalizedOptions } from '../../options.js';
 import type { EditorChange } from '../../shared/types.js';
 import { applyAstroSections, applyAstroSeo, applyAstroText } from './astro.js';
 import { applyMarkdownSeo, applyMarkdownText } from './markdown.js';
-import { applyJsonText, applyYamlText } from './structured.js';
+import {
+  applyJsonSections,
+  applyJsonText,
+  applyYamlSections,
+  applyYamlText,
+} from './structured.js';
 
 export async function applyChangeWithAdapter(
   source: string,
@@ -11,9 +16,10 @@ export async function applyChangeWithAdapter(
   options: NormalizedOptions,
 ): Promise<string> {
   if (change.kind === 'sections') {
-    if (extension !== '.astro')
-      throw new Error('Section operations currently require an .astro owner file.');
-    return applyAstroSections(source, change, options.sectionTemplates);
+    if (extension === '.astro') return applyAstroSections(source, change, options.sectionTemplates);
+    if (extension === '.json' || extension === '.jsonc') return applyJsonSections(source, change);
+    if (extension === '.yaml' || extension === '.yml') return applyYamlSections(source, change);
+    throw new Error(`Section reordering is not supported for ${extension} files.`);
   }
 
   if (change.kind === 'seo') {

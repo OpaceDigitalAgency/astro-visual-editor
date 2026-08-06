@@ -35,6 +35,21 @@ export interface EditabilityRule {
 export interface EditabilityPolicy {
   version: 1;
   rules: EditabilityRule[];
+  regions?: SectionRegionRule[];
+}
+
+export interface SectionRegionItem {
+  id: string;
+  sourceKey: string;
+}
+
+export interface SectionRegionRule {
+  id: string;
+  route: string;
+  selector: string;
+  filePath: string;
+  sourcePath: string;
+  items: SectionRegionItem[];
 }
 
 export interface BaseEditorChange {
@@ -66,11 +81,13 @@ export interface SeoEditorChange extends BaseEditorChange {
 export interface SectionDescriptor {
   id: string;
   templateId?: string;
+  sourceKey?: string;
 }
 
 export interface SectionsEditorChange extends BaseEditorChange {
   kind: 'sections';
   regionId: string;
+  sourcePath?: string;
   before: SectionDescriptor[];
   after: SectionDescriptor[];
 }
@@ -186,6 +203,61 @@ export interface EditabilityPolicyResponse extends ClientMessage {
   policyFile?: string;
   canManage?: boolean;
   diff?: FileDiff;
+  error?: string;
+}
+
+export interface SourceDiscoveryRequest extends ClientMessage {
+  requestId: string;
+  route: string;
+  selector: string;
+  text: string;
+  hintedFilePath?: string;
+}
+
+export type SourceCandidateFormat = 'astro' | 'markdown' | 'json' | 'yaml';
+
+export interface SourceCandidate {
+  id: string;
+  filePath: string;
+  sourcePath?: string;
+  format: SourceCandidateFormat;
+  line: number;
+  confidence: 'exact' | 'likely';
+  reason: string;
+}
+
+export interface SourceDiscoveryResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  candidates?: SourceCandidate[];
+  searchedFiles?: number;
+  truncated?: boolean;
+  error?: string;
+}
+
+export interface SectionDiscoveryRequest extends ClientMessage {
+  requestId: string;
+  route: string;
+  selector: string;
+  itemCount: number;
+  hintedFilePath?: string;
+}
+
+export interface SectionRegionCandidate {
+  id: string;
+  filePath: string;
+  sourcePath: string;
+  line: number;
+  confidence: 'exact' | 'likely';
+  reason: string;
+  items: SectionRegionItem[];
+}
+
+export interface SectionDiscoveryResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  candidates?: SectionRegionCandidate[];
+  searchedFiles?: number;
   error?: string;
 }
 

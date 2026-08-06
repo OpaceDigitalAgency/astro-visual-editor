@@ -4,7 +4,7 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
-## 0.1.0-beta.5 - 2026-08-05
+## 0.1.0-beta.5 - 2026-08-06
 
 ### Added
 
@@ -17,12 +17,23 @@ The project follows [Semantic Versioning](https://semver.org/).
   affected value is queued for editing.
 - Added browser coverage that reviews, commits and safely restores a JSON
   property and Markdown frontmatter field in one multi-file batch.
+- Added syntax-aware project source discovery for exact Astro,
+  Markdown/frontmatter, JSON/JSONC and YAML values, including separate
+  stale-checked locators for repeated Astro literals.
+- Added owner-confirmed section setup that maps existing rendered containers to
+  contiguous Astro children or complete JSON/JSONC and YAML arrays without
+  requiring editor annotations in site components.
+- Added policy-backed section mappings with exact source-item hashes, reviewed
+  policy persistence and safe refresh after source order changes.
+- Added browser coverage that enables four mixed component/element blocks on
+  the complex fixture, reorders them, commits the exact Astro diff and restores
+  the source.
 
 ### Changed
 
-- Kept source annotations and syntax-aware adapters as the final authority:
-  the richer fixture demonstrates supported provenance rather than guessing
-  through arbitrary component expressions.
+- Kept syntax-aware adapters and confirmed project mappings as the final
+  authority. Ambiguous, transformed or non-reversible data flow is refused
+  rather than guessed or globally replaced.
 - Made explicitly mapped structured fields use their file and source path as a
   stable preview target, so repeated component output is edited independently.
 - Kept Sections mode open with a clear explanation when the current page has

@@ -30,8 +30,8 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 | At a glance     | Behaviour                                                                         |
 | --------------- | --------------------------------------------------------------------------------- |
 | Editing surface | Astro's native development toolbar on the rendered page                           |
-| Content         | Literal Astro/Markdown text plus explicitly mapped JSON, JSONC and YAML fields    |
-| Page structure  | Add, delete and reorder sections inside declared source-owned regions             |
+| Content         | Discovered or mapped Astro/Markdown, JSON/JSONC and YAML values                   |
+| Page structure  | Enable and reorder Astro children or complete JSON/YAML arrays safely             |
 | Review          | One mixed text, SEO and section ledger with undo, redo, commit and guarded revert |
 | Safety boundary | Local development only; no editor client or write endpoint in production          |
 
@@ -40,7 +40,7 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 - Click rendered text and preview a replacement in place.
 - Edit title, description, keywords, canonical URL, Open Graph fields and
   robots directives in one SEO form.
-- Add, delete and reorder declared sections.
+- Enable existing page regions, then add, delete or reorder supported sections.
 - Reorder with real pointer drag-and-drop, move buttons or keyboard controls.
 - Add sections from a reusable template registry.
 - Queue mixed text, SEO and structural changes in one visible ledger.
@@ -166,6 +166,12 @@ project-relative source file and optional structured path. Every change is
 shown as an exact diff before it is written to
 `astro-visual-editor.policy.json`.
 
+Choosing **Find exact source** searches supported project files with Astro,
+Markdown/frontmatter, JSON/JSONC and YAML parsers. It lists every exact
+candidate with its line and structured path. The owner confirms one candidate,
+and repeated Astro literals remain separate stale-checked nodes instead of
+being changed by a global string replacement.
+
 An allow rule only makes an element selectable. It does not override explicit
 `data-astro-edit-ignore` exclusions, unsafe nested structure, missing source
 ownership or syntax-aware adapter validation.
@@ -179,8 +185,15 @@ Keyboard users can focus editable content and press `Alt+Enter`.
 
 ### Sections
 
-Section persistence is deliberately explicit. Declare a source-owned region and
-give every direct section a stable ID:
+An owner can choose **Enable sections on this page**, select an existing
+rendered container and confirm its syntax-aware source structure. This stores a
+project policy mapping without adding editor attributes to the site's
+components. The candidate supports contiguous Astro component/element children
+and complete JSON/JSONC or YAML arrays, with every complete item hash-checked
+before reordering.
+
+Projects can also declare a source-owned region directly and give every section
+a stable ID:
 
 ```astro
 <div data-astro-edit-region="homepage-sections" data-astro-edit-file="src/pages/index.astro">
@@ -190,7 +203,7 @@ give every direct section a stable ID:
 </div>
 ```
 
-The editable sections must be contiguous direct children of the region. This
+Declared editable sections must be contiguous direct children of the region. This
 lets the Astro adapter preserve each complete source block while safely
 reordering, deleting or inserting it.
 
@@ -467,10 +480,12 @@ Astro integration (development command only)
 ## Current boundaries
 
 - It is a local development editor, not an authenticated production CMS.
-- Source ownership still requires annotations/mappings for component props,
-  shared data and non-conventional routes.
-- It does not rewrite arbitrary Astro component structure; section operations
-  require declared, contiguous regions with stable IDs.
+- Exact source values can be discovered across supported formats, but
+  transformed output that cannot be reversed to one source target still
+  requires owner confirmation or is refused.
+- Section Setup maps contiguous Astro children and complete JSON/JSONC or YAML
+  arrays. It does not infer Markdown heading groups or filtered, merged and
+  transformed subsets.
 - Existing sections cannot be moved across unrelated regions, and templates
   cannot be dropped onto arbitrary page locations.
 - It does not infer every import/data dependency or provide a full schema-aware

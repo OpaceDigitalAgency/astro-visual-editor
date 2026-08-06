@@ -15,8 +15,9 @@ The current public beta is `0.1.0-beta.4`. It is published through npm trusted
 GitHub OIDC with provenance and has passed a clean Astro 7.1.6 registry install
 and production build.
 
-Beta 4 adds an owner-facing Editability Setup with a guided, reviewed policy
-workflow.
+The Beta 5 candidate adds syntax-aware source discovery and owner-confirmed,
+zero-annotation section mappings. The current public package remains Beta 4
+until the candidate passes owner acceptance and the protected release workflow.
 
 It uses Astro's native Dev Toolbar and `astro:server:setup` communication. It
 does not ship an editor client or write endpoint in production.
@@ -26,7 +27,7 @@ Built by [Opace Astro developers](https://opace.agency/services/web-design/astro
 | Mode     | Included workflow                                                        |
 | -------- | ------------------------------------------------------------------------ |
 | Text     | Select rendered content, preview the replacement and queue it            |
-| Sections | Add templates, delete, move or pointer-drag inside declared regions      |
+| Sections | Enable, map and reorder Astro children or JSON/YAML array items safely   |
 | SEO      | Edit title, description, keywords, canonical, Open Graph and robots      |
 | Review   | Inspect mixed changes, undo/redo, commit once and conflict-check reverts |
 | Setup    | Inventory visible content and review project-owned allow/deny policy     |
@@ -70,7 +71,17 @@ tab. The workbench collapses to compact Pick mode on desktop or mobile. Icon
 controls provide visible hover/focus tooltips, and dialogs close with Cancel,
 Escape or a backdrop click.
 
-## Reliable source mapping
+## Automatic and explicit source mapping
+
+For unresolved rendered text, open **Editability Setup** and choose **Find
+exact source**. The editor searches supported files with their syntax-aware
+parsers and lists every exact candidate with its file, line and structured
+path. One confirmed mapping is saved in `astro-visual-editor.policy.json`.
+Repeated Astro literals receive separate stale-checked node locators, so the
+editor changes the confirmed occurrence rather than guessing from global text.
+
+Explicit annotations remain useful when a project wants to publish its source
+ownership directly:
 
 Annotate the owning file and give important elements stable browser IDs:
 
@@ -120,8 +131,9 @@ visualEditor({
 The settings control opens a local owner-only inventory of visible content.
 Each item is labelled editable, blocked, unresolved or structurally unsafe and
 shows the source reason. Owners can review element or selector-group allow/deny
-rules, confirm an unresolved source file/path, inspect the exact JSON diff and
-save `astro-visual-editor.policy.json` in the project root. Choosing a
+rules, discover and confirm an unresolved source candidate, inspect the exact
+JSON diff and save `astro-visual-editor.policy.json` in the project root. A
+manual file/path field remains available as a fallback. Choosing a
 permission opens that review immediately. Cancelling clearly marks the choice
 as unsaved, while saving returns directly to normal editing. Labelled **Back to
 editor** controls remain visible throughout setup.
@@ -134,6 +146,16 @@ able to change it; network-exposed development servers cannot manage policy.
 
 ## Persistent section regions
 
+In Sections mode, an owner can choose **Enable sections on this page**, select
+an existing rendered container and confirm the corresponding source structure.
+The mapping is stored in the project policy; site components do not need editor
+attributes. The candidate supports contiguous Astro component/element children
+and complete JSON/JSONC or YAML array items. Source blocks and structured items
+are hash-checked before every reorder, and ambiguous candidates require owner
+selection.
+
+Projects can still declare a region directly:
+
 ```astro
 <div data-astro-edit-region="homepage" data-astro-edit-file="src/pages/index.astro">
   <section data-section="hero">...</section>
@@ -142,10 +164,10 @@ able to change it; network-exposed development servers cannot manage policy.
 </div>
 ```
 
-Sections must be contiguous direct children with unique stable IDs. This is a
-deliberate safety contract: arbitrary component structure is never rewritten.
-Existing sections drag only within their declared region. Add before/after
-inserts validated templates; arbitrary page-wide and cross-region drops are not
+Mapped or declared sections must resolve to contiguous direct source children
+or a complete structured array with unique item identities. Existing sections
+drag only within their region. Add before/after inserts validated templates for
+Astro-backed regions; arbitrary page-wide and cross-region drops are not
 supported.
 
 Custom templates use `{{id}}`:
@@ -224,13 +246,17 @@ both disabled by default.
 ## Current boundaries
 
 - Local `astro dev` only; no authenticated production CMS.
-- Complex expressions/shared data need explicit file/path mapping.
+- Exact rendered values can be discovered in Astro, Markdown/frontmatter,
+  JSON/JSONC and YAML; ambiguous candidates require owner confirmation.
 - Unstructured MDX body expressions are refused.
-- Section operations require declared Astro regions.
+- Section setup can map contiguous Astro children and complete JSON/JSONC or
+  YAML arrays. Markdown body heading reordering and filtered, merged or
+  transformed subsets are not inferred automatically.
 - No arbitrary page-wide or cross-region section drops.
 - Checksummed local receipt history survives a complete dev-server restart and
   refuses unsafe restore when the record or saved file no longer matches.
-- Source tracing remains deliberately bounded to explicit, validated mappings.
+- If rendered output cannot be reversed to one validated source target, the
+  editor refuses the write instead of guessing.
 
 Documentation and support:
 

@@ -36,6 +36,10 @@ import {
   REVERT_RESULT_EVENT,
   SAVE_EVENT,
   SAVE_RESULT_EVENT,
+  SOURCE_DISCOVERY_EVENT,
+  SOURCE_DISCOVERY_RESULT_EVENT,
+  SECTION_DISCOVERY_EVENT,
+  SECTION_DISCOVERY_RESULT_EVENT,
 } from './shared/events.js';
 import type {
   ClientEditorConfig,
@@ -56,6 +60,11 @@ import type {
   SeoField,
   SeoValues,
   SaveResponse,
+  SourceCandidate,
+  SourceDiscoveryResponse,
+  SectionDiscoveryResponse,
+  SectionRegionCandidate,
+  SectionRegionRule,
   TextEditorChange,
 } from './shared/types.js';
 
@@ -253,6 +262,12 @@ export default defineToolbarApp({
     let inventory: InventoryItem[] = [];
     let inventoryFilter: InventoryStatus | 'all' = 'all';
     let setupBusy = false;
+    let sourceDiscoveryRequestId: string | undefined;
+    let sourceDiscoveryItem: InventoryItem | undefined;
+    let sourceCandidates: SourceCandidate[] = [];
+    let sectionDiscoveryRequestId: string | undefined;
+    let sectionDiscoveryElement: HTMLElement | undefined;
+    let sectionCandidates: SectionRegionCandidate[] = [];
 
     const style = createElement('style');
     style.textContent = toolbarStyles;
@@ -341,6 +356,24 @@ export default defineToolbarApp({
     });
     policyDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Step 2 of 3 · Review</p><h2 id="ave-policy-title">Save this permission change?</h2><p id="ave-policy-help" class="field-help">You chose what can be edited. Check the exact project setting below, then save it to make the permission active. Nothing changes until you save.</p><div class="policy-diff-list file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-policy" type="button">Back to setup</button><button class="primary confirm-policy" type="button">Save and return to editor</button></div></div>`;
 
+    const sourceDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-source-title',
+      'aria-describedby': 'ave-source-help',
+    });
+    sourceDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Syntax-aware source discovery</p><h2 id="ave-source-title">Confirm the exact source</h2><p id="ave-source-help" class="field-help">Select the source field that produced this rendered text. Ambiguous matches are never guessed.</p><div class="source-candidate-list"></div><div class="dialog-actions"><button class="secondary cancel-source" value="cancel" type="submit">Cancel</button><button class="primary confirm-source" type="button">Confirm mapping</button></div></form>`;
+
+    const regionDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-region-title',
+      'aria-describedby': 'ave-region-help',
+    });
+    regionDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Section setup</p><h2 id="ave-region-title">Choose a page region</h2><p id="ave-region-help" class="field-help">Choose an existing container whose direct children should be reorderable. The site source is not changed just to enable the editor.</p><div class="region-candidate-list source-candidate-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary discover-region-source" type="button">Find exact source structure</button></div></form>`;
+
+    const regionSourceDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-region-source-title',
+      'aria-describedby': 'ave-region-source-help',
+    });
+    regionSourceDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Syntax-aware section discovery</p><h2 id="ave-region-source-title">Confirm the source structure</h2><p id="ave-region-source-help" class="field-help">Select the contiguous Astro children or structured JSON/YAML array that corresponds to the rendered region. Every complete source item is hash-checked before a reorder.</p><div class="region-source-candidate-list source-candidate-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary confirm-region-source" type="button">Save section mapping</button></div></form>`;
+
     canvas.append(
       style,
       panel,
@@ -352,6 +385,9 @@ export default defineToolbarApp({
       historyDialog,
       diffDialog,
       policyDialog,
+      sourceDialog,
+      regionDialog,
+      regionSourceDialog,
     );
 
     const ledger = panel.querySelector<HTMLElement>('.ledger')!;
@@ -467,17 +503,220 @@ export default defineToolbarApp({
     }
 
     function policyChangeCount(): number {
-      const saved = new Map(
-        editabilityPolicy.rules.map((rule) => [`${rule.route}\n${rule.selector}`, rule]),
-      );
-      const draft = new Map(
-        draftEditabilityPolicy.rules.map((rule) => [`${rule.route}\n${rule.selector}`, rule]),
-      );
+      const saved = new Map<string, unknown>([
+        ...editabilityPolicy.rules.map(
+          (rule) => [`rule\n${rule.route}\n${rule.selector}`, rule] as const,
+        ),
+        ...(editabilityPolicy.regions ?? []).map(
+          (region) => [`region\n${region.route}\n${region.selector}`, region] as const,
+        ),
+      ]);
+      const draft = new Map<string, unknown>([
+        ...draftEditabilityPolicy.rules.map(
+          (rule) => [`rule\n${rule.route}\n${rule.selector}`, rule] as const,
+        ),
+        ...(draftEditabilityPolicy.regions ?? []).map(
+          (region) => [`region\n${region.route}\n${region.selector}`, region] as const,
+        ),
+      ]);
       return new Set([...saved.keys(), ...draft.keys()]).size
         ? [...new Set([...saved.keys(), ...draft.keys()])].filter(
             (key) => JSON.stringify(saved.get(key)) !== JSON.stringify(draft.get(key)),
           ).length
         : 0;
+    }
+
+    function clearGeneratedSectionMappings(): void {
+      document
+        .querySelectorAll<HTMLElement>('[data-astro-ve-generated-region="true"]')
+        .forEach((region) => {
+          delete region.dataset.astroVeGeneratedRegion;
+          delete region.dataset.astroEditRegion;
+          delete region.dataset.astroEditFile;
+          delete region.dataset.astroEditPath;
+          for (const child of [...region.children]) {
+            if (!(child instanceof HTMLElement) || child.dataset.astroVeGeneratedSection !== 'true')
+              continue;
+            delete child.dataset.astroVeGeneratedSection;
+            delete child.dataset.section;
+            delete child.dataset.astroEditSourceKey;
+          }
+        });
+    }
+
+    function applySectionRegionPolicy(policy: EditabilityPolicy): void {
+      clearGeneratedSectionMappings();
+      initialSections.clear();
+      for (const regionRule of policy.regions ?? []) {
+        if (regionRule.route !== window.location.pathname) continue;
+        let matches: NodeListOf<HTMLElement>;
+        try {
+          matches = document.querySelectorAll<HTMLElement>(regionRule.selector);
+        } catch {
+          continue;
+        }
+        if (matches.length !== 1) continue;
+        const region = matches[0]!;
+        const children = [...region.children].filter(
+          (child): child is HTMLElement => child instanceof HTMLElement,
+        );
+        if (children.length !== regionRule.items.length) continue;
+        region.dataset.astroVeGeneratedRegion = 'true';
+        region.dataset.astroEditRegion = regionRule.id;
+        region.dataset.astroEditFile = regionRule.filePath;
+        region.dataset.astroEditPath = regionRule.sourcePath;
+        children.forEach((child, index) => {
+          const item = regionRule.items[index]!;
+          child.dataset.astroVeGeneratedSection = 'true';
+          child.dataset.section = item.id;
+          child.dataset.astroEditSourceKey = item.sourceKey;
+        });
+      }
+    }
+
+    function sectionRegionElements(): HTMLElement[] {
+      const seen = new Set<string>();
+      return [...document.querySelectorAll<HTMLElement>('main, article, section, div')].filter(
+        (element) => {
+          if (element.closest('astro-dev-toolbar') || element.closest('[data-astro-ve-ui]'))
+            return false;
+          const children = [...element.children].filter(
+            (child): child is HTMLElement =>
+              child instanceof HTMLElement && child.getClientRects().length > 0,
+          );
+          if (children.length < 2 || children.length > 100) return false;
+          const selector = selectorFor(element);
+          if (!selector || seen.has(selector)) return false;
+          seen.add(selector);
+          return true;
+        },
+      );
+    }
+
+    function openRegionSetup(): void {
+      const list = regionDialog.querySelector<HTMLElement>('.region-candidate-list')!;
+      list.replaceChildren();
+      const regions = sectionRegionElements();
+      regions.forEach((region, index) => {
+        const selector = selectorFor(region);
+        const childCount = [...region.children].filter(
+          (child) => child instanceof HTMLElement,
+        ).length;
+        const label = createElement('label', { class: 'source-candidate' });
+        const input = createElement('input', {
+          type: 'radio',
+          name: 'region-candidate',
+          value: selector,
+        });
+        if (index === 0) input.checked = true;
+        const copy = createElement('span');
+        const title = createElement('strong');
+        title.textContent = `${region.tagName.toLowerCase()} with ${childCount} direct items`;
+        const code = createElement('code');
+        code.textContent = selector;
+        copy.append(title, code);
+        label.append(input, copy);
+        list.append(label);
+      });
+      if (!regions.length) {
+        const empty = createElement('div', { class: 'empty' });
+        empty.textContent = 'No visible container with two or more direct items was found.';
+        list.append(empty);
+      }
+      regionDialog.querySelector<HTMLButtonElement>('.discover-region-source')!.disabled =
+        regions.length === 0;
+      regionDialog.showModal();
+    }
+
+    function requestSectionDiscovery(): void {
+      const selected = regionDialog.querySelector<HTMLInputElement>(
+        'input[name="region-candidate"]:checked',
+      );
+      if (!selected) return;
+      const matches = document.querySelectorAll<HTMLElement>(selected.value);
+      if (matches.length !== 1) {
+        showMessage('The chosen page region is no longer unique.', 'error');
+        return;
+      }
+      const region = matches[0]!;
+      const children = [...region.children].filter((child) => child instanceof HTMLElement);
+      sectionDiscoveryElement = region;
+      sectionDiscoveryRequestId = crypto.randomUUID();
+      setupBusy = true;
+      regionDialog.close('discover');
+      const resolution = sourceResolutionFor(region, config, draftEditabilityPolicy);
+      server.send(SECTION_DISCOVERY_EVENT, {
+        clientId,
+        requestId: sectionDiscoveryRequestId,
+        route: window.location.pathname,
+        selector: selected.value,
+        itemCount: children.length,
+        hintedFilePath: resolution.proven ? resolution.filePath : undefined,
+      });
+      showMessage('Matching the rendered region to syntax-aware source structures…', 'warning');
+    }
+
+    function renderSectionCandidates(candidates: SectionRegionCandidate[]): void {
+      const list = regionSourceDialog.querySelector<HTMLElement>('.region-source-candidate-list')!;
+      list.replaceChildren();
+      candidates.forEach((candidate, index) => {
+        const label = createElement('label', { class: 'source-candidate' });
+        const input = createElement('input', {
+          type: 'radio',
+          name: 'region-source-candidate',
+          value: candidate.id,
+        });
+        if (index === 0) input.checked = true;
+        const copy = createElement('span');
+        const file = createElement('strong');
+        file.textContent = `${candidate.filePath}:${candidate.line}`;
+        const path = createElement('code');
+        path.textContent = candidate.sourcePath;
+        const reason = createElement('small');
+        reason.textContent = candidate.reason;
+        copy.append(file, path, reason);
+        label.append(input, copy);
+        list.append(label);
+      });
+      if (!candidates.length) {
+        const empty = createElement('div', { class: 'empty' });
+        empty.textContent = 'No matching contiguous Astro source structure was found.';
+        list.append(empty);
+      }
+      regionSourceDialog.querySelector<HTMLButtonElement>('.confirm-region-source')!.disabled =
+        candidates.length === 0;
+      regionSourceDialog.showModal();
+    }
+
+    function confirmSectionCandidate(): void {
+      if (!sectionDiscoveryElement) return;
+      const selected = regionSourceDialog.querySelector<HTMLInputElement>(
+        'input[name="region-source-candidate"]:checked',
+      );
+      const candidate = sectionCandidates.find((item) => item.id === selected?.value);
+      if (!candidate) return;
+      const regionRule: SectionRegionRule = {
+        id: `region-${crypto.randomUUID()}`,
+        route: window.location.pathname,
+        selector: selectorFor(sectionDiscoveryElement),
+        filePath: candidate.filePath,
+        sourcePath: candidate.sourcePath,
+        items: candidate.items,
+      };
+      draftEditabilityPolicy = {
+        ...draftEditabilityPolicy,
+        regions: [
+          ...(draftEditabilityPolicy.regions ?? []).filter(
+            (region) =>
+              !(region.route === regionRule.route && region.selector === regionRule.selector),
+          ),
+          regionRule,
+        ],
+      };
+      sectionDiscoveryElement = undefined;
+      sectionCandidates = [];
+      regionSourceDialog.close('confirm');
+      requestPolicyPreview();
     }
 
     function requestPolicyPreview(): void {
@@ -588,6 +827,61 @@ export default defineToolbarApp({
       window.setTimeout(() => delete item.element.dataset.astroVeInventoryFocus, 1_400);
     }
 
+    function requestSourceDiscovery(item: InventoryItem): void {
+      if (!config.canManageEditability || setupBusy) return;
+      sourceDiscoveryItem = item;
+      sourceCandidates = [];
+      sourceDiscoveryRequestId = crypto.randomUUID();
+      setupBusy = true;
+      server.send(SOURCE_DISCOVERY_EVENT, {
+        clientId,
+        requestId: sourceDiscoveryRequestId,
+        route: window.location.pathname,
+        selector: item.selector,
+        text: item.text,
+        hintedFilePath: item.sourceFile,
+      });
+      showMessage(
+        'Searching supported project source files for exact syntax-aware matches…',
+        'warning',
+      );
+      renderInventory();
+    }
+
+    function renderSourceCandidates(candidates: SourceCandidate[], searchedFiles = 0): void {
+      const list = sourceDialog.querySelector<HTMLElement>('.source-candidate-list')!;
+      list.replaceChildren();
+      if (!candidates.length) {
+        const empty = createElement('div', { class: 'empty' });
+        empty.textContent = `No exact writable source value was found in ${searchedFiles} supported files.`;
+        list.append(empty);
+      } else {
+        candidates.forEach((candidate, index) => {
+          const label = createElement('label', { class: 'source-candidate' });
+          const input = createElement('input', {
+            type: 'radio',
+            name: 'source-candidate',
+            value: candidate.id,
+          });
+          if (index === 0) input.checked = true;
+          const copy = createElement('span');
+          const file = createElement('strong');
+          file.textContent = `${candidate.filePath}:${candidate.line}`;
+          const path = createElement('code');
+          path.textContent = candidate.sourcePath ?? 'literal value';
+          const reason = createElement('small');
+          reason.textContent = candidate.reason;
+          copy.append(file, path, reason);
+          label.append(input, copy);
+          list.append(label);
+        });
+      }
+      const confirm = sourceDialog.querySelector<HTMLButtonElement>('.confirm-source')!;
+      confirm.disabled = candidates.length === 0;
+      sourceDialog.showModal();
+      sourceDialog.querySelector<HTMLInputElement>('input:checked')?.focus();
+    }
+
     function renderInventory(): void {
       clearInventoryMarkers();
       ledger.setAttribute('aria-label', 'Page editability inventory');
@@ -607,6 +901,7 @@ export default defineToolbarApp({
           renderInventory();
         },
         onLocate: locateInventoryItem,
+        onDiscoverSource: requestSourceDiscovery,
         onSetRule: setDraftRule,
         onRemoveRule: (item) => {
           if (item.activeRule) removeDraftRule(item.activeRule);
@@ -639,6 +934,19 @@ export default defineToolbarApp({
               ? 'No SEO changes queued.'
               : 'No queued changes. Select visible content to begin.';
         ledger.append(empty);
+        if (
+          mode === 'sections' &&
+          config.canManageEditability &&
+          !document.querySelector('[data-astro-edit-region], [data-astro-edit-sections]')
+        ) {
+          const enable = createElement('button', {
+            class: 'primary enable-sections',
+            type: 'button',
+          });
+          enable.textContent = 'Enable sections on this page';
+          enable.addEventListener('click', openRegionSetup);
+          ledger.append(enable);
+        }
       } else {
         for (const [key, change] of queue) {
           const row = createElement('article', { class: 'change' });
@@ -719,7 +1027,7 @@ export default defineToolbarApp({
     function directSections(region: HTMLElement): HTMLElement[] {
       return [...region.children].filter(
         (child): child is HTMLElement =>
-          child instanceof HTMLElement && child.matches('section[data-section]'),
+          child instanceof HTMLElement && child.matches('[data-section]'),
       );
     }
 
@@ -980,6 +1288,9 @@ export default defineToolbarApp({
       return directSections(region).map((section) => ({
         id: section.dataset.section!,
         ...(section.dataset.astroVeTemplate ? { templateId: section.dataset.astroVeTemplate } : {}),
+        ...(section.dataset.astroEditSourceKey
+          ? { sourceKey: section.dataset.astroEditSourceKey }
+          : {}),
       }));
     }
 
@@ -990,6 +1301,7 @@ export default defineToolbarApp({
     function queueRegion(region: HTMLElement): void {
       const filePath = sourceFileFor(region, config, editabilityPolicy);
       const regionId = regionIdFor(region);
+      const sourcePath = region.dataset.astroEditPath;
       const key = `sections:${filePath}:${regionId}`;
       const before = initialSections.get(regionKey(region)) ?? descriptors(region);
       initialSections.set(regionKey(region), structuredClone(before));
@@ -1002,6 +1314,7 @@ export default defineToolbarApp({
           filePath,
           route: window.location.pathname,
           regionId,
+          sourcePath,
           before,
           after,
         });
@@ -1478,7 +1791,7 @@ export default defineToolbarApp({
         mode === 'sections' &&
         event.altKey &&
         document.activeElement instanceof HTMLElement &&
-        document.activeElement.matches('section[data-section]')
+        document.activeElement.matches('[data-section]')
       ) {
         if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
           event.preventDefault();
@@ -1588,6 +1901,27 @@ export default defineToolbarApp({
         });
         renderInventory();
       });
+    sourceDialog
+      .querySelector<HTMLButtonElement>('.confirm-source')!
+      .addEventListener('click', () => {
+        if (!sourceDiscoveryItem) return;
+        const selected = sourceDialog.querySelector<HTMLInputElement>(
+          'input[name="source-candidate"]:checked',
+        );
+        const candidate = sourceCandidates.find((item) => item.id === selected?.value);
+        if (!candidate) return;
+        sourceDialog.close('confirm');
+        const item = sourceDiscoveryItem;
+        sourceDiscoveryItem = undefined;
+        sourceCandidates = [];
+        setDraftRule(item, 'allow', 'element', candidate.filePath, candidate.sourcePath);
+      });
+    regionDialog
+      .querySelector<HTMLButtonElement>('.discover-region-source')!
+      .addEventListener('click', requestSectionDiscovery);
+    regionSourceDialog
+      .querySelector<HTMLButtonElement>('.confirm-region-source')!
+      .addEventListener('click', confirmSectionCandidate);
 
     server.on(CONFIG_EVENT, (next: ClientEditorConfig) => {
       config = { ...defaultConfig, ...next };
@@ -1678,6 +2012,7 @@ export default defineToolbarApp({
         editabilityPolicy = structuredClone(response.policy);
         draftEditabilityPolicy = structuredClone(response.policy);
         editabilityPolicyHash = response.policyHash;
+        applySectionRegionPolicy(editabilityPolicy);
         config.canManageEditability = response.canManage ?? config.canManageEditability;
         setupButton.hidden = !config.canManageEditability;
         if (mode === 'setup') showMessage('Editability policy loaded from the project.', 'success');
@@ -1707,11 +2042,47 @@ export default defineToolbarApp({
         editabilityPolicy = structuredClone(response.policy);
         draftEditabilityPolicy = structuredClone(response.policy);
         editabilityPolicyHash = response.policyHash;
+        applySectionRegionPolicy(editabilityPolicy);
         setMode('text');
         showMessage(
           `Saved ${response.policyFile ?? config.editabilityPolicyFile}. You can now edit the allowed content.`,
           'success',
         );
+      }
+      renderQueue();
+    });
+    server.on(SOURCE_DISCOVERY_RESULT_EVENT, (response: SourceDiscoveryResponse) => {
+      if (response.clientId !== clientId || response.requestId !== sourceDiscoveryRequestId) return;
+      setupBusy = false;
+      sourceDiscoveryRequestId = undefined;
+      if (!response.success || !response.candidates) {
+        sourceDiscoveryItem = undefined;
+        showMessage(response.error ?? 'Source discovery failed.', 'error');
+      } else {
+        sourceCandidates = response.candidates;
+        clearMessage();
+        renderSourceCandidates(response.candidates, response.searchedFiles);
+        if (response.truncated) {
+          showMessage(
+            'The source result list was bounded; refine or confirm one visible candidate.',
+            'warning',
+          );
+        }
+      }
+      if (mode === 'setup') renderInventory();
+    });
+    server.on(SECTION_DISCOVERY_RESULT_EVENT, (response: SectionDiscoveryResponse) => {
+      if (response.clientId !== clientId || response.requestId !== sectionDiscoveryRequestId)
+        return;
+      setupBusy = false;
+      sectionDiscoveryRequestId = undefined;
+      if (!response.success || !response.candidates) {
+        sectionDiscoveryElement = undefined;
+        showMessage(response.error ?? 'Section discovery failed.', 'error');
+      } else {
+        sectionCandidates = response.candidates;
+        clearMessage();
+        renderSectionCandidates(response.candidates);
       }
       renderQueue();
     });
@@ -1725,7 +2096,10 @@ export default defineToolbarApp({
       'astro:page-load',
       () => {
         updateSetupDock();
-        if (configReady) replaceQueue(safeParseQueue());
+        if (configReady) {
+          applySectionRegionPolicy(editabilityPolicy);
+          replaceQueue(safeParseQueue());
+        }
       },
       { signal: listenerController.signal },
     );

@@ -9,6 +9,7 @@ interface EditabilityPanelOptions {
   onReview(): void;
   onFilter(filter: InventoryStatus | 'all'): void;
   onLocate(item: InventoryItem, row: HTMLElement): void;
+  onDiscoverSource(item: InventoryItem): void;
   onSetRule(
     item: InventoryItem,
     effect: EditabilityEffect,
@@ -124,6 +125,10 @@ function renderInventoryRow(
   }
   row.append(top, copy, reason, source, controls);
   if (item.status === 'unresolved' && options.canManage) {
+    const discover = element('button', { class: 'primary discover-source', type: 'button' });
+    discover.textContent = 'Find exact source';
+    discover.addEventListener('click', () => options.onDiscoverSource(item));
+    row.append(discover);
     row.append(renderSourceForm(item, index, options.onSetRule));
   }
   return row;

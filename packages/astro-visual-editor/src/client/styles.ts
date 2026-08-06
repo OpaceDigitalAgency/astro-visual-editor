@@ -133,6 +133,15 @@ export const toolbarStyles = String.raw`
   .inventory-source-form label { margin: 3px 0 0; font-size: 10px; }
   .inventory-source-form input { min-height: 40px; padding: 8px 10px; font: 11px/1.3 ui-monospace, monospace; }
   .inventory-source-form button { margin-top: 4px; }
+  .discover-source { width: 100%; min-height: 44px; margin-top: 10px; }
+  .source-candidate-list { display: grid; gap: 8px; max-height: min(52vh, 480px); margin-top: 14px; overflow: auto; }
+  .source-candidate { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: 12px; background: #1c2023; border: 1px solid #3a4147; border-radius: 10px; cursor: pointer; }
+  .source-candidate:has(input:checked) { border-color: #ff7a3d; box-shadow: 0 0 0 1px #ff7a3d; }
+  .source-candidate input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: #ff7a3d; }
+  .source-candidate span { display: grid; gap: 4px; min-width: 0; }
+  .source-candidate strong, .source-candidate code { overflow-wrap: anywhere; }
+  .source-candidate code { color: #ffab7a; font-size: 11px; }
+  .source-candidate small { color: #b5bbc1; line-height: 1.4; }
   .seo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
   .seo-grid .wide { grid-column: 1 / -1; }
   .picker { display: none; align-items: center; gap: 8px; min-height: 48px; padding: 6px; color: #fff; background: #151719; border: 1px solid #3a4046; border-radius: 999px; box-shadow: 0 12px 35px rgba(0,0,0,.45); font: 12px/1.2 Inter,system-ui,sans-serif; }

@@ -342,6 +342,73 @@ test('targets each repeated JSON-backed evidence card independently', async ({ p
   ]);
 });
 
+test('enables and persists complex sections without source annotations', async ({ page }) => {
+  test.setTimeout(90_000);
+  const originalPolicy = await readFile(editabilityPolicySource, 'utf8');
+  const originalRoute = await readFile(complexRouteSource, 'utf8');
+  try {
+    await writeFile(
+      editabilityPolicySource,
+      `${JSON.stringify({ version: 1, rules: [] }, null, 2)}\n`,
+    );
+    await page.waitForTimeout(500);
+    await page.goto('/fixtures/complex');
+    let { toolbar, workbench } = await enableEditor(page);
+    await workbench.getByRole('tab', { name: 'Sections' }).click();
+    await workbench.getByRole('button', { name: 'Enable sections on this page' }).click();
+
+    const regionDialog = toolbar.locator('dialog').filter({ hasText: 'Choose a page region' });
+    const mainRegion = regionDialog
+      .locator('label')
+      .filter({ hasText: 'main with 4 direct items' });
+    await expect(mainRegion).toBeVisible();
+    await mainRegion.click();
+    await regionDialog.getByRole('button', { name: 'Find exact source structure' }).click();
+
+    const sourceDialog = toolbar
+      .locator('dialog')
+      .filter({ hasText: 'Confirm the source structure' });
+    const routeCandidate = sourceDialog
+      .locator('label')
+      .filter({ hasText: 'src/pages/fixtures/complex.astro' })
+      .filter({ hasText: 'astro:children:component:DemoLayout:0' });
+    await expect(routeCandidate).toBeVisible();
+    await routeCandidate.click();
+    await sourceDialog.getByRole('button', { name: 'Save section mapping' }).click();
+
+    const policyReview = toolbar
+      .locator('dialog')
+      .filter({ hasText: 'Save this permission change?' });
+    await expect(policyReview).toContainText('astro:children:component:DemoLayout:0');
+    await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
+
+    ({ toolbar, workbench } = await enableEditor(page));
+    await workbench.getByRole('tab', { name: 'Sections' }).click();
+    const picker = toolbar.locator('.picker');
+    await expect(picker).toBeVisible();
+    const moveHero = page.getByRole('button', { name: /Move source-hero-[a-f0-9]+ down/u });
+    await expect(moveHero).toBeVisible();
+    await moveHero.click();
+    await expect(page.locator('main > *').first()).toHaveClass(/shared-note/u);
+    await picker.getByRole('button', { name: /Review 1/u }).click();
+    await expect(workbench.locator('.change-summary')).toContainText('Reordered 4 sections');
+    await workbench.getByRole('button', { name: /Review 1 file change/ }).click();
+    await expect(workbench.locator('.message')).toBeHidden();
+    const review = toolbar.locator('dialog').filter({ hasText: 'Review file changes' });
+    await expect(review).toBeVisible();
+    await review.getByRole('button', { name: 'Commit these changes' }).dispatchEvent('click');
+    await expect
+      .poll(async () => readFile(complexRouteSource, 'utf8'))
+      .toMatch(/<p[\s\S]*?<SourceHero/u);
+    await restoreFromHistory(page);
+    await expect.poll(async () => readFile(complexRouteSource, 'utf8')).toBe(originalRoute);
+  } finally {
+    if ((await readFile(complexRouteSource, 'utf8')) !== originalRoute)
+      await writeFile(complexRouteSource, originalRoute);
+    await writeFile(editabilityPolicySource, originalPolicy);
+  }
+});
+
 test('commits and restores literal text owned by the route, component and layout', async ({
   page,
 }) => {
@@ -606,8 +673,16 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await expect(unresolved.locator('.inventory-status')).toHaveText('Unresolved');
     await expect(unsafe.locator('.inventory-status')).toHaveText('Unsafe');
     await expect(unsafe.getByRole('button', { name: /Allow/ })).toHaveCount(0);
-    await unresolved.locator('[name="file"]').fill('src/pages/fixtures/article.astro');
-    await unresolved.getByRole('button', { name: 'Confirm source and allow' }).click();
+    await unresolved.getByRole('button', { name: 'Find exact source' }).click();
+    const sourceDiscovery = toolbar
+      .locator('dialog')
+      .filter({ hasText: 'Confirm the exact source' });
+    const articleCandidate = sourceDiscovery
+      .locator('label')
+      .filter({ hasText: 'src/pages/fixtures/article.astro' });
+    await expect(articleCandidate).toBeVisible();
+    await articleCandidate.click();
+    await sourceDiscovery.getByRole('button', { name: 'Confirm mapping' }).click();
     policyReview = toolbar.locator('dialog').filter({ hasText: 'Save this permission change?' });
     await expect(
       policyReview
@@ -620,7 +695,9 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await page.getByText('This source needs owner confirmation.').click();
     textDialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
     await expect(textDialog).toBeVisible();
-    await expect(textDialog.locator('.dialog-file')).toHaveText('src/pages/fixtures/article.astro');
+    await expect(textDialog.locator('.dialog-file')).toContainText(
+      'src/pages/fixtures/article.astro → astro:text:',
+    );
     await textDialog.getByRole('button', { name: 'Cancel' }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     await workbench.getByRole('button', { name: 'Open Editability Setup' }).click();

@@ -306,7 +306,7 @@ test('targets each repeated JSON-backed evidence card independently', async ({ p
   await complexWorkbench.getByRole('tab', { name: 'Sections' }).click();
   await expect(complexWorkbench).toBeVisible();
   await expect(
-    complexWorkbench.getByText('No reorderable section region is declared on this page.'),
+    complexWorkbench.getByText('No section region is enabled on this page yet.'),
   ).toBeVisible();
   await complexWorkbench.getByRole('tab', { name: 'Text' }).click();
 
@@ -354,8 +354,12 @@ test('enables and persists complex sections without source annotations', async (
     await page.waitForTimeout(500);
     await page.goto('/fixtures/complex');
     let { toolbar, workbench } = await enableEditor(page);
-    await workbench.getByRole('tab', { name: 'Sections' }).click();
-    await workbench.getByRole('button', { name: 'Enable sections on this page' }).click();
+    await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
+    await expect(workbench.getByRole('heading', { name: 'Editor Setup' })).toBeVisible();
+    await expect(workbench.getByRole('heading', { name: 'Section regions' })).toBeVisible();
+    await expect(workbench.getByText('0 enabled')).toBeVisible();
+    await expect(workbench.getByRole('heading', { name: 'Text permissions' })).toBeVisible();
+    await workbench.getByRole('button', { name: 'Set up page sections' }).click();
 
     const regionDialog = toolbar.locator('dialog').filter({ hasText: 'Choose a page region' });
     const mainRegion = regionDialog
@@ -378,11 +382,17 @@ test('enables and persists complex sections without source annotations', async (
 
     const policyReview = toolbar
       .locator('dialog')
-      .filter({ hasText: 'Save this permission change?' });
+      .filter({ hasText: 'Save these editor settings?' });
     await expect(policyReview).toContainText('astro:children:component:DemoLayout:0');
     await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
 
     ({ toolbar, workbench } = await enableEditor(page));
+    await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
+    await expect(workbench.getByText('1 enabled')).toBeVisible();
+    await expect(workbench.locator('.section-region-item')).toContainText(
+      'src/pages/fixtures/complex.astro → astro:children:component:DemoLayout:0',
+    );
+    await workbench.getByRole('button', { name: 'Back to editor' }).first().click();
     await workbench.getByRole('tab', { name: 'Sections' }).click();
     const picker = toolbar.locator('.picker');
     await expect(picker).toBeVisible();
@@ -606,12 +616,14 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await page.reload();
     await page.setViewportSize({ width: 1440, height: 980 });
     let { toolbar, workbench } = await enableEditor(page);
-    await workbench.getByRole('button', { name: 'Open Editability Setup' }).click();
-    await expect(workbench.getByRole('heading', { name: 'Editability Setup' })).toBeVisible();
+    await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
+    await expect(workbench.getByRole('heading', { name: 'Editor Setup' })).toBeVisible();
+    await expect(workbench.getByRole('heading', { name: 'Section regions' })).toBeVisible();
+    await expect(workbench.getByRole('heading', { name: 'Text permissions' })).toBeVisible();
     await expect(workbench.getByText('9 visible items')).toBeVisible();
     await expect(workbench.getByRole('button', { name: 'Blocked 3' })).toBeVisible();
     await expect(workbench.locator('.setup-toggle')).toHaveAccessibleName('Back to editor');
-    await expect(workbench.getByText('Allow or block content')).toBeVisible();
+    await expect(workbench.getByText('Text or section settings')).toBeVisible();
     expect((await workbench.boundingBox())!.width).toBeLessThanOrEqual(461);
     expect(
       await page.evaluate(() => Number.parseFloat(getComputedStyle(document.body).marginLeft)),
@@ -623,18 +635,18 @@ test('inventories page content and persists reviewed owner allow and deny policy
       'not included by the current editability policy',
     );
     await previewLabel.getByRole('button', { name: 'Allow all <strong>' }).click();
-    let policyReview = toolbar
-      .locator('dialog')
-      .filter({ hasText: 'Save this permission change?' });
+    let policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor settings?' });
     await expect(policyReview).toBeVisible();
     await expect(policyReview.locator('.diff-line.add')).toContainText(['"selector": "strong"']);
     await policyReview.getByRole('button', { name: 'Back to setup' }).click();
     await expect(workbench.getByText('Not saved yet')).toBeVisible();
-    await expect(workbench.getByText('1 permission change will only work')).toBeVisible();
+    await expect(workbench.getByText('1 editor setting will only work')).toBeVisible();
     await workbench.getByRole('button', { name: 'Review and save (1)' }).click();
     await expect(policyReview).toBeVisible();
     await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
-    await expect(workbench.getByText(/You can now edit the allowed content/)).toBeVisible();
+    await expect(
+      workbench.getByText(/text permissions and section mappings are now active/),
+    ).toBeVisible();
     ({ toolbar, workbench } = await enableEditor(page));
 
     await page.locator('[data-section="preview"] strong').click();
@@ -643,7 +655,7 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await expect(textDialog.locator('.dialog-file')).toHaveText('src/pages/index.astro');
     await textDialog.getByRole('button', { name: 'Cancel' }).click();
 
-    await workbench.getByRole('button', { name: 'Open Editability Setup' }).click();
+    await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
     await expect(workbench.locator('.message')).toBeHidden();
     const inventoryBox = await workbench.locator('.ledger').boundingBox();
     const setupActionsBox = await workbench.locator('.setup-actions').boundingBox();
@@ -652,15 +664,17 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await expect(previewLabel.locator('.inventory-status')).toHaveText('Editable');
     await previewLabel.getByRole('button', { name: 'Block this item' }).click();
     await expect(previewLabel.locator('.inventory-status')).toHaveText('Blocked');
-    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save this permission change?' });
+    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor settings?' });
     await expect(policyReview.locator('.diff-line.add')).toContainText(['"effect": "deny"']);
     await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
-    await expect(workbench.getByText(/You can now edit the allowed content/)).toBeVisible();
+    await expect(
+      workbench.getByText(/text permissions and section mappings are now active/),
+    ).toBeVisible();
     ({ toolbar, workbench } = await enableEditor(page));
 
     await page.reload();
     ({ toolbar, workbench } = await enableEditor(page));
-    await workbench.getByRole('button', { name: 'Open Editability Setup' }).click();
+    await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
     previewLabel = workbench.locator('.inventory-item').filter({ hasText: '01 / PREVIEW' });
     const reviewLabel = workbench.locator('.inventory-item').filter({ hasText: '02 / REVIEW' });
     await expect(previewLabel.locator('.inventory-status')).toHaveText('Blocked');
@@ -672,7 +686,7 @@ test('inventories page content and persists reviewed owner allow and deny policy
 
     await page.goto('/fixtures/article');
     ({ toolbar, workbench } = await enableEditor(page));
-    await workbench.getByRole('button', { name: 'Open Editability Setup' }).press('Enter');
+    await workbench.getByRole('button', { name: 'Open Editor Setup' }).press('Enter');
     const unresolved = workbench
       .locator('.inventory-item')
       .filter({ hasText: 'This source needs owner confirmation.' });
@@ -692,14 +706,16 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await expect(articleCandidate).toBeVisible();
     await articleCandidate.click();
     await sourceDiscovery.getByRole('button', { name: 'Confirm mapping' }).click();
-    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save this permission change?' });
+    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor settings?' });
     await expect(
       policyReview
         .locator('.diff-line.add')
         .filter({ hasText: 'src/pages/fixtures/article.astro' }),
     ).toBeVisible();
     await policyReview.getByRole('button', { name: 'Save and return to editor' }).click();
-    await expect(workbench.getByText(/You can now edit the allowed content/)).toBeVisible();
+    await expect(
+      workbench.getByText(/text permissions and section mappings are now active/),
+    ).toBeVisible();
     ({ toolbar, workbench } = await enableEditor(page));
     await page.getByText('This source needs owner confirmation.').click();
     textDialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
@@ -709,7 +725,7 @@ test('inventories page content and persists reviewed owner allow and deny policy
     );
     await textDialog.getByRole('button', { name: 'Cancel' }).click();
     await page.setViewportSize({ width: 390, height: 844 });
-    await workbench.getByRole('button', { name: 'Open Editability Setup' }).click();
+    await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
     await expect(workbench).toBeVisible();
     expect((await workbench.boundingBox())!.width).toBeLessThanOrEqual(379);
     expect(

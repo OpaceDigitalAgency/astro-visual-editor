@@ -73,7 +73,7 @@ Escape or a backdrop click.
 
 ## Automatic and explicit source mapping
 
-For unresolved rendered text, open **Editability Setup** and choose **Find
+For unresolved rendered text, open **Editor Setup** and choose **Find
 exact source**. The editor searches supported files with their syntax-aware
 parsers and lists every exact candidate with its file, line and structured
 path. One confirmed mapping is saved in `astro-visual-editor.policy.json`.
@@ -126,9 +126,12 @@ visualEditor({
 });
 ```
 
-## Editability Setup
+## Editor Setup
 
-The settings control opens a local owner-only inventory of visible content.
+The settings control opens local owner-only controls for **Section regions**
+and **Text permissions**. Section regions can be added and removed for the
+current route without adding editor attributes to site components. The text
+inventory lists visible content.
 Each item is labelled editable, blocked, unresolved or structurally unsafe and
 shows the source reason. Owners can review element or selector-group allow/deny
 rules, discover and confirm an unresolved source candidate, inspect the exact
@@ -146,8 +149,9 @@ able to change it; network-exposed development servers cannot manage policy.
 
 ## Persistent section regions
 
-In Sections mode, an owner can choose **Enable sections on this page**, select
-an existing rendered container and confirm the corresponding source structure.
+In Editor Setup, an owner can choose **Set up page sections**; the same action
+is also available in Sections mode. The owner selects an existing rendered
+container and confirms the corresponding source structure.
 The mapping is stored in the project policy; site components do not need editor
 attributes. The candidate supports contiguous Astro component/element children
 and complete JSON/JSONC or YAML array items. Source blocks and structured items

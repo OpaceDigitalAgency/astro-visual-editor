@@ -149,12 +149,14 @@ writes are disabled by default when the dev server is exposed beyond loopback.
 
 ## Editor modes
 
-### Editability Setup
+### Editor Setup
 
 Choose the settings control in the workbench to open the owner-only setup mode.
 On desktop the inventory docks beside the page so the content remains visible.
-It lists each visible text item with its status, plain-language reason, owning
-source file and structured path where known.
+It exposes both **Section regions** and **Text permissions**. Section regions
+map existing page containers to syntax-aware source structures for safe
+reordering, while the text inventory lists each visible item with its status,
+plain-language reason, owning source file and structured path where known.
 
 An owner can allow or block one stable element or an appropriate element group,
 such as all `<strong>` labels on the current route. Choosing a permission opens
@@ -185,7 +187,7 @@ Keyboard users can focus editable content and press `Alt+Enter`.
 
 ### Sections
 
-An owner can choose **Enable sections on this page**, select an existing
+An owner can choose **Set up page sections**, select an existing
 rendered container and confirm its syntax-aware source structure. This stores a
 project policy mapping without adding editor attributes to the site's
 components. The candidate supports contiguous Astro component/element children
@@ -365,7 +367,7 @@ Exclude content with:
 <p data-astro-edit-ignore>Managed externally.</p>
 ```
 
-The visual Editability Setup adds project-owned policy on top of these explicit
+The visual Editor Setup adds project-owned policy on top of these explicit
 annotations. Source exclusions remain authoritative, and saved rules are
 visible in Git rather than being hidden in browser storage.
 

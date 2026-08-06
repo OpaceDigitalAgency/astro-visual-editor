@@ -38,6 +38,10 @@ The project follows [Semantic Versioning](https://semver.org/).
   stable preview target, so repeated component output is edited independently.
 - Kept Sections mode open with a clear explanation when the current page has
   no declared source-owned section region.
+- Made section-region setup visible in the owner Settings screen alongside
+  text permissions, with current-route mappings and reviewed removal controls.
+- Preserved draft section mappings when text permission rules are added or
+  removed, so independent setup changes cannot discard one another.
 - Matched parsed Astro literal nodes before considering quoted-value fallback,
   preventing identical words in annotations from causing false ambiguity.
 

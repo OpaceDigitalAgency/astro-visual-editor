@@ -107,6 +107,18 @@ export const toolbarStyles = String.raw`
   .pending-policy button { min-height: 40px; padding-inline: 10px; font-size: 10px; }
   .inventory-policy-file { margin: 3px 0 0; color: #ffab7a; font: 600 10px/1.4 ui-monospace, monospace; overflow-wrap: anywhere; }
   .inventory-total { flex: 0 0 auto; color: #aeb4bb; font-size: 10px; }
+  .section-setup { display: grid; gap: 8px; margin: 0 0 10px; padding: 11px; background: #181b1e; border: 1px solid #3a4147; border-radius: 11px; }
+  .section-setup-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .section-setup h4, .text-settings-heading h4 { margin: 0; font-size: 12px; }
+  .section-setup-header p, .text-settings-heading p, .section-setup-empty { margin: 4px 0 0; color: #b5bbc1; font-size: 10px; line-height: 1.45; }
+  .section-region-list { display: grid; gap: 6px; }
+  .section-region-item { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 8px; background: #202428; border: 1px solid #343a40; border-radius: 9px; }
+  .section-region-item strong, .section-region-item code { display: block; overflow-wrap: anywhere; }
+  .section-region-item strong { font-size: 10px; }
+  .section-region-item code { margin-top: 3px; color: #ffab7a; font-size: 9px; }
+  .section-region-item button { min-height: 40px; padding: 6px 9px; font-size: 10px; }
+  .add-section-region { width: 100%; min-height: 44px; }
+  .text-settings-heading { margin: 2px 2px 8px; }
   .inventory-filters { display: flex; gap: 5px; overflow-x: auto; padding: 0 0 8px; scrollbar-width: thin; }
   .inventory-filter { min-width: max-content; min-height: 44px; padding: 6px 10px; color: #bbc1c7; background: #1c2023; border: 1px solid #343a40; border-radius: 999px; cursor: pointer; font-size: 10px; font-weight: 720; }
   .inventory-filter[aria-pressed="true"] { color: #fff; background: #3a2a22; border-color: #ad5934; }

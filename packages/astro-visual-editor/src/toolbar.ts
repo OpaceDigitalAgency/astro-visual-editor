@@ -282,7 +282,7 @@ export default defineToolbarApp({
         <div><p class="eyebrow">Local source workbench</p><h2>Visual Editor</h2>
           <p class="status" data-state="warning"><span class="status-dot" aria-hidden="true"></span><span class="status-copy">Connecting to Astro…</span></p>
         </div>
-        <div class="masthead-actions"><button class="icon-button setup-toggle" type="button" aria-label="Open Editability Setup" title="Open Editability Setup" hidden>⚙</button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button></div>
+        <div class="masthead-actions"><button class="icon-button setup-toggle" type="button" aria-label="Open Editor Setup" title="Open Editor Setup" hidden>⚙</button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button></div>
       </header>
       <div class="mode-tabs" role="tablist" aria-label="Editing mode">
         <button class="mode-tab" role="tab" data-mode="text" aria-selected="true">Text</button>
@@ -354,7 +354,7 @@ export default defineToolbarApp({
       'aria-labelledby': 'ave-policy-title',
       'aria-describedby': 'ave-policy-help',
     });
-    policyDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Step 2 of 3 · Review</p><h2 id="ave-policy-title">Save this permission change?</h2><p id="ave-policy-help" class="field-help">You chose what can be edited. Check the exact project setting below, then save it to make the permission active. Nothing changes until you save.</p><div class="policy-diff-list file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-policy" type="button">Back to setup</button><button class="primary confirm-policy" type="button">Save and return to editor</button></div></div>`;
+    policyDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Step 2 of 3 · Review</p><h2 id="ave-policy-title">Save these editor settings?</h2><p id="ave-policy-help" class="field-help">Check the exact project setting below, then save it to make the text permissions or section mappings active. Nothing changes until you save.</p><div class="policy-diff-list file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-policy" type="button">Back to setup</button><button class="primary confirm-policy" type="button">Save and return to editor</button></div></div>`;
 
     const sourceDialog = createElement('dialog', {
       'aria-labelledby': 'ave-source-title',
@@ -797,7 +797,7 @@ export default defineToolbarApp({
           : {}),
       };
       draftEditabilityPolicy = {
-        version: 1,
+        ...draftEditabilityPolicy,
         rules: [
           ...draftEditabilityPolicy.rules.filter(
             (existing) => !(existing.route === route && existing.selector === selector),
@@ -812,7 +812,7 @@ export default defineToolbarApp({
 
     function removeDraftRule(rule: EditabilityRule): void {
       draftEditabilityPolicy = {
-        version: 1,
+        ...draftEditabilityPolicy,
         rules: draftEditabilityPolicy.rules.filter((candidate) => candidate.id !== rule.id),
       };
       clearMessage();
@@ -892,6 +892,10 @@ export default defineToolbarApp({
       });
       renderEditabilityPanel(ledger, inventory, {
         policyFile: config.editabilityPolicyFile,
+        route: window.location.pathname,
+        sectionRegions: (draftEditabilityPolicy.regions ?? []).filter(
+          (region) => region.route === window.location.pathname,
+        ),
         canManage: config.canManageEditability,
         pendingChanges: policyChangeCount(),
         filter: inventoryFilter,
@@ -902,6 +906,18 @@ export default defineToolbarApp({
         },
         onLocate: locateInventoryItem,
         onDiscoverSource: requestSourceDiscovery,
+        onAddSectionRegion: openRegionSetup,
+        onRemoveSectionRegion: (region) => {
+          draftEditabilityPolicy = {
+            ...draftEditabilityPolicy,
+            regions: (draftEditabilityPolicy.regions ?? []).filter(
+              (candidate) => candidate.id !== region.id,
+            ),
+          };
+          clearMessage();
+          renderInventory();
+          requestPolicyPreview();
+        },
         onSetRule: setDraftRule,
         onRemoveRule: (item) => {
           if (item.activeRule) removeDraftRule(item.activeRule);
@@ -944,7 +960,7 @@ export default defineToolbarApp({
           });
           enable.textContent = existingRegions
             ? 'Enable another section region'
-            : 'Enable sections on this page';
+            : 'Set up page sections';
           enable.addEventListener('click', openRegionSetup);
           ledger.append(enable);
         }
@@ -1592,19 +1608,19 @@ export default defineToolbarApp({
         instructions.textContent = 'Review every queued source change before committing the batch.';
       if (mode === 'setup')
         instructions.textContent =
-          'Review visible page content, then allow or block it without weakening source safety.';
+          'Set up text permissions and reorderable section regions without weakening source safety.';
       setupButton.setAttribute('aria-pressed', String(mode === 'setup'));
       setupButton.setAttribute(
         'aria-label',
-        mode === 'setup' ? 'Back to editor' : 'Open Editability Setup',
+        mode === 'setup' ? 'Back to editor' : 'Open Editor Setup',
       );
-      setupButton.title = mode === 'setup' ? 'Back to editor' : 'Open Editability Setup';
+      setupButton.title = mode === 'setup' ? 'Back to editor' : 'Open Editor Setup';
       setupButton.textContent = mode === 'setup' ? '← Back to editor' : '⚙';
       pickerLabel.textContent =
         mode === 'sections'
           ? 'Arrange sections'
           : mode === 'setup'
-            ? 'Editability Setup'
+            ? 'Editor Setup'
             : 'Tap content to edit';
       setupSectionControls();
       renderQueue();
@@ -1619,7 +1635,7 @@ export default defineToolbarApp({
         else {
           setMinimized(false);
           showMessage(
-            'No reorderable section region is declared on this page. Switch to another demo page or configure a source-owned section region.',
+            'No section region is enabled on this page yet. Use “Set up page sections” here or open Editor Setup to map an existing page container safely.',
             'warning',
           );
         }
@@ -2046,7 +2062,7 @@ export default defineToolbarApp({
         applySectionRegionPolicy(editabilityPolicy);
         setMode('text');
         showMessage(
-          `Saved ${response.policyFile ?? config.editabilityPolicyFile}. You can now edit the allowed content.`,
+          `Saved ${response.policyFile ?? config.editabilityPolicyFile}. Your text permissions and section mappings are now active.`,
           'success',
         );
       }

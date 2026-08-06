@@ -174,17 +174,80 @@ function setSeoPreview(values: SeoValues): void {
   }
 }
 
-function summary(change: EditorChange): { title: string; oldText: string; newText: string } {
+interface ChangeSummary {
+  title: string;
+  description: string;
+  before: string;
+  after: string;
+}
+
+function quoted(value: string, maximum = 90): string {
+  const clean = value.replace(/\s+/gu, ' ').trim();
+  const compact = clean.length > maximum ? `${clean.slice(0, maximum - 1).trimEnd()}…` : clean;
+  return `“${compact || 'empty'}”`;
+}
+
+function changedTextDescription(before: string, after: string): string {
+  let prefix = 0;
+  while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix])
+    prefix += 1;
+  let suffix = 0;
+  while (
+    suffix < before.length - prefix &&
+    suffix < after.length - prefix &&
+    before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+  )
+    suffix += 1;
+  const removed = before.slice(prefix, before.length - suffix);
+  const added = after.slice(prefix, after.length - suffix);
+  if (!removed && added) return `Added ${quoted(added)}`;
+  if (removed && !added) return `Removed ${quoted(removed)}`;
+  if (removed || added) return `Changed ${quoted(removed)} to ${quoted(added)}`;
+  return `Changed visible text to ${quoted(after)}`;
+}
+
+const seoLabels: Record<SeoField, string> = {
+  title: 'page title',
+  description: 'search description',
+  keywords: 'keywords',
+  canonical: 'canonical URL',
+  ogTitle: 'social sharing title',
+  ogDescription: 'social sharing description',
+  robots: 'search visibility',
+};
+
+function descriptorLabel(descriptor: SectionDescriptor): string {
+  if (descriptor.label?.trim()) return descriptor.label.trim();
+  return descriptor.id
+    .replace(/-[a-f0-9]{8,}$/u, '')
+    .replace(/[-_]+/gu, ' ')
+    .replace(/^\w/u, (letter) => letter.toUpperCase());
+}
+
+function summary(change: EditorChange): ChangeSummary {
   if (change.kind === 'text')
-    return { title: 'Text replacement', oldText: change.oldText, newText: change.newText };
+    return {
+      title: 'Changed visible text',
+      description: changedTextDescription(change.oldText, change.newText),
+      before: change.oldText,
+      after: change.newText,
+    };
   if (change.kind === 'seo') {
     const changed = (Object.keys(change.after) as SeoField[]).filter(
       (field) => change.after[field] !== change.before[field],
     );
+    const first = changed[0];
     return {
-      title: `Changed ${changed.length} SEO field${changed.length === 1 ? '' : 's'}`,
-      oldText: 'Existing rendered metadata',
-      newText: changed.join(', '),
+      title:
+        changed.length === 1 && first
+          ? `Updated ${seoLabels[first]}`
+          : `Updated ${changed.length} page settings`,
+      description:
+        changed.length === 1 && first
+          ? `${quoted(change.before[first])} to ${quoted(change.after[first])}`
+          : changed.map((field) => seoLabels[field]).join(', '),
+      before: changed.map((field) => `${seoLabels[field]}: ${change.before[field]}`).join('\n'),
+      after: changed.map((field) => `${seoLabels[field]}: ${change.after[field]}`).join('\n'),
     };
   }
   const beforeIds = change.before.map((item) => item.id);
@@ -193,16 +256,31 @@ function summary(change: EditorChange): { title: string; oldText: string; newTex
   const removed = beforeIds.filter((id) => !afterIds.includes(id));
   const title =
     added.length && !removed.length
-      ? `Added ${added.length} section${added.length === 1 ? '' : 's'} in ${change.regionId}`
+      ? `Added ${added.length} section${added.length === 1 ? '' : 's'}`
       : removed.length && !added.length
-        ? `Removed ${removed.length} section${removed.length === 1 ? '' : 's'} from ${change.regionId}`
+        ? `Deleted ${removed.length} section${removed.length === 1 ? '' : 's'}`
         : !added.length && !removed.length
-          ? `Reordered ${afterIds.length} sections in ${change.regionId}`
-          : `Changed section structure in ${change.regionId}`;
+          ? `Reordered ${afterIds.length} sections`
+          : 'Changed page sections';
+  const beforeLabels = change.before.map(descriptorLabel);
+  const afterLabels = change.after.map(descriptorLabel);
+  const removedLabels = change.before
+    .filter((item) => removed.includes(item.id))
+    .map(descriptorLabel);
+  const addedLabels = change.after.filter((item) => added.includes(item.id)).map(descriptorLabel);
+  const description =
+    removedLabels.length && !addedLabels.length
+      ? `Deleted ${removedLabels.map((label) => quoted(label)).join(', ')}`
+      : addedLabels.length && !removedLabels.length
+        ? `Added ${addedLabels.map((label) => quoted(label)).join(', ')}`
+        : !addedLabels.length && !removedLabels.length
+          ? `New order: ${afterLabels.join(' → ')}`
+          : `Now: ${afterLabels.join(' → ')}`;
   return {
     title,
-    oldText: beforeIds.join(' → ') || 'Empty region',
-    newText: afterIds.join(' → ') || 'Empty region',
+    description,
+    before: beforeLabels.join(' → ') || 'Empty region',
+    after: afterLabels.join(' → ') || 'Empty region',
   };
 }
 
@@ -509,6 +587,12 @@ export default defineToolbarApp({
         });
         demoSurfaces.append(button);
       }
+    }
+
+    function pageDisplay(route: string): { name: string; path: string } {
+      const demo = config.demoPages.find((page) => page.path === route);
+      if (demo) return { name: demo.label, path: route };
+      return { name: route === '/' ? 'Home page' : 'Page', path: route };
     }
 
     function serializableQueue(): EditorChange[] {
@@ -1206,25 +1290,44 @@ export default defineToolbarApp({
           const row = createElement('article', { class: 'change' });
           const copy = createElement('div');
           const type = createElement('span', { class: 'change-type' });
-          type.textContent = change.kind;
+          type.textContent =
+            change.kind === 'text' ? 'Text' : change.kind === 'seo' ? 'Page settings' : 'Sections';
+          const affectedPage = pageDisplay(change.route);
+          const page = createElement('div', { class: 'change-page' });
+          const pageName = createElement('strong');
+          pageName.textContent = affectedPage.name;
+          const pagePath = createElement('span');
+          pagePath.textContent = affectedPage.path;
+          page.append(pageName, pagePath);
           const technical = createElement('details', {
             class: 'technical-details change-technical',
           });
           const technicalSummary = createElement('summary');
           technicalSummary.textContent = 'Technical details';
           const file = createElement('div', { class: 'file', title: change.filePath });
-          file.textContent = change.filePath;
-          technical.append(technicalSummary, file);
+          file.textContent = `Source file: ${change.filePath}`;
           const values = summary(change);
           const summaryLine = createElement('div', { class: 'change-summary' });
           summaryLine.textContent = values.title;
-          const diff = createElement('div', { class: 'diff' });
+          const description = createElement('p', { class: 'change-description' });
+          description.textContent = values.description;
+          const sourceLocator = createElement('div', { class: 'file' });
+          const sourcePath = change.kind === 'seo' ? undefined : change.sourcePath;
+          sourceLocator.textContent = sourcePath
+            ? `Source field: ${sourcePath}`
+            : change.kind === 'text' && change.selector
+              ? `Page selector: ${change.selector}`
+              : change.kind === 'sections'
+                ? `Section region: ${change.regionId}`
+                : 'Source field: page metadata';
+          const diff = createElement('div', { class: 'diff technical-diff' });
           const oldText = createElement('span', { class: 'old' });
           const newText = createElement('span', { class: 'new' });
-          oldText.textContent = `Before: ${values.oldText}`;
-          newText.textContent = `After: ${values.newText}`;
+          oldText.textContent = `Before: ${values.before}`;
+          newText.textContent = `After: ${values.after}`;
           diff.append(oldText, newText);
-          copy.append(type, summaryLine, diff, technical);
+          technical.append(technicalSummary, file, sourceLocator, diff);
+          copy.append(page, type, summaryLine, description, technical);
           const removeLabel = `Undo ${change.kind} change in ${change.filePath}`;
           const remove = createElement('button', {
             class: 'icon-button',
@@ -1588,11 +1691,33 @@ export default defineToolbarApp({
     function descriptors(region: HTMLElement): SectionDescriptor[] {
       return directSections(region).map((section) => ({
         id: section.dataset.section!,
+        label: sectionReviewLabel(section),
         ...(section.dataset.astroVeTemplate ? { templateId: section.dataset.astroVeTemplate } : {}),
         ...(section.dataset.astroEditSourceKey
           ? { sourceKey: section.dataset.astroEditSourceKey }
           : {}),
       }));
+    }
+
+    function sectionReviewLabel(section: HTMLElement): string {
+      const clone = section.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll('[data-astro-ve-ui]').forEach((element) => element.remove());
+      const heading = clone.querySelector<HTMLElement>('h1, h2, h3, h4');
+      const shortLabel = clone.querySelector<HTMLElement>('strong, [data-astro-edit-label]');
+      const text = (heading?.textContent ?? shortLabel?.textContent ?? clone.textContent ?? '')
+        .replace(/\s+/gu, ' ')
+        .trim();
+      if (text) return compactLabel(text, 90);
+      return descriptorLabel({ id: section.dataset.section! });
+    }
+
+    function sameSectionStructure(
+      before: SectionDescriptor[],
+      after: SectionDescriptor[],
+    ): boolean {
+      const structural = (items: SectionDescriptor[]) =>
+        items.map(({ id, templateId, sourceKey }) => ({ id, templateId, sourceKey }));
+      return JSON.stringify(structural(before)) === JSON.stringify(structural(after));
     }
 
     function regionKey(region: HTMLElement): string {
@@ -1607,7 +1732,7 @@ export default defineToolbarApp({
       const before = initialSections.get(regionKey(region)) ?? descriptors(region);
       initialSections.set(regionKey(region), structuredClone(before));
       const after = descriptors(region);
-      if (JSON.stringify(before) === JSON.stringify(after)) queue.delete(key);
+      if (sameSectionStructure(before, after)) queue.delete(key);
       else {
         queue.set(key, {
           kind: 'sections',

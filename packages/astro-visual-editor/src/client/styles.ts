@@ -63,12 +63,20 @@ export const toolbarStyles = String.raw`
   .empty { display: grid; place-items: center; min-height: 78px; padding: 13px; text-align: center; color: #858d95; border: 1px dashed #3b4147; border-radius: 10px; }
   .change { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; padding: 10px; margin-bottom: 7px; background: #1e2124; border: 1px solid #30353a; border-radius: 10px; }
   .change > .icon-button { align-self: start; }
-  .change-type { display: inline-flex; width: fit-content; margin-bottom: 6px; padding: 2px 7px; color: #ffd3bc; background: #472b1f; border-radius: 999px; font: 700 10px/1.5 ui-monospace, monospace; text-transform: uppercase; }
+  .change-page { display: flex; align-items: baseline; gap: 7px; min-width: 0; margin-bottom: 7px; }
+  .change-page strong { overflow: hidden; color: #f4f7fa; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  .change-page span { overflow: hidden; color: #9eabb6; font: 600 9px/1.4 ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
+  .change-type { display: inline-flex; width: fit-content; margin-bottom: 5px; padding: 2px 7px; color: #cad5dd; background: #29343e; border-radius: 999px; font-size: 9px; font-weight: 750; }
   .file { overflow: hidden; color: #b8d0e2; font: 600 11px/1.4 ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
-  .change-summary { margin-top: 8px; color: #f7f5f2; font-size: 12px; font-weight: 760; }
+  .change-summary { color: #f7f5f2; font-size: 13px; font-weight: 780; }
+  .change-description { margin: 5px 0 0; color: #c9d0d6; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
   .diff { display: grid; gap: 3px; margin-top: 6px; font-size: 11px; overflow-wrap: anywhere; }
   .old, .new { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .old { color: #959da5; text-decoration: line-through; } .new { color: #f7f5f2; }
+  .change-technical { margin-top: 9px; }
+  .change-technical .file { margin-top: 5px; white-space: normal; }
+  .technical-diff { padding-top: 6px; border-top: 1px solid #343a40; }
+  .technical-diff .old, .technical-diff .new { display: block; overflow: visible; white-space: pre-wrap; -webkit-line-clamp: unset; }
   .message { display: none; margin: 0 12px 10px; padding: 10px 12px; border-radius: 10px; font-size: 12px; }
   .message[data-show="true"] { display: block; }
   .message[data-kind="error"] { color: #ffd0d0; background: #3b2427; border: 1px solid #6f3940; }

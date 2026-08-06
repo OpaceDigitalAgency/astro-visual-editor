@@ -80,6 +80,8 @@ export interface SeoEditorChange extends BaseEditorChange {
 
 export interface SectionDescriptor {
   id: string;
+  /** Human-readable rendered label used only in the review UI. */
+  label?: string;
   templateId?: string;
   sourceKey?: string;
 }

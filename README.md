@@ -258,8 +258,10 @@ canonical URLs must be complete HTTP(S) URLs.
 
 ### Changes
 
-The compact **Changes (N)** tray groups all queued changes by type and source
-file when opened. It supports:
+The compact **Changes (N)** tray shows the affected page first, followed by a
+plain-language description of the visible change. Exact source files, fields,
+selectors and complete before/after values remain available under
+**Technical details**. It supports:
 
 - remove one change;
 - undo/redo the last queued operation;
@@ -269,8 +271,10 @@ file when opened. It supports:
 - revert the latest successful receipt while its files remain unchanged.
 
 Structural rows use semantic summaries such as **Reordered 3 sections** or
-**Added 1 section**, followed by labelled Before/After region order, so a drag
-operation is reviewable before commit.
+**Added 1 section**, followed by readable section names instead of internal
+section identifiers. Long text edits show the changed fragment rather than two
+apparently identical truncated values. The final save review still presents
+the exact source diff before anything is written.
 
 Shortcuts: `Cmd/Ctrl+S` saves, `Cmd/Ctrl+Z` undoes and
 `Cmd/Ctrl+Shift+Z` or `Cmd/Ctrl+Y` redoes.

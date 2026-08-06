@@ -42,6 +42,10 @@ The project follows [Semantic Versioning](https://semver.org/).
   to the currently hovered or selected item.
 - Renamed ambiguous source-control language to owner-facing save, discard and
   restore actions while preserving exact diffs and collapsed technical detail.
+- Made each queued-change receipt lead with the affected page and a concise
+  visible change, including meaningful section labels and changed text fragments;
+  exact source paths, selectors and complete before/after values remain under
+  collapsed technical details.
 - Kept syntax-aware adapters and confirmed project mappings as the final
   authority. Ambiguous, transformed or non-reversible data flow is refused
   rather than guessed or globally replaced.

@@ -61,6 +61,7 @@ function isEditorChange(value: unknown): value is EditorChange {
         (item) =>
           isRecord(item) &&
           isString(item.id, 200) &&
+          (item.label === undefined || isString(item.label, 500)) &&
           (item.templateId === undefined || isString(item.templateId, 200)) &&
           (item.sourceKey === undefined || isString(item.sourceKey, 200)),
       );

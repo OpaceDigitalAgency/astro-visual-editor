@@ -120,9 +120,16 @@ export async function applyAstroText(
 ): Promise<string> {
   const ast = await parseAstro(source);
   const label = `${change.filePath} (${change.selector ?? 'text'})`;
-  const range = source.includes(change.oldText)
-    ? uniqueRange(source, change.oldText, label)
-    : normalizedLiteralRange(source, ast, change.oldText, label);
+  let range: SourceRange;
+  try {
+    // Match parsed Astro text nodes first so the same words inside attributes,
+    // comments or scripts cannot make a visible literal falsely ambiguous.
+    range = normalizedLiteralRange(source, ast, change.oldText, label);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('ambiguous')) throw error;
+    // Complete quoted values are the only supported non-literal fallback.
+    range = uniqueRange(source, change.oldText, label);
+  }
   let isLiteralText = false;
   walk(ast, (node) => {
     if (

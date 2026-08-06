@@ -117,6 +117,22 @@ export function selectorFor(element: HTMLElement): string {
     let part = current.tagName.toLowerCase();
     if (current.dataset.section) part += `[data-section="${CSS.escape(current.dataset.section)}"]`;
     else if (current.classList.length > 0) part += `.${CSS.escape(current.classList[0] ?? '')}`;
+    if (!current.dataset.section && current.parentElement) {
+      let matchingSiblings: Element[] = [];
+      try {
+        matchingSiblings = [...current.parentElement.children].filter((sibling) =>
+          sibling.matches(part),
+        );
+      } catch {
+        matchingSiblings = [];
+      }
+      if (matchingSiblings.length > 1) {
+        const sameTag = [...current.parentElement.children].filter(
+          (sibling) => sibling.tagName === current!.tagName,
+        );
+        part += `:nth-of-type(${sameTag.indexOf(current) + 1})`;
+      }
+    }
     parts.unshift(part);
     if (current.dataset.section) break;
     current = current.parentElement;

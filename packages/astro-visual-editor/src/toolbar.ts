@@ -1295,7 +1295,21 @@ export default defineToolbarApp({
       setupSectionControls();
       renderQueue();
       if (mode === 'seo') openSeo();
-      if (mode === 'sections' && active) setMinimized(true);
+      if (mode === 'sections' && active) {
+        const hasEditableRegion = [
+          ...document.querySelectorAll<HTMLElement>(
+            '[data-astro-edit-region], [data-astro-edit-sections]',
+          ),
+        ].some((region) => directSections(region).length > 0);
+        if (hasEditableRegion) setMinimized(true);
+        else {
+          setMinimized(false);
+          showMessage(
+            'No reorderable section region is declared on this page. Switch to another demo page or configure a source-owned section region.',
+            'warning',
+          );
+        }
+      }
       if (mode === 'setup') setMinimized(false);
     }
 

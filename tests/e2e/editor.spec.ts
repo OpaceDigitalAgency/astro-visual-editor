@@ -13,6 +13,15 @@ const complexJsonSource = fileURLToPath(
 const complexCollectionSource = fileURLToPath(
   new URL('../../demo/src/content/case-studies/harbour.md', import.meta.url),
 );
+const complexRouteSource = fileURLToPath(
+  new URL('../../demo/src/pages/fixtures/complex.astro', import.meta.url),
+);
+const complexComponentSource = fileURLToPath(
+  new URL('../../demo/src/components/EvidenceGrid.astro', import.meta.url),
+);
+const complexLayoutSource = fileURLToPath(
+  new URL('../../demo/src/layouts/DemoLayout.astro', import.meta.url),
+);
 
 async function enableEditor(page: import('@playwright/test').Page) {
   const toolbar = page.locator('astro-dev-toolbar').last();
@@ -294,6 +303,13 @@ test('targets each repeated JSON-backed evidence card independently', async ({ p
     'Direct JSON properties',
   ]);
 
+  await complexWorkbench.getByRole('tab', { name: 'Sections' }).click();
+  await expect(complexWorkbench).toBeVisible();
+  await expect(
+    complexWorkbench.getByText('No reorderable section region is declared on this page.'),
+  ).toBeVisible();
+  await complexWorkbench.getByRole('tab', { name: 'Text' }).click();
+
   await values.nth(2).click();
   let dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
   await expect(dialog).toContainText('src/data/complex-page.json → evidence.2.value');
@@ -324,6 +340,71 @@ test('targets each repeated JSON-backed evidence card independently', async ({ p
     'Reusable hero and proof cards',
     'Direct JSON properties',
   ]);
+});
+
+test('commits and restores literal text owned by the route, component and layout', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const originals = new Map([
+    [complexRouteSource, await readFile(complexRouteSource, 'utf8')],
+    [complexComponentSource, await readFile(complexComponentSource, 'utf8')],
+    [complexLayoutSource, await readFile(complexLayoutSource, 'utf8')],
+  ]);
+  try {
+    const { workbench } = await enableEditor(page);
+    await workbench.getByRole('button', { name: 'Complex sources' }).click();
+    await expect(page).toHaveURL(/\/fixtures\/complex$/);
+    const { toolbar, workbench: complexWorkbench } = await enableEditor(page);
+
+    await page.getByText('Content Collection', { exact: true }).click();
+    let dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
+    await expect(dialog).toContainText('src/pages/fixtures/complex.astro');
+    await dialog.locator('textarea').fill('Collection source, reviewed');
+    await dialog.getByRole('button', { name: 'Queue change' }).click();
+
+    await page.getByText('What this route proves', { exact: true }).click();
+    dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
+    await expect(dialog).toContainText('src/components/EvidenceGrid.astro');
+    await dialog.locator('textarea').fill('What these components prove');
+    await dialog.getByRole('button', { name: 'Queue change' }).click();
+
+    await page.getByText('Recovery', { exact: true }).click();
+    dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
+    await expect(dialog).toContainText('src/layouts/DemoLayout.astro');
+    await dialog.locator('textarea').fill('Recovery, verified');
+    await dialog.getByRole('button', { name: 'Queue change' }).click();
+
+    await complexWorkbench.getByRole('button', { name: /Review 3 file changes/ }).click();
+    const review = toolbar.locator('dialog').filter({ hasText: 'Review file changes' });
+    await expect(review).toContainText('src/pages/fixtures/complex.astro');
+    await expect(review).toContainText('src/components/EvidenceGrid.astro');
+    await expect(review).toContainText('src/layouts/DemoLayout.astro');
+    await review.getByRole('button', { name: 'Commit these changes' }).dispatchEvent('click');
+
+    await expect
+      .poll(async () => readFile(complexRouteSource, 'utf8'))
+      .toContain('Collection source, reviewed');
+    await expect
+      .poll(async () => readFile(complexComponentSource, 'utf8'))
+      .toContain('What these components prove');
+    await expect
+      .poll(async () => readFile(complexLayoutSource, 'utf8'))
+      .toContain('Recovery, verified');
+
+    await restoreFromHistory(page);
+    for (const [file, original] of originals) {
+      await expect.poll(async () => readFile(file, 'utf8')).toBe(original);
+    }
+    await expect(page.getByText('Content Collection', { exact: true })).toBeVisible();
+    await expect(page.getByText('What this route proves', { exact: true })).toBeVisible();
+    await expect(page.getByText('Recovery', { exact: true })).toBeVisible();
+    await waitForWorkbenchButtonEnabled(page, 'History');
+  } finally {
+    for (const [file, original] of originals) {
+      if ((await readFile(file, 'utf8')) !== original) await writeFile(file, original);
+    }
+  }
 });
 
 test('commits through HMR and restores from durable History', async ({ page }) => {

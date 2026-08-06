@@ -7,7 +7,7 @@ const { title } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="en" data-astro-edit-file="src/layouts/DemoLayout.astro">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
@@ -78,13 +78,14 @@ const { title } = Astro.props;
       <nav aria-label="Fixture navigation">
         <span data-astro-edit-file="src/layouts/DemoLayout.astro">Overview</span>
         <span data-astro-edit-file="src/layouts/DemoLayout.astro">Source map</span>
-        <span data-astro-edit-file="src/layouts/DemoLayout.astro">Recovery</span>
+        <span data-astro-editable data-astro-edit-file="src/layouts/DemoLayout.astro">Recovery</span
+        >
       </nav>
     </header>
     <main><slot /></main>
     <footer>
       <span data-astro-edit-file="src/layouts/DemoLayout.astro">Development-only test fixture</span>
-      <span>Source-aware editing</span>
+      <span data-astro-edit-file="src/layouts/DemoLayout.astro">Source-aware editing</span>
     </footer>
   </body>
 </html>

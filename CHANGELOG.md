@@ -25,6 +25,10 @@ The project follows [Semantic Versioning](https://semver.org/).
   through arbitrary component expressions.
 - Made explicitly mapped structured fields use their file and source path as a
   stable preview target, so repeated component output is edited independently.
+- Kept Sections mode open with a clear explanation when the current page has
+  no declared source-owned section region.
+- Matched parsed Astro literal nodes before considering quoted-value fallback,
+  preventing identical words in annotations from causing false ambiguity.
 
 ## 0.1.0-beta.4 - 2026-08-05
 

@@ -151,6 +151,52 @@ describe('source adapters', () => {
     expect(result).toContain('property="og:title"');
   });
 
+  it('updates a unique rendered title prop when the route delegates its head to a layout', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(
+      page,
+      `---\nimport Layout from '../layouts/Layout.astro';\n---\n<Layout title="Old rendered title"><main /></Layout>`,
+    );
+    await applyChangeBatch(
+      root,
+      src,
+      [
+        {
+          kind: 'seo',
+          id: 'layout-title',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          before: { ...emptySeo, title: 'Old rendered title' },
+          after: { ...emptySeo, title: 'New rendered title' },
+        },
+      ],
+      normalizeOptions(),
+    );
+    expect(await readFile(page, 'utf8')).toContain('title="New rendered title"');
+  });
+
+  it('refuses ambiguous or non-title layout props for delegated SEO titles', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    const change = {
+      kind: 'seo' as const,
+      id: 'layout-title',
+      filePath: 'src/pages/index.astro',
+      route: '/',
+      before: { ...emptySeo, title: 'Repeated title' },
+      after: { ...emptySeo, title: 'Replacement title' },
+    };
+    await writeFile(page, '<Layout title="Repeated title" /><Card title="Repeated title" />');
+    await expect(applyChangeBatch(root, src, [change], normalizeOptions())).rejects.toThrow(
+      'More than one literal Astro prop',
+    );
+    await writeFile(page, '<Layout heading="Repeated title" />');
+    await expect(applyChangeBatch(root, src, [change], normalizeOptions())).rejects.toThrow(
+      'No literal Astro prop',
+    );
+  });
+
   it('persists section reorder, delete and template insertion', async () => {
     const { root, src } = await project();
     const page = join(src, 'pages', 'index.astro');

@@ -865,9 +865,27 @@ export default defineToolbarApp({
             right.score - left.score ||
             left.candidate.filePath.localeCompare(right.candidate.filePath),
         );
+      const resolution = sectionDiscoveryElement
+        ? sourceResolutionFor(sectionDiscoveryElement, config, draftEditabilityPolicy)
+        : undefined;
+      const renderedTags = sectionDiscoveryElement
+        ? [...sectionDiscoveryElement.children]
+            .filter((child): child is HTMLElement => child instanceof HTMLElement)
+            .map((child) => child.tagName.toLowerCase())
+        : [];
+      const isSafeAutomaticMatch = (candidate: SectionRegionCandidate): boolean => {
+        if (resolution?.proven && resolution.filePath === candidate.filePath) return true;
+        return (
+          candidate.confidence === 'exact' &&
+          candidate.containerTag === sectionDiscoveryElement?.tagName.toLowerCase() &&
+          candidate.itemTags?.length === renderedTags.length &&
+          candidate.itemTags.every((tag, index) => tag === renderedTags[index])
+        );
+      };
       if (
         ranked[0] &&
-        (ranked.length === 1 || (ranked[0].score >= 3 && ranked[0].score > ranked[1]!.score))
+        isSafeAutomaticMatch(ranked[0].candidate) &&
+        (ranked.length === 1 || ranked[0].score > ranked[1]!.score)
       ) {
         saveSectionCandidate(ranked[0].candidate);
         return;

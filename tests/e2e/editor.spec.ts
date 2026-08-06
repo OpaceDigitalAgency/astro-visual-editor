@@ -254,6 +254,7 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
   test.setTimeout(75_000);
   const originalJson = await readFile(complexJsonSource, 'utf8');
   const originalCollection = await readFile(complexCollectionSource, 'utf8');
+  const originalRoute = await readFile(complexRouteSource, 'utf8');
   try {
     const { workbench } = await enableEditor(page);
     await workbench.getByRole('button', { name: 'Complex sources' }).click();
@@ -275,17 +276,24 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await expect(dialog).toContainText('src/content/case-studies/harbour.md → frontmatter.title');
     await dialog.locator('textarea').fill('Harbour launch plan, reviewed');
     await dialog.getByRole('button', { name: 'Queue change' }).click();
+
+    await complexWorkbench.getByRole('tab', { name: 'SEO' }).click();
+    const seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
+    await expect(seoDialog).toContainText('src/pages/fixtures/complex.astro');
+    await seoDialog.locator('[name="title"]').fill('Complex fixture, reviewed');
+    await seoDialog.getByRole('button', { name: 'Queue SEO change' }).click();
     await complexWorkbench
-      .getByRole('button', { name: 'Open changes tray, 2 queued changes' })
+      .getByRole('button', { name: 'Open changes tray, 3 queued changes' })
       .click();
     await expect(
-      complexWorkbench.getByRole('button', { name: /Review and save \(2\)/ }),
+      complexWorkbench.getByRole('button', { name: /Review and save \(3\)/ }),
     ).toBeEnabled();
 
-    await complexWorkbench.getByRole('button', { name: /Review and save \(2\)/ }).click();
+    await complexWorkbench.getByRole('button', { name: /Review and save \(3\)/ }).click();
     const review = toolbar.locator('dialog').filter({ hasText: 'Review and save' });
     await expect(review).toContainText('src/data/complex-page.json');
     await expect(review).toContainText('src/content/case-studies/harbour.md');
+    await expect(review).toContainText('src/pages/fixtures/complex.astro');
     await review.getByRole('button', { name: 'Save changes' }).click();
     await expect
       .poll(async () => readFile(complexJsonSource, 'utf8'))
@@ -293,12 +301,16 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await expect
       .poll(async () => readFile(complexCollectionSource, 'utf8'))
       .toContain('Harbour launch plan, reviewed');
+    await expect
+      .poll(async () => readFile(complexRouteSource, 'utf8'))
+      .toContain('title="Complex fixture, reviewed"');
 
     await restoreFromHistory(page);
     await expect.poll(async () => readFile(complexJsonSource, 'utf8')).toBe(originalJson);
     await expect
       .poll(async () => readFile(complexCollectionSource, 'utf8'))
       .toBe(originalCollection);
+    await expect.poll(async () => readFile(complexRouteSource, 'utf8')).toBe(originalRoute);
     await expect(page.locator('[data-demo-json-title]')).toHaveText(
       'A page assembled from trusted sources',
     );
@@ -309,6 +321,8 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
       await writeFile(complexJsonSource, originalJson);
     if ((await readFile(complexCollectionSource, 'utf8')) !== originalCollection)
       await writeFile(complexCollectionSource, originalCollection);
+    if ((await readFile(complexRouteSource, 'utf8')) !== originalRoute)
+      await writeFile(complexRouteSource, originalRoute);
   }
 });
 
@@ -404,9 +418,17 @@ test('enables and persists complex sections without source annotations', async (
     await expect(workbench).toBeVisible();
 
     await workbench.getByRole('button', { name: 'Choose from list' }).click();
-    const regionDialog = toolbar
+    let regionDialog = toolbar.locator('dialog').filter({ hasText: 'Choose sections to reorder' });
+    await regionDialog.getByRole('button', { name: 'Choose Grid' }).click();
+    const sourceSafety = toolbar
       .locator('dialog')
-      .filter({ hasText: 'Choose sections to reorder' });
+      .filter({ hasText: 'Which source owns this section?' });
+    await expect(sourceSafety).toBeVisible();
+    await sourceSafety.getByRole('button', { name: 'Cancel safely' }).click();
+    await expect(workbench).toBeVisible();
+
+    await workbench.getByRole('button', { name: 'Choose from list' }).click();
+    regionDialog = toolbar.locator('dialog').filter({ hasText: 'Choose sections to reorder' });
     await regionDialog.getByRole('button', { name: 'Choose Main page content' }).click();
 
     const policyReview = toolbar
@@ -439,6 +461,19 @@ test('enables and persists complex sections without source annotations', async (
     ).toBeVisible();
     await workbench.getByRole('button', { name: 'Select another section on page' }).click();
     await toolbar.getByRole('button', { name: 'Cancel' }).click();
+    const deleteHero = page.getByRole('button', {
+      name: /Delete section source-hero-[a-f0-9]+/u,
+    });
+    await expect(deleteHero).toBeVisible();
+    await deleteHero.click();
+    await toolbar.getByRole('button', { name: 'Delete section', exact: true }).click();
+    await expect(page.locator('main > section.hero')).toHaveCount(0);
+    await workbench.getByRole('button', { name: 'Open changes tray, 1 queued change' }).click();
+    await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(page.locator('main > section.hero')).toHaveCount(1);
+    await workbench.getByRole('button', { name: 'Close changes tray, 0 queued changes' }).click();
+    await expect(picker).toBeVisible();
+    await picker.getByRole('button', { name: 'Expand' }).click();
     const moveHero = page.getByRole('button', { name: /Move source-hero-[a-f0-9]+ down/u });
     await expect(moveHero).toBeVisible();
     await moveHero.click();

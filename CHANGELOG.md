@@ -60,6 +60,16 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Matched parsed Astro literal nodes before considering quoted-value fallback,
   preventing identical words in annotations from causing false ambiguity.
 
+### Fixed
+
+- Made delegated Astro page titles update a unique literal `title` prop on the
+  route when a layout owns the rendered `<head>`, while refusing computed,
+  non-title or ambiguous prop matches.
+- Stopped section setup from silently accepting an unrelated source structure
+  merely because its container had the same number of children.
+- Added composed-page regressions for delete and Undo, guarded section-source
+  confirmation, and one atomic JSON, Markdown frontmatter and SEO batch.
+
 ## 0.1.0-beta.4 - 2026-08-05
 
 ### Added

@@ -271,6 +271,44 @@ function seoMarkup(field: SeoField, value: string): string {
   }
 }
 
+function literalAttributeRange(
+  source: string,
+  ast: AstroNode,
+  value: string,
+  replacement: string,
+  filePath: string,
+): SourceRange {
+  const matches: SourceRange[] = [];
+  walk(ast, (node) => {
+    if (!node.position || !['component', 'custom-element'].includes(node.type)) return;
+    for (const item of node.attributes ?? []) {
+      if (item.name !== 'title' || item.kind !== 'quoted' || item.value !== value) continue;
+      const opening = source.slice(node.position.start.offset, nodeEndOffset(source, node));
+      for (const quote of ['"', "'"]) {
+        const literal = `${item.name}=${quote}${value}${quote}`;
+        let cursor = 0;
+        while (cursor <= opening.length) {
+          const found = opening.indexOf(literal, cursor);
+          if (found === -1) break;
+          const start = node.position.start.offset + found + item.name.length + 2;
+          matches.push({
+            start,
+            end: start + value.length,
+            replacement: escapeHtmlAttribute(replacement),
+            label: `SEO title prop in ${filePath}`,
+          });
+          cursor = found + literal.length;
+        }
+      }
+    }
+  });
+  if (matches.length === 0)
+    throw new Error(`No literal Astro prop contains the rendered title in ${filePath}.`);
+  if (matches.length > 1)
+    throw new Error(`More than one literal Astro prop contains the rendered title in ${filePath}.`);
+  return matches[0]!;
+}
+
 export async function applyAstroSeo(source: string, change: SeoEditorChange): Promise<string> {
   const ast = await parseAstro(source);
   let head: AstroNode | undefined;
@@ -284,8 +322,27 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
       existing.set(field, node);
     }
   });
-  if (!head?.position?.end)
-    throw new Error(`No literal <head> element found in ${change.filePath}.`);
+  const changedFields = (Object.keys(change.after) as SeoField[]).filter(
+    (field) => change.after[field] !== change.before[field],
+  );
+  if (!head?.position?.end) {
+    if (changedFields.length === 1 && changedFields[0] === 'title') {
+      const output = applyRanges(source, [
+        literalAttributeRange(
+          source,
+          ast,
+          change.before.title,
+          change.after.title,
+          change.filePath,
+        ),
+      ]);
+      await parseAstro(output);
+      return output;
+    }
+    throw new Error(
+      `No literal <head> element or unique rendered title prop was found in ${change.filePath}.`,
+    );
+  }
 
   const ranges: SourceRange[] = [];
   const inserts: string[] = [];

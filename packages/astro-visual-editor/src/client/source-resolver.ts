@@ -105,6 +105,11 @@ export function selectorFor(element: HTMLElement): string {
   if (element.id) return `#${CSS.escape(element.id)}`;
   const editableId = element.dataset.astroEditId;
   if (editableId) return `[data-astro-edit-id="${CSS.escape(editableId)}"]`;
+  const explicitFile = element.dataset.astroEditFile?.trim();
+  const explicitPath = element.dataset.astroEditPath?.trim();
+  if (explicitFile && explicitPath) {
+    return `[data-astro-edit-file="${CSS.escape(explicitFile)}"][data-astro-edit-path="${CSS.escape(explicitPath)}"]`;
+  }
   const sectionId = element.closest<HTMLElement>('[data-section]')?.dataset.section;
   const parts: string[] = [];
   let current: HTMLElement | null = element;

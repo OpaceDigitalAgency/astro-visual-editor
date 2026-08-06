@@ -267,12 +267,63 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await expect
       .poll(async () => readFile(complexCollectionSource, 'utf8'))
       .toBe(originalCollection);
+    await expect(page.locator('[data-demo-json-title]')).toHaveText(
+      'A page assembled from trusted sources',
+    );
+    await expect(page.locator('[data-demo-collection-title]')).toHaveText('Harbour launch plan');
+    await waitForWorkbenchButtonEnabled(page, 'History');
   } finally {
     if ((await readFile(complexJsonSource, 'utf8')) !== originalJson)
       await writeFile(complexJsonSource, originalJson);
     if ((await readFile(complexCollectionSource, 'utf8')) !== originalCollection)
       await writeFile(complexCollectionSource, originalCollection);
   }
+});
+
+test('targets each repeated JSON-backed evidence card independently', async ({ page }) => {
+  const { workbench } = await enableEditor(page);
+  await workbench.getByRole('button', { name: 'Complex sources' }).click();
+  await expect(page).toHaveURL(/\/fixtures\/complex$/);
+  const { toolbar, workbench: complexWorkbench } = await enableEditor(page);
+  const values = page.locator(
+    '[data-astro-edit-path^="evidence."][data-astro-edit-path$=".value"]',
+  );
+  await expect(values).toHaveText([
+    'Shared navigation and footer',
+    'Reusable hero and proof cards',
+    'Direct JSON properties',
+  ]);
+
+  await values.nth(2).click();
+  let dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
+  await expect(dialog).toContainText('src/data/complex-page.json → evidence.2.value');
+  await expect(dialog.locator('textarea')).toHaveValue('Direct JSON properties');
+  await dialog.locator('textarea').fill('Direct JSON properties, updated');
+  await dialog.getByRole('button', { name: 'Queue change' }).click();
+  await expect(values).toHaveText([
+    'Shared navigation and footer',
+    'Reusable hero and proof cards',
+    'Direct JSON properties, updated',
+  ]);
+
+  await values.nth(1).click();
+  dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
+  await expect(dialog).toContainText('src/data/complex-page.json → evidence.1.value');
+  await expect(dialog.locator('textarea')).toHaveValue('Reusable hero and proof cards');
+  await dialog.locator('textarea').fill('Reusable component proof, updated');
+  await dialog.getByRole('button', { name: 'Queue change' }).click();
+  await expect(values).toHaveText([
+    'Shared navigation and footer',
+    'Reusable component proof, updated',
+    'Direct JSON properties, updated',
+  ]);
+
+  await complexWorkbench.getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(values).toHaveText([
+    'Shared navigation and footer',
+    'Reusable hero and proof cards',
+    'Direct JSON properties',
+  ]);
 });
 
 test('commits through HMR and restores from durable History', async ({ page }) => {

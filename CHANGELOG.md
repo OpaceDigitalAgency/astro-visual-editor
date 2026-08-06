@@ -23,6 +23,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Kept source annotations and syntax-aware adapters as the final authority:
   the richer fixture demonstrates supported provenance rather than guessing
   through arbitrary component expressions.
+- Made explicitly mapped structured fields use their file and source path as a
+  stable preview target, so repeated component output is edited independently.
 
 ## 0.1.0-beta.4 - 2026-08-05
 

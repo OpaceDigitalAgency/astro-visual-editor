@@ -36,6 +36,10 @@ import {
   REVERT_RESULT_EVENT,
   SAVE_EVENT,
   SAVE_RESULT_EVENT,
+  SOURCE_DISCOVERY_EVENT,
+  SOURCE_DISCOVERY_RESULT_EVENT,
+  SECTION_DISCOVERY_EVENT,
+  SECTION_DISCOVERY_RESULT_EVENT,
 } from './shared/events.js';
 import type {
   ClientEditorConfig,
@@ -56,6 +60,11 @@ import type {
   SeoField,
   SeoValues,
   SaveResponse,
+  SourceCandidate,
+  SourceDiscoveryResponse,
+  SectionDiscoveryResponse,
+  SectionRegionCandidate,
+  SectionRegionRule,
   TextEditorChange,
 } from './shared/types.js';
 
@@ -82,6 +91,7 @@ const defaultConfig: ClientEditorConfig = {
   fileMappings: {},
   selectorMappings: {},
   sectionTemplates: [],
+  demoPages: [],
   maxChanges: 100,
   maxTextLength: 10_000,
   requestTimeoutMs: 15_000,
@@ -252,6 +262,15 @@ export default defineToolbarApp({
     let inventory: InventoryItem[] = [];
     let inventoryFilter: InventoryStatus | 'all' = 'all';
     let setupBusy = false;
+    let sourceDiscoveryRequestId: string | undefined;
+    let sourceDiscoveryItem: InventoryItem | undefined;
+    let sourceCandidates: SourceCandidate[] = [];
+    let sectionDiscoveryRequestId: string | undefined;
+    let sectionDiscoveryElement: HTMLElement | undefined;
+    let sectionCandidates: SectionRegionCandidate[] = [];
+    let setupPickerKind: 'text' | 'section' | undefined;
+    let setupPickerTarget: HTMLElement | undefined;
+    let setupPickerCandidates: HTMLElement[] = [];
 
     const style = createElement('style');
     style.textContent = toolbarStyles;
@@ -266,7 +285,7 @@ export default defineToolbarApp({
         <div><p class="eyebrow">Local source workbench</p><h2>Visual Editor</h2>
           <p class="status" data-state="warning"><span class="status-dot" aria-hidden="true"></span><span class="status-copy">Connecting to Astro…</span></p>
         </div>
-        <div class="masthead-actions"><button class="icon-button setup-toggle" type="button" aria-label="Open Editability Setup" title="Open Editability Setup" hidden>⚙</button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button></div>
+        <div class="masthead-actions"><button class="icon-button setup-toggle" type="button" aria-label="Open Editor Setup" title="Open Editor Setup" hidden>⚙</button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button></div>
       </header>
       <div class="mode-tabs" role="tablist" aria-label="Editing mode">
         <button class="mode-tab" role="tab" data-mode="text" aria-selected="true">Text</button>
@@ -274,7 +293,7 @@ export default defineToolbarApp({
         <button class="mode-tab" role="tab" data-mode="seo" aria-selected="false">SEO</button>
         <button class="mode-tab" role="tab" data-mode="review" aria-selected="false">Review</button>
       </div>
-      <div class="instructions">Click visible text, or focus it and press Alt+Enter.</div>
+      <div class="instructions"><span class="instructions-copy">Click visible text, or focus it and press Alt+Enter.</span><nav class="demo-surfaces" aria-label="Demo test pages" hidden></nav></div>
       <div class="ledger" aria-live="polite" aria-label="Queued changes"></div>
       <p class="message" role="status" aria-live="polite"></p>
       <div class="history-actions">
@@ -296,11 +315,20 @@ export default defineToolbarApp({
     const picker = createElement('div', { class: 'picker', 'data-open': 'false' });
     picker.innerHTML = `<span class="picker-label">Tap content to edit</span><button class="secondary picker-review" type="button" title="Expand editor and review queued changes">Review 0</button><button class="icon-button picker-close" type="button" aria-label="Disable Visual Editor" title="Disable Visual Editor">×</button>`;
 
+    const setupPagePicker = createElement('div', {
+      class: 'setup-page-picker',
+      'data-open': 'false',
+      'data-astro-ve-ui': 'true',
+      role: 'status',
+      'aria-live': 'polite',
+    });
+    setupPagePicker.innerHTML = `<div><strong class="setup-picker-title">Select on page</strong><span class="setup-picker-help">Move over the page, then click the item you want.</span></div><span class="setup-picker-label">Nothing selected yet</span><button class="secondary cancel-setup-picker" type="button">Cancel</button>`;
+
     const textDialog = createElement('dialog', {
       'aria-labelledby': 'ave-text-title',
       'aria-describedby': 'ave-text-file',
     });
-    textDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Preview before writing</p><h2 id="ave-text-title">Edit text</h2><p id="ave-text-file" class="dialog-file"></p><label for="ave-text-value">Replacement text</label><textarea id="ave-text-value" required></textarea><p class="field-help">The owning adapter validates syntax before any source file is written.</p><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary queue-text" type="button">Queue change</button></div></form>`;
+    textDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Preview before writing</p><h2 id="ave-text-title">Edit text</h2><p id="ave-text-file" class="dialog-file"></p><p class="source-warning" hidden></p><label for="ave-text-value">Replacement text</label><textarea id="ave-text-value" required></textarea><p class="field-help">The owning adapter validates syntax before any source file is written.</p><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary queue-text" type="button">Queue change</button></div></form>`;
 
     const seoDialog = createElement('dialog', {
       'aria-labelledby': 'ave-seo-title',
@@ -338,12 +366,37 @@ export default defineToolbarApp({
       'aria-labelledby': 'ave-policy-title',
       'aria-describedby': 'ave-policy-help',
     });
-    policyDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Step 2 of 3 · Review</p><h2 id="ave-policy-title">Save this permission change?</h2><p id="ave-policy-help" class="field-help">You chose what can be edited. Check the exact project setting below, then save it to make the permission active. Nothing changes until you save.</p><div class="policy-diff-list file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-policy" type="button">Back to setup</button><button class="primary confirm-policy" type="button">Save and return to editor</button></div></div>`;
+    policyDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Ready to enable</p><h2 id="ave-policy-title">Save these editor choices?</h2><p id="ave-policy-help" class="field-help">This saves which text and sections can be maintained on this page. It does not change the page content.</p><details class="technical-details policy-technical"><summary>Review technical project change</summary><div class="policy-diff-list file-diff-list"></div></details><div class="dialog-actions"><button class="secondary cancel-policy" type="button">Keep editing</button><button class="primary confirm-policy" type="button">Save settings</button></div></div>`;
+
+    const sourceDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-source-title',
+      'aria-describedby': 'ave-source-help',
+    });
+    sourceDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">One safety check</p><h2 id="ave-source-title">Which source owns this text?</h2><p id="ave-source-help" class="field-help">More than one exact source match exists, so the editor will not guess. Choose only if you recognise the owner.</p><div class="source-candidate-list"></div><div class="dialog-actions"><button class="secondary cancel-source" value="cancel" type="submit">Cancel safely</button><button class="primary confirm-source" type="button">Use selected source</button></div></form>`;
+
+    const regionDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-region-title',
+      'aria-describedby': 'ave-region-help',
+    });
+    regionDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Page sections</p><h2 id="ave-region-title">Choose sections to reorder</h2><p id="ave-region-help" class="field-help">Choose a named page area below, or select it directly on the page. Source verification runs automatically.</p><div class="region-candidate-list friendly-region-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary pick-region-on-page" type="button">Select section on page</button></div></form>`;
+
+    const regionSourceDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-region-source-title',
+      'aria-describedby': 'ave-region-source-help',
+    });
+    regionSourceDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">One safety check</p><h2 id="ave-region-source-title">Which source owns this section?</h2><p id="ave-region-source-help" class="field-help">The page selection is complete, but more than one source structure could produce it. Choose only if you recognise the owner; otherwise cancel safely.</p><div class="region-source-candidate-list source-candidate-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel safely</button><button class="primary confirm-region-source" type="button">Use selected source</button></div></form>`;
+
+    const permissionDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-permission-title',
+      'aria-describedby': 'ave-permission-help',
+    });
+    permissionDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Text editing</p><h2 id="ave-permission-title">Choose what can be edited</h2><p id="ave-permission-help" class="field-help permission-copy"></p><details class="technical-details"><summary>Technical details</summary><p class="dialog-file permission-source"></p></details><div class="dialog-actions permission-actions"><button class="secondary cancel-permission" type="button">Cancel</button></div></div>`;
 
     canvas.append(
       style,
       panel,
       picker,
+      setupPagePicker,
       textDialog,
       seoDialog,
       templateDialog,
@@ -351,13 +404,18 @@ export default defineToolbarApp({
       historyDialog,
       diffDialog,
       policyDialog,
+      sourceDialog,
+      regionDialog,
+      regionSourceDialog,
+      permissionDialog,
     );
 
     const ledger = panel.querySelector<HTMLElement>('.ledger')!;
     const message = panel.querySelector<HTMLElement>('.message')!;
     const status = panel.querySelector<HTMLElement>('.status')!;
     const statusCopy = panel.querySelector<HTMLElement>('.status-copy')!;
-    const instructions = panel.querySelector<HTMLElement>('.instructions')!;
+    const instructions = panel.querySelector<HTMLElement>('.instructions-copy')!;
+    const demoSurfaces = panel.querySelector<HTMLElement>('.demo-surfaces')!;
     const commitButton = panel.querySelector<HTMLButtonElement>('.commit')!;
     const clearButton = panel.querySelector<HTMLButtonElement>('.clear')!;
     const revertButton = panel.querySelector<HTMLButtonElement>('.revert')!;
@@ -368,6 +426,7 @@ export default defineToolbarApp({
     const fileDiffList = diffDialog.querySelector<HTMLElement>('.file-diff-list')!;
     const textarea = textDialog.querySelector<HTMLTextAreaElement>('textarea')!;
     const textFile = textDialog.querySelector<HTMLElement>('.dialog-file')!;
+    const sourceWarning = textDialog.querySelector<HTMLElement>('.source-warning')!;
     const pickerLabel = picker.querySelector<HTMLElement>('.picker-label')!;
     const pickerReview = picker.querySelector<HTMLButtonElement>('.picker-review')!;
     const templateGrid = templateDialog.querySelector<HTMLElement>('.template-grid')!;
@@ -377,6 +436,11 @@ export default defineToolbarApp({
     const reloadPolicyButton = panel.querySelector<HTMLButtonElement>('.reload-policy')!;
     const reviewPolicyButton = panel.querySelector<HTMLButtonElement>('.review-policy')!;
     const policyDiffList = policyDialog.querySelector<HTMLElement>('.policy-diff-list')!;
+    const setupPickerTitle = setupPagePicker.querySelector<HTMLElement>('.setup-picker-title')!;
+    const setupPickerLabel = setupPagePicker.querySelector<HTMLElement>('.setup-picker-label')!;
+    const permissionCopy = permissionDialog.querySelector<HTMLElement>('.permission-copy')!;
+    const permissionSource = permissionDialog.querySelector<HTMLElement>('.permission-source')!;
+    const permissionActions = permissionDialog.querySelector<HTMLElement>('.permission-actions')!;
 
     function enableLightDismiss(dialog: HTMLDialogElement, onClose?: () => void): void {
       dialog.addEventListener('click', (event) => {
@@ -398,6 +462,9 @@ export default defineToolbarApp({
       previewRequestId = undefined;
     });
     enableLightDismiss(policyDialog);
+    enableLightDismiss(permissionDialog, () => {
+      if (mode === 'setup') renderInventory();
+    });
 
     function renderHistory(): void {
       renderHistoryPanel(historyList, savedHistory, (entry) => {
@@ -407,6 +474,30 @@ export default defineToolbarApp({
         historyDialog.close();
         requestRevert();
       });
+    }
+
+    function renderDemoSurfaces(): void {
+      demoSurfaces.replaceChildren();
+      demoSurfaces.hidden = config.demoPages.length < 2;
+      for (const page of config.demoPages) {
+        const button = createElement('button', {
+          class: 'demo-surface',
+          type: 'button',
+          title: page.description,
+          'aria-current': page.path === window.location.pathname ? 'page' : 'false',
+        });
+        button.textContent = page.label;
+        button.addEventListener('click', () => {
+          if (page.path === window.location.pathname) return;
+          if (
+            queue.size > 0 &&
+            !window.confirm('Switch demo pages and discard this local preview?')
+          )
+            return;
+          window.location.assign(page.path);
+        });
+        demoSurfaces.append(button);
+      }
     }
 
     function serializableQueue(): EditorChange[] {
@@ -440,17 +531,376 @@ export default defineToolbarApp({
     }
 
     function policyChangeCount(): number {
-      const saved = new Map(
-        editabilityPolicy.rules.map((rule) => [`${rule.route}\n${rule.selector}`, rule]),
-      );
-      const draft = new Map(
-        draftEditabilityPolicy.rules.map((rule) => [`${rule.route}\n${rule.selector}`, rule]),
-      );
+      const saved = new Map<string, unknown>([
+        ...editabilityPolicy.rules.map(
+          (rule) => [`rule\n${rule.route}\n${rule.selector}`, rule] as const,
+        ),
+        ...(editabilityPolicy.regions ?? []).map(
+          (region) => [`region\n${region.route}\n${region.selector}`, region] as const,
+        ),
+      ]);
+      const draft = new Map<string, unknown>([
+        ...draftEditabilityPolicy.rules.map(
+          (rule) => [`rule\n${rule.route}\n${rule.selector}`, rule] as const,
+        ),
+        ...(draftEditabilityPolicy.regions ?? []).map(
+          (region) => [`region\n${region.route}\n${region.selector}`, region] as const,
+        ),
+      ]);
       return new Set([...saved.keys(), ...draft.keys()]).size
         ? [...new Set([...saved.keys(), ...draft.keys()])].filter(
             (key) => JSON.stringify(saved.get(key)) !== JSON.stringify(draft.get(key)),
           ).length
         : 0;
+    }
+
+    function clearGeneratedSectionMappings(): void {
+      document
+        .querySelectorAll<HTMLElement>('[data-astro-ve-generated-region="true"]')
+        .forEach((region) => {
+          delete region.dataset.astroVeGeneratedRegion;
+          delete region.dataset.astroEditRegion;
+          delete region.dataset.astroEditFile;
+          delete region.dataset.astroEditPath;
+          for (const child of [...region.children]) {
+            if (!(child instanceof HTMLElement) || child.dataset.astroVeGeneratedSection !== 'true')
+              continue;
+            delete child.dataset.astroVeGeneratedSection;
+            delete child.dataset.section;
+            delete child.dataset.astroEditSourceKey;
+          }
+        });
+    }
+
+    function applySectionRegionPolicy(policy: EditabilityPolicy): void {
+      clearGeneratedSectionMappings();
+      initialSections.clear();
+      for (const regionRule of policy.regions ?? []) {
+        if (regionRule.route !== window.location.pathname) continue;
+        let matches: NodeListOf<HTMLElement>;
+        try {
+          matches = document.querySelectorAll<HTMLElement>(regionRule.selector);
+        } catch {
+          continue;
+        }
+        if (matches.length !== 1) continue;
+        const region = matches[0]!;
+        const children = [...region.children].filter(
+          (child): child is HTMLElement => child instanceof HTMLElement,
+        );
+        if (children.length !== regionRule.items.length) continue;
+        region.dataset.astroVeGeneratedRegion = 'true';
+        region.dataset.astroEditRegion = regionRule.id;
+        region.dataset.astroEditFile = regionRule.filePath;
+        region.dataset.astroEditPath = regionRule.sourcePath;
+        children.forEach((child, index) => {
+          const item = regionRule.items[index]!;
+          child.dataset.astroVeGeneratedSection = 'true';
+          child.dataset.section = item.id;
+          child.dataset.astroEditSourceKey = item.sourceKey;
+        });
+      }
+    }
+
+    function sectionRegionElements(): HTMLElement[] {
+      const seen = new Set<string>();
+      return [...document.querySelectorAll<HTMLElement>('main, article, section, div')].filter(
+        (element) => {
+          if (element.closest('astro-dev-toolbar') || element.closest('[data-astro-ve-ui]'))
+            return false;
+          const children = [...element.children].filter(
+            (child): child is HTMLElement =>
+              child instanceof HTMLElement && child.getClientRects().length > 0,
+          );
+          if (children.length < 2 || children.length > 100) return false;
+          const selector = selectorFor(element);
+          if (!selector || seen.has(selector)) return false;
+          seen.add(selector);
+          return true;
+        },
+      );
+    }
+
+    function compactLabel(value: string, maximum = 72): string {
+      const clean = value.replace(/\s+/gu, ' ').trim();
+      return clean.length > maximum ? `${clean.slice(0, maximum - 1).trimEnd()}…` : clean;
+    }
+
+    function regionLabel(region: HTMLElement): string {
+      const labelledBy = region.getAttribute('aria-labelledby');
+      const labelledText = labelledBy
+        ? document.getElementById(labelledBy)?.textContent?.trim()
+        : undefined;
+      const directHeading = [...region.children].find(
+        (child): child is HTMLElement =>
+          child instanceof HTMLElement && /^H[1-4]$/u.test(child.tagName),
+      );
+      const explicit =
+        region.getAttribute('aria-label') ??
+        labelledText ??
+        directHeading?.textContent?.trim() ??
+        region.dataset.section;
+      if (explicit) return compactLabel(explicit);
+      if (region.tagName === 'MAIN') return 'Main page content';
+      const heading = region.querySelector<HTMLElement>('h1, h2, h3, h4');
+      if (heading?.textContent?.trim()) return compactLabel(heading.textContent);
+      if (region.tagName === 'ARTICLE') return 'Article or content card';
+      const identity = region.id || [...region.classList].find((name) => name.length > 2);
+      if (identity)
+        return compactLabel(
+          identity.replace(/[-_]+/gu, ' ').replace(/\b\w/gu, (letter) => letter.toUpperCase()),
+        );
+      return `${region.tagName.toLowerCase()} content area`;
+    }
+
+    function clearSetupPickerHighlight(): void {
+      setupPickerTarget?.removeAttribute('data-astro-ve-setup-pick');
+      setupPickerTarget = undefined;
+    }
+
+    function stopSetupPagePicker(restoreSetup = true): void {
+      clearSetupPickerHighlight();
+      setupPickerKind = undefined;
+      setupPickerCandidates = [];
+      setupPagePicker.dataset.open = 'false';
+      if (restoreSetup) {
+        panel.dataset.open = String(active);
+        updateSetupDock();
+        if (mode === 'setup') renderInventory();
+      }
+    }
+
+    function startSetupPagePicker(kind: 'text' | 'section'): void {
+      if (regionDialog.open) regionDialog.close('pick-on-page');
+      setupPickerKind = kind;
+      setupPickerCandidates =
+        kind === 'section'
+          ? sectionRegionElements()
+          : inventory.map((item) => item.element).filter((element) => element.isConnected);
+      clearInventoryMarkers();
+      document.documentElement.dataset.astroVeSetupDocked = 'false';
+      panel.dataset.open = 'false';
+      picker.dataset.open = 'false';
+      setupPickerTitle.textContent = kind === 'section' ? 'Select a page section' : 'Select text';
+      setupPickerLabel.textContent =
+        kind === 'section'
+          ? 'Hover to highlight a whole region, then click it.'
+          : 'Hover to highlight text, then click it.';
+      setupPagePicker.dataset.open = 'true';
+    }
+
+    function setupPickerCandidate(target: EventTarget | null): HTMLElement | undefined {
+      if (!(target instanceof Element)) return undefined;
+      const matches = setupPickerCandidates.filter(
+        (candidate) => candidate === target || candidate.contains(target),
+      );
+      if (!matches.length) return undefined;
+      return matches.sort((left, right) => {
+        const leftSemantic = /^(MAIN|ARTICLE|SECTION)$/u.test(left.tagName) ? 0 : 1;
+        const rightSemantic = /^(MAIN|ARTICLE|SECTION)$/u.test(right.tagName) ? 0 : 1;
+        if (leftSemantic !== rightSemantic) return leftSemantic - rightSemantic;
+        const leftArea = left.getBoundingClientRect().width * left.getBoundingClientRect().height;
+        const rightArea =
+          right.getBoundingClientRect().width * right.getBoundingClientRect().height;
+        return leftArea - rightArea;
+      })[0];
+    }
+
+    function openPermissionChoice(item: InventoryItem): void {
+      permissionCopy.textContent = `“${compactLabel(item.text)}” is currently ${item.status}.`;
+      permissionSource.textContent = `${item.sourceFile}${item.sourcePath ? ` → ${item.sourcePath}` : ''}`;
+      permissionActions.querySelectorAll('.permission-choice').forEach((button) => button.remove());
+      const action = createElement('button', {
+        class: `permission-choice ${item.status === 'editable' ? 'danger' : 'primary'}`,
+        type: 'button',
+      });
+      if (item.status === 'editable') {
+        action.textContent = 'Block editing this text';
+        action.addEventListener('click', () => {
+          permissionDialog.close('choose');
+          setDraftRule(item, 'deny', 'element');
+        });
+        permissionActions.append(action);
+      } else if (item.canAllow) {
+        action.textContent =
+          item.status === 'unresolved'
+            ? 'Find source and allow editing'
+            : 'Allow editing this text';
+        action.addEventListener('click', () => {
+          permissionDialog.close('choose');
+          if (item.status === 'unresolved') requestSourceDiscovery(item);
+          else setDraftRule(item, 'allow', 'element');
+        });
+        permissionActions.append(action);
+      }
+      permissionDialog.showModal();
+      permissionDialog
+        .querySelector<HTMLButtonElement>('.permission-choice, .cancel-permission')
+        ?.focus();
+    }
+
+    function openRegionSetup(): void {
+      const list = regionDialog.querySelector<HTMLElement>('.region-candidate-list')!;
+      list.replaceChildren();
+      const regions = sectionRegionElements();
+      regions.forEach((region) => {
+        const childCount = [...region.children].filter(
+          (child) => child instanceof HTMLElement,
+        ).length;
+        const row = createElement('article', { class: 'friendly-region' });
+        const copy = createElement('div');
+        const title = createElement('strong');
+        title.textContent = regionLabel(region);
+        const description = createElement('span');
+        description.textContent = `${childCount} item${childCount === 1 ? '' : 's'} inside`;
+        copy.append(title, description);
+        const choose = createElement('button', { class: 'primary', type: 'button' });
+        choose.textContent = 'Choose';
+        choose.setAttribute('aria-label', `Choose ${regionLabel(region)}`);
+        choose.addEventListener('click', () => beginSectionDiscovery(region));
+        row.append(copy, choose);
+        list.append(row);
+      });
+      if (!regions.length) {
+        const empty = createElement('div', { class: 'empty' });
+        empty.textContent = 'No visible container with two or more direct items was found.';
+        list.append(empty);
+      }
+      regionDialog.querySelector<HTMLButtonElement>('.pick-region-on-page')!.disabled =
+        regions.length === 0;
+      regionDialog.showModal();
+    }
+
+    function beginSectionDiscovery(region: HTMLElement): void {
+      const children = [...region.children].filter((child) => child instanceof HTMLElement);
+      sectionDiscoveryElement = region;
+      sectionDiscoveryRequestId = crypto.randomUUID();
+      setupBusy = true;
+      if (regionDialog.open) regionDialog.close('discover');
+      const resolution = sourceResolutionFor(region, config, draftEditabilityPolicy);
+      server.send(SECTION_DISCOVERY_EVENT, {
+        clientId,
+        requestId: sectionDiscoveryRequestId,
+        route: window.location.pathname,
+        selector: selectorFor(region),
+        itemCount: children.length,
+        containerTag: region.tagName.toLowerCase(),
+        itemTags: children.map((child) => child.tagName.toLowerCase()),
+        hintedFilePath: resolution.proven ? resolution.filePath : undefined,
+      });
+      showMessage(`Checking “${regionLabel(region)}” against its source…`, 'warning');
+    }
+
+    function sectionCandidateScore(candidate: SectionRegionCandidate): number {
+      if (!sectionDiscoveryElement) return 0;
+      let score = candidate.confidence === 'exact' ? 2 : 0;
+      const resolution = sourceResolutionFor(
+        sectionDiscoveryElement,
+        config,
+        draftEditabilityPolicy,
+      );
+      if (resolution.proven && resolution.filePath === candidate.filePath) score += 6;
+      if (candidate.containerTag === sectionDiscoveryElement.tagName.toLowerCase()) score += 4;
+      const renderedTags = [...sectionDiscoveryElement.children]
+        .filter((child): child is HTMLElement => child instanceof HTMLElement)
+        .map((child) => child.tagName.toLowerCase());
+      candidate.itemTags?.forEach((tag, index) => {
+        if (tag === renderedTags[index]) score += 2;
+      });
+      return score;
+    }
+
+    function sourceKind(candidate: { filePath: string }): string {
+      if (/\/layouts?\//u.test(candidate.filePath)) return 'Page layout';
+      if (/\/components?\//u.test(candidate.filePath)) return 'Reusable component';
+      if (/\/pages?\//u.test(candidate.filePath)) return 'Page template';
+      if (/\.(jsonc?|ya?ml)$/u.test(candidate.filePath)) return 'Structured site data';
+      return 'Project source';
+    }
+
+    function saveSectionCandidate(candidate: SectionRegionCandidate): void {
+      if (!sectionDiscoveryElement) return;
+      const regionRule: SectionRegionRule = {
+        id: `region-${crypto.randomUUID()}`,
+        route: window.location.pathname,
+        selector: selectorFor(sectionDiscoveryElement),
+        filePath: candidate.filePath,
+        sourcePath: candidate.sourcePath,
+        items: candidate.items,
+      };
+      draftEditabilityPolicy = {
+        ...draftEditabilityPolicy,
+        regions: [
+          ...(draftEditabilityPolicy.regions ?? []).filter(
+            (region) =>
+              !(region.route === regionRule.route && region.selector === regionRule.selector),
+          ),
+          regionRule,
+        ],
+      };
+      sectionDiscoveryElement = undefined;
+      sectionCandidates = [];
+      if (regionSourceDialog.open) regionSourceDialog.close('confirm');
+      requestPolicyPreview();
+    }
+
+    function renderSectionCandidates(candidates: SectionRegionCandidate[]): void {
+      const list = regionSourceDialog.querySelector<HTMLElement>('.region-source-candidate-list')!;
+      list.replaceChildren();
+      const ranked = candidates
+        .map((candidate) => ({ candidate, score: sectionCandidateScore(candidate) }))
+        .sort(
+          (left, right) =>
+            right.score - left.score ||
+            left.candidate.filePath.localeCompare(right.candidate.filePath),
+        );
+      if (
+        ranked[0] &&
+        (ranked.length === 1 || (ranked[0].score >= 3 && ranked[0].score > ranked[1]!.score))
+      ) {
+        saveSectionCandidate(ranked[0].candidate);
+        return;
+      }
+      ranked.forEach(({ candidate }, index) => {
+        const label = createElement('label', { class: 'source-candidate' });
+        const input = createElement('input', {
+          type: 'radio',
+          name: 'region-source-candidate',
+          value: candidate.id,
+        });
+        if (index === 0) input.checked = true;
+        const copy = createElement('span');
+        const file = createElement('strong');
+        file.textContent = sourceKind(candidate);
+        const reason = createElement('small');
+        reason.textContent = `Contains ${candidate.items.length} reorderable items.`;
+        const technical = createElement('details', { class: 'technical-details' });
+        const summary = createElement('summary');
+        summary.textContent = 'Technical details';
+        const path = createElement('code');
+        path.textContent = `${candidate.filePath}:${candidate.line} → ${candidate.sourcePath}`;
+        technical.append(summary, path);
+        copy.append(file, reason, technical);
+        label.append(input, copy);
+        list.append(label);
+      });
+      if (!candidates.length) {
+        const empty = createElement('div', { class: 'empty' });
+        empty.textContent = 'No matching contiguous Astro source structure was found.';
+        list.append(empty);
+      }
+      regionSourceDialog.querySelector<HTMLButtonElement>('.confirm-region-source')!.disabled =
+        candidates.length === 0;
+      regionSourceDialog.showModal();
+    }
+
+    function confirmSectionCandidate(): void {
+      const selected = regionSourceDialog.querySelector<HTMLInputElement>(
+        'input[name="region-source-candidate"]:checked',
+      );
+      const candidate = sectionCandidates.find((item) => item.id === selected?.value);
+      if (!candidate) return;
+      saveSectionCandidate(candidate);
     }
 
     function requestPolicyPreview(): void {
@@ -531,7 +981,7 @@ export default defineToolbarApp({
           : {}),
       };
       draftEditabilityPolicy = {
-        version: 1,
+        ...draftEditabilityPolicy,
         rules: [
           ...draftEditabilityPolicy.rules.filter(
             (existing) => !(existing.route === route && existing.selector === selector),
@@ -546,7 +996,7 @@ export default defineToolbarApp({
 
     function removeDraftRule(rule: EditabilityRule): void {
       draftEditabilityPolicy = {
-        version: 1,
+        ...draftEditabilityPolicy,
         rules: draftEditabilityPolicy.rules.filter((candidate) => candidate.id !== rule.id),
       };
       clearMessage();
@@ -561,6 +1011,75 @@ export default defineToolbarApp({
       window.setTimeout(() => delete item.element.dataset.astroVeInventoryFocus, 1_400);
     }
 
+    function requestSourceDiscovery(item: InventoryItem): void {
+      if (!config.canManageEditability || setupBusy) return;
+      sourceDiscoveryItem = item;
+      sourceCandidates = [];
+      sourceDiscoveryRequestId = crypto.randomUUID();
+      setupBusy = true;
+      server.send(SOURCE_DISCOVERY_EVENT, {
+        clientId,
+        requestId: sourceDiscoveryRequestId,
+        route: window.location.pathname,
+        selector: item.selector,
+        text: item.text,
+        hintedFilePath: item.sourceFile,
+      });
+      showMessage(
+        'Searching supported project source files for exact syntax-aware matches…',
+        'warning',
+      );
+      renderInventory();
+    }
+
+    function renderSourceCandidates(candidates: SourceCandidate[], searchedFiles = 0): void {
+      const list = sourceDialog.querySelector<HTMLElement>('.source-candidate-list')!;
+      list.replaceChildren();
+      const exact = candidates.filter((candidate) => candidate.confidence === 'exact');
+      const automatic =
+        exact.length === 1 ? exact[0] : candidates.length === 1 ? candidates[0] : undefined;
+      if (automatic && sourceDiscoveryItem) {
+        const item = sourceDiscoveryItem;
+        sourceDiscoveryItem = undefined;
+        sourceCandidates = [];
+        setDraftRule(item, 'allow', 'element', automatic.filePath, automatic.sourcePath);
+        return;
+      }
+      if (!candidates.length) {
+        const empty = createElement('div', { class: 'empty' });
+        empty.textContent = `No exact writable source value was found in ${searchedFiles} supported files.`;
+        list.append(empty);
+      } else {
+        candidates.forEach((candidate, index) => {
+          const label = createElement('label', { class: 'source-candidate' });
+          const input = createElement('input', {
+            type: 'radio',
+            name: 'source-candidate',
+            value: candidate.id,
+          });
+          if (index === 0) input.checked = true;
+          const copy = createElement('span');
+          const file = createElement('strong');
+          file.textContent = sourceKind(candidate);
+          const reason = createElement('small');
+          reason.textContent = 'Contains the exact selected text.';
+          const technical = createElement('details', { class: 'technical-details' });
+          const summary = createElement('summary');
+          summary.textContent = 'Technical details';
+          const path = createElement('code');
+          path.textContent = `${candidate.filePath}:${candidate.line} → ${candidate.sourcePath ?? 'literal value'}`;
+          technical.append(summary, path);
+          copy.append(file, reason, technical);
+          label.append(input, copy);
+          list.append(label);
+        });
+      }
+      const confirm = sourceDialog.querySelector<HTMLButtonElement>('.confirm-source')!;
+      confirm.disabled = candidates.length === 0;
+      sourceDialog.showModal();
+      sourceDialog.querySelector<HTMLInputElement>('input:checked')?.focus();
+    }
+
     function renderInventory(): void {
       clearInventoryMarkers();
       ledger.setAttribute('aria-label', 'Page editability inventory');
@@ -571,6 +1090,10 @@ export default defineToolbarApp({
       });
       renderEditabilityPanel(ledger, inventory, {
         policyFile: config.editabilityPolicyFile,
+        route: window.location.pathname,
+        sectionRegions: (draftEditabilityPolicy.regions ?? []).filter(
+          (region) => region.route === window.location.pathname,
+        ),
         canManage: config.canManageEditability,
         pendingChanges: policyChangeCount(),
         filter: inventoryFilter,
@@ -580,6 +1103,21 @@ export default defineToolbarApp({
           renderInventory();
         },
         onLocate: locateInventoryItem,
+        onDiscoverSource: requestSourceDiscovery,
+        onAddSectionRegion: openRegionSetup,
+        onPickSectionRegion: () => startSetupPagePicker('section'),
+        onPickText: () => startSetupPagePicker('text'),
+        onRemoveSectionRegion: (region) => {
+          draftEditabilityPolicy = {
+            ...draftEditabilityPolicy,
+            regions: (draftEditabilityPolicy.regions ?? []).filter(
+              (candidate) => candidate.id !== region.id,
+            ),
+          };
+          clearMessage();
+          renderInventory();
+          requestPolicyPreview();
+        },
         onSetRule: setDraftRule,
         onRemoveRule: (item) => {
           if (item.activeRule) removeDraftRule(item.activeRule);
@@ -612,6 +1150,20 @@ export default defineToolbarApp({
               ? 'No SEO changes queued.'
               : 'No queued changes. Select visible content to begin.';
         ledger.append(empty);
+        if (mode === 'sections' && config.canManageEditability) {
+          const existingRegions = document.querySelectorAll(
+            '[data-astro-edit-region], [data-astro-edit-sections]',
+          ).length;
+          const enable = createElement('button', {
+            class: 'primary enable-sections',
+            type: 'button',
+          });
+          enable.textContent = existingRegions
+            ? 'Select another section on page'
+            : 'Select section on page';
+          enable.addEventListener('click', () => startSetupPagePicker('section'));
+          ledger.append(enable);
+        }
       } else {
         for (const [key, change] of queue) {
           const row = createElement('article', { class: 'change' });
@@ -692,7 +1244,7 @@ export default defineToolbarApp({
     function directSections(region: HTMLElement): HTMLElement[] {
       return [...region.children].filter(
         (child): child is HTMLElement =>
-          child instanceof HTMLElement && child.matches('section[data-section]'),
+          child instanceof HTMLElement && child.matches('[data-section]'),
       );
     }
 
@@ -849,13 +1401,34 @@ export default defineToolbarApp({
       );
       const existing = queued?.kind === 'text' ? queued : undefined;
       textarea.value = existing?.newText ?? candidate.textContent?.trim() ?? '';
-      textFile.textContent = sourceFileFor(candidate, config, editabilityPolicy);
+      const resolution = sourceResolutionFor(candidate, config, editabilityPolicy);
+      textFile.textContent = `${resolution.filePath}${resolution.sourcePath ? ` → ${resolution.sourcePath}` : ''}`;
+      sourceWarning.hidden = !resolution.sharedRouteCount;
+      sourceWarning.textContent = resolution.sharedRouteCount
+        ? `Shared source: this edit will affect ${resolution.sharedRouteCount} routes.`
+        : '';
       textDialog.showModal();
       textarea.focus();
       textarea.select();
     }
 
     function onPointerOver(event: PointerEvent): void {
+      if (setupPickerKind) {
+        const candidate = setupPickerCandidate(event.target);
+        if (candidate === setupPickerTarget) return;
+        clearSetupPickerHighlight();
+        setupPickerTarget = candidate;
+        if (candidate) {
+          candidate.dataset.astroVeSetupPick = 'true';
+          setupPickerLabel.textContent =
+            setupPickerKind === 'section'
+              ? `${regionLabel(candidate)} · ${candidate.children.length} items`
+              : compactLabel(candidate.textContent ?? 'Selected text');
+        } else {
+          setupPickerLabel.textContent = 'Move over page content to highlight it.';
+        }
+        return;
+      }
       if (!active || mode !== 'text' || textDialog.open) return;
       const candidate = editableTarget(event.target);
       if (candidate === hovered) return;
@@ -870,6 +1443,24 @@ export default defineToolbarApp({
 
     function onPageClick(event: MouseEvent): void {
       if (!active || textDialog.open) return;
+      if (setupPickerKind) {
+        const candidate = setupPickerCandidate(event.target);
+        if (!candidate) return;
+        const kind = setupPickerKind;
+        event.preventDefault();
+        event.stopPropagation();
+        stopSetupPagePicker(false);
+        panel.dataset.open = String(active);
+        updateSetupDock();
+        if (kind === 'section') {
+          beginSectionDiscovery(candidate);
+        } else {
+          const item = inventory.find((entry) => entry.element === candidate);
+          if (item) openPermissionChoice(item);
+          else if (mode === 'setup') renderInventory();
+        }
+        return;
+      }
       if (mode === 'setup') {
         if (!(event.target instanceof Element)) return;
         const selected = event.target.closest<HTMLElement>('[data-astro-ve-inventory-status]');
@@ -948,6 +1539,9 @@ export default defineToolbarApp({
       return directSections(region).map((section) => ({
         id: section.dataset.section!,
         ...(section.dataset.astroVeTemplate ? { templateId: section.dataset.astroVeTemplate } : {}),
+        ...(section.dataset.astroEditSourceKey
+          ? { sourceKey: section.dataset.astroEditSourceKey }
+          : {}),
       }));
     }
 
@@ -958,6 +1552,7 @@ export default defineToolbarApp({
     function queueRegion(region: HTMLElement): void {
       const filePath = sourceFileFor(region, config, editabilityPolicy);
       const regionId = regionIdFor(region);
+      const sourcePath = region.dataset.astroEditPath;
       const key = `sections:${filePath}:${regionId}`;
       const before = initialSections.get(regionKey(region)) ?? descriptors(region);
       initialSections.set(regionKey(region), structuredClone(before));
@@ -970,6 +1565,7 @@ export default defineToolbarApp({
           filePath,
           route: window.location.pathname,
           regionId,
+          sourcePath,
           before,
           after,
         });
@@ -1246,24 +1842,38 @@ export default defineToolbarApp({
         instructions.textContent = 'Review every queued source change before committing the batch.';
       if (mode === 'setup')
         instructions.textContent =
-          'Review visible page content, then allow or block it without weakening source safety.';
+          'Set up text permissions and reorderable section regions without weakening source safety.';
       setupButton.setAttribute('aria-pressed', String(mode === 'setup'));
       setupButton.setAttribute(
         'aria-label',
-        mode === 'setup' ? 'Back to editor' : 'Open Editability Setup',
+        mode === 'setup' ? 'Back to editor' : 'Open Editor Setup',
       );
-      setupButton.title = mode === 'setup' ? 'Back to editor' : 'Open Editability Setup';
+      setupButton.title = mode === 'setup' ? 'Back to editor' : 'Open Editor Setup';
       setupButton.textContent = mode === 'setup' ? '← Back to editor' : '⚙';
       pickerLabel.textContent =
         mode === 'sections'
           ? 'Arrange sections'
           : mode === 'setup'
-            ? 'Editability Setup'
+            ? 'Editor Setup'
             : 'Tap content to edit';
       setupSectionControls();
       renderQueue();
       if (mode === 'seo') openSeo();
-      if (mode === 'sections' && active) setMinimized(true);
+      if (mode === 'sections' && active) {
+        const hasEditableRegion = [
+          ...document.querySelectorAll<HTMLElement>(
+            '[data-astro-edit-region], [data-astro-edit-sections]',
+          ),
+        ].some((region) => directSections(region).length > 0);
+        if (hasEditableRegion) setMinimized(true);
+        else {
+          setMinimized(false);
+          showMessage(
+            'No section region is enabled on this page yet. Choose “Select section on page”, then hover and click the area you want to reorder.',
+            'warning',
+          );
+        }
+      }
       if (mode === 'setup') setMinimized(false);
     }
 
@@ -1285,6 +1895,10 @@ export default defineToolbarApp({
         capture: true,
         signal: listenerController.signal,
       });
+      document.addEventListener('pointermove', onPointerOver, {
+        capture: true,
+        signal: listenerController.signal,
+      });
       document.addEventListener('click', onPageClick, {
         capture: true,
         signal: listenerController.signal,
@@ -1294,6 +1908,7 @@ export default defineToolbarApp({
 
     function deactivate(): void {
       active = false;
+      stopSetupPagePicker(false);
       updateSetupDock();
       panel.dataset.open = 'false';
       picker.dataset.open = 'false';
@@ -1315,6 +1930,9 @@ export default defineToolbarApp({
         historyDialog,
         diffDialog,
         policyDialog,
+        permissionDialog,
+        regionDialog,
+        regionSourceDialog,
       ])
         if (dialog.open) dialog.close();
     }
@@ -1401,6 +2019,11 @@ export default defineToolbarApp({
 
     function onDocumentKeydown(event: KeyboardEvent): void {
       if (!active) return;
+      if (setupPickerKind && event.key === 'Escape') {
+        event.preventDefault();
+        stopSetupPagePicker(true);
+        return;
+      }
       const modifier = event.metaKey || event.ctrlKey;
       if (modifier && event.key.toLowerCase() === 's') {
         event.preventDefault();
@@ -1432,7 +2055,7 @@ export default defineToolbarApp({
         mode === 'sections' &&
         event.altKey &&
         document.activeElement instanceof HTMLElement &&
-        document.activeElement.matches('section[data-section]')
+        document.activeElement.matches('[data-section]')
       ) {
         if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
           event.preventDefault();
@@ -1542,11 +2165,39 @@ export default defineToolbarApp({
         });
         renderInventory();
       });
+    sourceDialog
+      .querySelector<HTMLButtonElement>('.confirm-source')!
+      .addEventListener('click', () => {
+        if (!sourceDiscoveryItem) return;
+        const selected = sourceDialog.querySelector<HTMLInputElement>(
+          'input[name="source-candidate"]:checked',
+        );
+        const candidate = sourceCandidates.find((item) => item.id === selected?.value);
+        if (!candidate) return;
+        sourceDialog.close('confirm');
+        const item = sourceDiscoveryItem;
+        sourceDiscoveryItem = undefined;
+        sourceCandidates = [];
+        setDraftRule(item, 'allow', 'element', candidate.filePath, candidate.sourcePath);
+      });
+    regionDialog
+      .querySelector<HTMLButtonElement>('.pick-region-on-page')!
+      .addEventListener('click', () => startSetupPagePicker('section'));
+    setupPagePicker
+      .querySelector<HTMLButtonElement>('.cancel-setup-picker')!
+      .addEventListener('click', () => stopSetupPagePicker(true));
+    permissionDialog
+      .querySelector<HTMLButtonElement>('.cancel-permission')!
+      .addEventListener('click', () => permissionDialog.close('cancel'));
+    regionSourceDialog
+      .querySelector<HTMLButtonElement>('.confirm-region-source')!
+      .addEventListener('click', confirmSectionCandidate);
 
     server.on(CONFIG_EVENT, (next: ClientEditorConfig) => {
       config = { ...defaultConfig, ...next };
       configReady = true;
       configConfirmed = true;
+      renderDemoSurfaces();
       sessionStorage.setItem(SESSION_CONFIG, JSON.stringify(next));
       setupButton.hidden = !config.canManageEditability;
       try {
@@ -1631,6 +2282,7 @@ export default defineToolbarApp({
         editabilityPolicy = structuredClone(response.policy);
         draftEditabilityPolicy = structuredClone(response.policy);
         editabilityPolicyHash = response.policyHash;
+        applySectionRegionPolicy(editabilityPolicy);
         config.canManageEditability = response.canManage ?? config.canManageEditability;
         setupButton.hidden = !config.canManageEditability;
         if (mode === 'setup') showMessage('Editability policy loaded from the project.', 'success');
@@ -1660,11 +2312,47 @@ export default defineToolbarApp({
         editabilityPolicy = structuredClone(response.policy);
         draftEditabilityPolicy = structuredClone(response.policy);
         editabilityPolicyHash = response.policyHash;
+        applySectionRegionPolicy(editabilityPolicy);
         setMode('text');
         showMessage(
-          `Saved ${response.policyFile ?? config.editabilityPolicyFile}. You can now edit the allowed content.`,
+          `Saved ${response.policyFile ?? config.editabilityPolicyFile}. Your text permissions and section mappings are now active.`,
           'success',
         );
+      }
+      renderQueue();
+    });
+    server.on(SOURCE_DISCOVERY_RESULT_EVENT, (response: SourceDiscoveryResponse) => {
+      if (response.clientId !== clientId || response.requestId !== sourceDiscoveryRequestId) return;
+      setupBusy = false;
+      sourceDiscoveryRequestId = undefined;
+      if (!response.success || !response.candidates) {
+        sourceDiscoveryItem = undefined;
+        showMessage(response.error ?? 'Source discovery failed.', 'error');
+      } else {
+        sourceCandidates = response.candidates;
+        clearMessage();
+        renderSourceCandidates(response.candidates, response.searchedFiles);
+        if (response.truncated) {
+          showMessage(
+            'The source result list was bounded; refine or confirm one visible candidate.',
+            'warning',
+          );
+        }
+      }
+      if (mode === 'setup') renderInventory();
+    });
+    server.on(SECTION_DISCOVERY_RESULT_EVENT, (response: SectionDiscoveryResponse) => {
+      if (response.clientId !== clientId || response.requestId !== sectionDiscoveryRequestId)
+        return;
+      setupBusy = false;
+      sectionDiscoveryRequestId = undefined;
+      if (!response.success || !response.candidates) {
+        sectionDiscoveryElement = undefined;
+        showMessage(response.error ?? 'Section discovery failed.', 'error');
+      } else {
+        sectionCandidates = response.candidates;
+        clearMessage();
+        renderSectionCandidates(response.candidates);
       }
       renderQueue();
     });
@@ -1678,7 +2366,10 @@ export default defineToolbarApp({
       'astro:page-load',
       () => {
         updateSetupDock();
-        if (configReady) replaceQueue(safeParseQueue());
+        if (configReady) {
+          applySectionRegionPolicy(editabilityPolicy);
+          replaceQueue(safeParseQueue());
+        }
       },
       { signal: listenerController.signal },
     );

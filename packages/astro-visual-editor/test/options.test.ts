@@ -17,6 +17,7 @@ describe('normalizeOptions', () => {
     ]);
     expect(toClientConfig(options)).not.toHaveProperty('allowedExtensions');
     expect(toClientConfig(options).canManageEditability).toBe(true);
+    expect(toClientConfig(options).demoPages).toEqual([]);
   });
 
   it('preserves user selector mappings without injecting phantom defaults', () => {
@@ -47,5 +48,36 @@ describe('normalizeOptions', () => {
     expect(
       toClientConfig(normalizeOptions({ editabilityRole: 'editor' })).canManageEditability,
     ).toBe(false);
+    expect(() =>
+      normalizeOptions({
+        demoPages: [
+          { id: 'simple', label: 'Simple', path: '/', description: 'The simple page.' },
+          { id: 'again', label: 'Again', path: '/', description: 'A duplicate route.' },
+        ],
+      }),
+    ).toThrow('duplicated');
+  });
+
+  it('passes an explicit local demo switcher to the toolbar', () => {
+    const options = normalizeOptions({
+      demoPages: [
+        {
+          id: 'simple',
+          label: 'Simple demo',
+          path: '/',
+          description: 'A direct single-file test page.',
+        },
+        {
+          id: 'complex',
+          label: 'Complex sources',
+          path: '/fixtures/complex',
+          description: 'A composed source test page.',
+        },
+      ],
+    });
+    expect(toClientConfig(options).demoPages.map((page) => page.path)).toEqual([
+      '/',
+      '/fixtures/complex',
+    ]);
   });
 });

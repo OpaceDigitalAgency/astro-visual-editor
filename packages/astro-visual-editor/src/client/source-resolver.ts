@@ -10,6 +10,24 @@ export interface SourceResolution {
   sourcePath?: string;
   proven: boolean;
   reason: string;
+  sharedRouteCount?: number;
+}
+
+function sharedRouteCount(element: HTMLElement): number | undefined {
+  const routes = element
+    .closest<HTMLElement>('[data-astro-edit-shared-routes]')
+    ?.dataset.astroEditSharedRoutes?.split(',')
+    .map((route) => route.trim())
+    .filter(Boolean);
+  return routes && routes.length > 1 ? new Set(routes).size : undefined;
+}
+
+function annotatedReason(element: HTMLElement): string {
+  const origin = element.closest<HTMLElement>('[data-astro-edit-origin]')?.dataset.astroEditOrigin;
+  const shared = sharedRouteCount(element);
+  const originCopy = origin ? ` Confirmed as ${origin.replaceAll('-', ' ')}.` : '';
+  const sharedCopy = shared ? ` This value is shared by ${shared} routes.` : '';
+  return `Confirmed by a source annotation.${originCopy}${sharedCopy}`;
 }
 
 export function sourceResolutionFor(
@@ -24,7 +42,8 @@ export function sourceResolutionFor(
       filePath: explicit,
       sourcePath,
       proven: true,
-      reason: 'Confirmed by a source annotation.',
+      reason: annotatedReason(element),
+      sharedRouteCount: sharedRouteCount(element),
     };
   }
   for (const [selector, filePath] of Object.entries(config.selectorMappings)) {
@@ -86,6 +105,11 @@ export function selectorFor(element: HTMLElement): string {
   if (element.id) return `#${CSS.escape(element.id)}`;
   const editableId = element.dataset.astroEditId;
   if (editableId) return `[data-astro-edit-id="${CSS.escape(editableId)}"]`;
+  const explicitFile = element.dataset.astroEditFile?.trim();
+  const explicitPath = element.dataset.astroEditPath?.trim();
+  if (explicitFile && explicitPath) {
+    return `[data-astro-edit-file="${CSS.escape(explicitFile)}"][data-astro-edit-path="${CSS.escape(explicitPath)}"]`;
+  }
   const sectionId = element.closest<HTMLElement>('[data-section]')?.dataset.section;
   const parts: string[] = [];
   let current: HTMLElement | null = element;
@@ -93,6 +117,22 @@ export function selectorFor(element: HTMLElement): string {
     let part = current.tagName.toLowerCase();
     if (current.dataset.section) part += `[data-section="${CSS.escape(current.dataset.section)}"]`;
     else if (current.classList.length > 0) part += `.${CSS.escape(current.classList[0] ?? '')}`;
+    if (!current.dataset.section && current.parentElement) {
+      let matchingSiblings: Element[] = [];
+      try {
+        matchingSiblings = [...current.parentElement.children].filter((sibling) =>
+          sibling.matches(part),
+        );
+      } catch {
+        matchingSiblings = [];
+      }
+      if (matchingSiblings.length > 1) {
+        const sameTag = [...current.parentElement.children].filter(
+          (sibling) => sibling.tagName === current!.tagName,
+        );
+        part += `:nth-of-type(${sameTag.indexOf(current) + 1})`;
+      }
+    }
     parts.unshift(part);
     if (current.dataset.section) break;
     current = current.parentElement;

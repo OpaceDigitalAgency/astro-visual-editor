@@ -59,6 +59,34 @@ describe('source adapters', () => {
     );
   });
 
+  it('matches a visible Astro literal without confusing identical attribute text', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(
+      page,
+      '<p data-astro-edit-origin="a Content Collection field">Content Collection</p>',
+    );
+    await applyChangeBatch(
+      root,
+      src,
+      [
+        {
+          kind: 'text',
+          id: 'literal-not-attribute',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          selector: 'p',
+          oldText: 'Content Collection',
+          newText: 'Collection source, reviewed',
+        },
+      ],
+      normalizeOptions(),
+    );
+    expect(await readFile(page, 'utf8')).toBe(
+      '<p data-astro-edit-origin="a Content Collection field">Collection source, reviewed</p>',
+    );
+  });
+
   it('updates JSON and YAML by structured path', async () => {
     const { root, src } = await project();
     await writeFile(join(src, 'data', 'copy.json'), '{\n  "hero": { "title": "Old JSON" }\n}\n');

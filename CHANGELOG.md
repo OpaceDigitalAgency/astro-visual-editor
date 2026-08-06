@@ -4,6 +4,51 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## 0.1.0-beta.5 - 2026-08-06
+
+### Added
+
+- Added a composed demo page that renders through a shared layout and reusable
+  components while sourcing editable values from direct JSON imports and an
+  Astro Content Collection entry.
+- Added an optional, local-only demo-page switcher so testers can move between
+  the original single-file fixture and the composed-source fixture.
+- Added visible structured source paths and a shared-route warning before an
+  affected value is queued for editing.
+- Added browser coverage that reviews, commits and safely restores a JSON
+  property and Markdown frontmatter field in one multi-file batch.
+- Added syntax-aware project source discovery for exact Astro,
+  Markdown/frontmatter, JSON/JSONC and YAML values, including separate
+  stale-checked locators for repeated Astro literals.
+- Added owner-confirmed section setup that maps existing rendered containers to
+  contiguous Astro children or complete JSON/JSONC and YAML arrays without
+  requiring editor annotations in site components.
+- Added policy-backed section mappings with exact source-item hashes, reviewed
+  policy persistence and safe refresh after source order changes.
+- Added browser coverage that enables four mixed component/element blocks on
+  the complex fixture, reorders them, commits the exact Astro diff and restores
+  the source.
+
+### Changed
+
+- Kept syntax-aware adapters and confirmed project mappings as the final
+  authority. Ambiguous, transformed or non-reversible data flow is refused
+  rather than guessed or globally replaced.
+- Made explicitly mapped structured fields use their file and source path as a
+  stable preview target, so repeated component output is edited independently.
+- Kept Sections mode open with a clear explanation when the current page has
+  no declared source-owned section region.
+- Made section-region setup visible in the owner Settings screen alongside
+  text permissions, with current-route mappings and reviewed removal controls.
+- Preserved draft section mappings when text permission rules are added or
+  removed, so independent setup changes cannot discard one another.
+- Replaced developer-facing section and text setup with one consistent visual
+  picker: readable labels, on-page hover highlighting and click selection.
+- Moved syntax paths and file candidates behind collapsed technical details,
+  automatically accepting only a uniquely scored structural source match.
+- Matched parsed Astro literal nodes before considering quoted-value fallback,
+  preventing identical words in annotations from causing false ambiguity.
+
 ## 0.1.0-beta.4 - 2026-08-05
 
 ### Added

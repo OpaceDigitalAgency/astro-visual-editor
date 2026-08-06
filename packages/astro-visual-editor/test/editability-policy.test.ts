@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
 import { normalizeOptions } from '../src/options.js';
 import { EditabilityPolicyManager } from '../src/server/editability-policy.js';
+import { resolveAstroRegionItems } from '../src/server/source-discovery.js';
 
 const roots: string[] = [];
 
@@ -123,5 +124,45 @@ describe('EditabilityPolicyManager', () => {
     const loaded = await manager.load('owner', 'load-1', true);
     expect(loaded.success).toBe(false);
     expect(loaded.error).toContain('not valid JSON');
+  });
+
+  it('hydrates saved section mappings from the current syntax tree order', async () => {
+    const { root, options, manager } = await fixture();
+    const sourcePath = 'astro:children:component:Layout:0';
+    const original = '<Layout>\n  <Hero />\n  <Proof />\n</Layout>\n';
+    const reordered = '<Layout>\n  <Proof />\n  <Hero />\n</Layout>\n';
+    const file = join(root, 'src', 'pages', 'index.astro');
+    await writeFile(file, original);
+    const originalItems = await resolveAstroRegionItems(original, sourcePath);
+    const loaded = await manager.load('owner', 'load', true);
+    const request = {
+      clientId: 'owner',
+      requestId: 'sections',
+      expectedHash: loaded.policyHash!,
+      policy: {
+        version: 1 as const,
+        rules: [],
+        regions: [
+          {
+            id: 'home-sections',
+            route: '/',
+            selector: 'main',
+            filePath: 'src/pages/index.astro',
+            sourcePath,
+            items: originalItems,
+          },
+        ],
+      },
+    };
+    expect((await manager.preview(request, true)).success).toBe(true);
+    expect((await manager.save(request, true)).success).toBe(true);
+    await writeFile(file, reordered);
+    const restarted = new EditabilityPolicyManager(root, options);
+    const refreshed = await restarted.load('owner', 'reload', true);
+    expect(refreshed.success).toBe(true);
+    expect(refreshed.policy?.regions?.[0]?.items.map((item) => item.id)).toEqual([
+      originalItems[1]!.id,
+      originalItems[0]!.id,
+    ]);
   });
 });

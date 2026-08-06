@@ -11,6 +11,14 @@ export interface SectionTemplate {
 
 export type ClientSectionTemplate = SectionTemplate;
 
+/** Optional local routes shown by a project's demonstration configuration. */
+export interface DemoPage {
+  id: string;
+  label: string;
+  path: string;
+  description: string;
+}
+
 export type EditabilityEffect = 'allow' | 'deny';
 export type EditabilityRuleScope = 'element' | 'selector';
 
@@ -27,6 +35,21 @@ export interface EditabilityRule {
 export interface EditabilityPolicy {
   version: 1;
   rules: EditabilityRule[];
+  regions?: SectionRegionRule[];
+}
+
+export interface SectionRegionItem {
+  id: string;
+  sourceKey: string;
+}
+
+export interface SectionRegionRule {
+  id: string;
+  route: string;
+  selector: string;
+  filePath: string;
+  sourcePath: string;
+  items: SectionRegionItem[];
 }
 
 export interface BaseEditorChange {
@@ -58,11 +81,13 @@ export interface SeoEditorChange extends BaseEditorChange {
 export interface SectionDescriptor {
   id: string;
   templateId?: string;
+  sourceKey?: string;
 }
 
 export interface SectionsEditorChange extends BaseEditorChange {
   kind: 'sections';
   regionId: string;
+  sourcePath?: string;
   before: SectionDescriptor[];
   after: SectionDescriptor[];
 }
@@ -75,6 +100,7 @@ export interface ClientEditorConfig {
   fileMappings: Record<string, string>;
   selectorMappings: Record<string, string>;
   sectionTemplates: ClientSectionTemplate[];
+  demoPages: DemoPage[];
   maxChanges: number;
   maxTextLength: number;
   requestTimeoutMs: number;
@@ -177,6 +203,65 @@ export interface EditabilityPolicyResponse extends ClientMessage {
   policyFile?: string;
   canManage?: boolean;
   diff?: FileDiff;
+  error?: string;
+}
+
+export interface SourceDiscoveryRequest extends ClientMessage {
+  requestId: string;
+  route: string;
+  selector: string;
+  text: string;
+  hintedFilePath?: string;
+}
+
+export type SourceCandidateFormat = 'astro' | 'markdown' | 'json' | 'yaml';
+
+export interface SourceCandidate {
+  id: string;
+  filePath: string;
+  sourcePath?: string;
+  format: SourceCandidateFormat;
+  line: number;
+  confidence: 'exact' | 'likely';
+  reason: string;
+}
+
+export interface SourceDiscoveryResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  candidates?: SourceCandidate[];
+  searchedFiles?: number;
+  truncated?: boolean;
+  error?: string;
+}
+
+export interface SectionDiscoveryRequest extends ClientMessage {
+  requestId: string;
+  route: string;
+  selector: string;
+  itemCount: number;
+  containerTag?: string;
+  itemTags?: string[];
+  hintedFilePath?: string;
+}
+
+export interface SectionRegionCandidate {
+  id: string;
+  filePath: string;
+  sourcePath: string;
+  line: number;
+  confidence: 'exact' | 'likely';
+  containerTag?: string;
+  itemTags?: string[];
+  reason: string;
+  items: SectionRegionItem[];
+}
+
+export interface SectionDiscoveryResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  candidates?: SectionRegionCandidate[];
+  searchedFiles?: number;
   error?: string;
 }
 

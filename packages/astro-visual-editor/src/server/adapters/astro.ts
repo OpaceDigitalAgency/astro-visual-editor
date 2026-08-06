@@ -14,6 +14,7 @@ import {
   type SourceRange,
   uniqueRange,
 } from './shared.js';
+import { createHash } from 'node:crypto';
 
 interface PositionPoint {
   offset: number;
@@ -49,7 +50,22 @@ function elementSource(source: string, node: AstroNode): string {
 
 function nodeEndOffset(source: string, node: AstroNode): number {
   if (!node.position) throw new Error('Astro compiler did not provide a source start position.');
-  if (node.position.end) return node.position.end.offset;
+  if (node.position.end) {
+    const end = node.position.end.offset;
+    if (node.type === 'component' || node.type === 'custom-element') {
+      const raw = source.slice(node.position.start.offset, end);
+      if (!raw.includes(`</${node.name ?? ''}`)) {
+        const selfClosing = source.indexOf('/>', node.position.start.offset);
+        const nextTag = source.indexOf('<', node.position.start.offset + 1);
+        if (selfClosing !== -1 && (nextTag === -1 || selfClosing < nextTag)) {
+          return selfClosing + 2;
+        }
+      }
+    }
+    // The compiler currently reports self-closing component positions before
+    // the final `>`, while normal element ranges are end-exclusive.
+    return source[end] === '>' ? end + 1 : end;
+  }
   const end = source.indexOf('>', node.position.start.offset);
   if (end === -1) throw new Error(`Cannot locate the end of <${node.name ?? node.type}>.`);
   return end + 1;
@@ -93,6 +109,44 @@ function normalizedLiteralRange(
   return matches[0]!;
 }
 
+function mappedLiteralRange(
+  source: string,
+  ast: AstroNode,
+  sourcePath: string,
+  renderedText: string,
+  label: string,
+): SourceRange | undefined {
+  const match = /^astro:text:(\d+)$/u.exec(sourcePath);
+  if (!match) return undefined;
+  const offset = Number(match[1]);
+  let located: SourceRange | undefined;
+  walk(ast, (node) => {
+    if (located || node.type !== 'text' || !node.position?.end) return;
+    if (node.position.start.offset !== offset) return;
+    const raw = source.slice(node.position.start.offset, node.position.end.offset);
+    if (normalizedText(raw) !== normalizedText(renderedText)) {
+      throw new Error(
+        `The confirmed Astro source mapping is stale for ${label}. Run source discovery again.`,
+      );
+    }
+    const leading = raw.search(/\S/u);
+    const trailing = raw.search(/\s*$/u);
+    if (leading === -1) return;
+    located = {
+      start: node.position.start.offset + leading,
+      end: node.position.start.offset + trailing,
+      replacement: '',
+      label,
+    };
+  });
+  if (!located) {
+    throw new Error(
+      `The confirmed Astro source mapping was not found for ${label}. Run source discovery again.`,
+    );
+  }
+  return located;
+}
+
 export async function validateAstro(source: string, filename: string): Promise<void> {
   try {
     await transform(source, { filename });
@@ -120,9 +174,20 @@ export async function applyAstroText(
 ): Promise<string> {
   const ast = await parseAstro(source);
   const label = `${change.filePath} (${change.selector ?? 'text'})`;
-  const range = source.includes(change.oldText)
-    ? uniqueRange(source, change.oldText, label)
-    : normalizedLiteralRange(source, ast, change.oldText, label);
+  let range = change.sourcePath
+    ? mappedLiteralRange(source, ast, change.sourcePath, change.oldText, label)
+    : undefined;
+  if (!range) {
+    try {
+      // Match parsed Astro text nodes first so the same words inside attributes,
+      // comments or scripts cannot make a visible literal falsely ambiguous.
+      range = normalizedLiteralRange(source, ast, change.oldText, label);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('ambiguous')) throw error;
+      // Complete quoted values are the only supported non-literal fallback.
+      range = uniqueRange(source, change.oldText, label);
+    }
+  }
   let isLiteralText = false;
   walk(ast, (node) => {
     if (
@@ -301,11 +366,97 @@ function renderTemplate(template: SectionTemplate, id: string): string {
   return markup;
 }
 
+function significantChildren(node: AstroNode): AstroNode[] {
+  return (node.children ?? []).filter(
+    (child) =>
+      Boolean(child.position) &&
+      ['element', 'component', 'custom-element', 'fragment'].includes(child.type) &&
+      !['style', 'script'].includes(child.name ?? ''),
+  );
+}
+
+function sourceKey(source: string, node: AstroNode): string {
+  return createHash('sha256').update(elementSource(source, node)).digest('hex').slice(0, 20);
+}
+
+function mappedChildrenContainer(ast: AstroNode, sourcePath: string): AstroNode {
+  const match = /^astro:children:([a-z-]+):([A-Za-z0-9_.:-]+):(\d+)$/u.exec(sourcePath);
+  if (!match) throw new Error('The section source mapping is invalid.');
+  const [, type, name, occurrenceText] = match;
+  const occurrence = Number(occurrenceText);
+  const matches: AstroNode[] = [];
+  walk(ast, (node) => {
+    if (node.type === type && (node.name ?? node.type) === name) matches.push(node);
+  });
+  const container = matches[occurrence];
+  if (!container) {
+    throw new Error('The confirmed section source mapping is stale. Run section discovery again.');
+  }
+  return container;
+}
+
+async function applyMappedAstroChildren(
+  source: string,
+  change: SectionsEditorChange,
+  templates: SectionTemplate[],
+): Promise<string> {
+  assertUniqueSectionIds(change.before, 'Previous section state');
+  assertUniqueSectionIds(change.after, 'Next section state');
+  const ast = await parseAstro(source);
+  const container = mappedChildrenContainer(ast, change.sourcePath!);
+  const children = significantChildren(container);
+  if (children.length < 2)
+    throw new Error('A mapped section region must contain at least two items.');
+  const currentKeys = children.map((node) => sourceKey(source, node));
+  const beforeKeys = change.before.map((item) => item.sourceKey);
+  if (beforeKeys.some((key) => !key) || currentKeys.join('\0') !== beforeKeys.join('\0')) {
+    throw new Error(
+      'The mapped section source changed before commit. Run section discovery again.',
+    );
+  }
+  const sourceByKey = new Map(
+    children.map((node) => [sourceKey(source, node), elementSource(source, node)]),
+  );
+  const templateById = new Map(templates.map((template) => [template.id, template]));
+  const ordered = change.after.map((descriptor) => {
+    const existing = descriptor.sourceKey ? sourceByKey.get(descriptor.sourceKey) : undefined;
+    if (existing) return existing;
+    const template = descriptor.templateId ? templateById.get(descriptor.templateId) : undefined;
+    if (!template) throw new Error(`Unknown source item or template for section ${descriptor.id}.`);
+    return renderTemplate(template, descriptor.id);
+  });
+  const first = children[0]!.position!;
+  const last = children.at(-1)!;
+  const lastEnd = nodeEndOffset(source, last);
+  const between = source.slice(first.start.offset, lastEnd);
+  const withoutChildren = children.reduce(
+    (value, node) => value.replace(elementSource(source, node), ''),
+    between,
+  );
+  if (withoutChildren.trim()) {
+    throw new Error('The mapped Astro children are not contiguous; reordering was refused.');
+  }
+  const gap = between.match(/>([\s\r\n]+)</u)?.[1] ?? '\n';
+  const next = applyRanges(source, [
+    {
+      start: first.start.offset,
+      end: lastEnd,
+      replacement: ordered.join(gap),
+      label: `mapped section region ${change.regionId}`,
+    },
+  ]);
+  await validateAstro(next, change.filePath);
+  return next;
+}
+
 export async function applyAstroSections(
   source: string,
   change: SectionsEditorChange,
   templates: SectionTemplate[],
 ): Promise<string> {
+  if (change.sourcePath?.startsWith('astro:children:')) {
+    return applyMappedAstroChildren(source, change, templates);
+  }
   assertUniqueSectionIds(change.before, 'Previous section state');
   assertUniqueSectionIds(change.after, 'Next section state');
   const ast = await parseAstro(source);

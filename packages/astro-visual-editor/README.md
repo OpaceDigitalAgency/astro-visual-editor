@@ -212,18 +212,16 @@ both disabled by default.
 - No arbitrary page-wide or cross-region section drops.
 - Checksummed local receipt history survives a complete dev-server restart and
   refuses unsafe restore when the record or saved file no longer matches.
-- Visible Editability Setup/content inventory is included in the Beta 4
-  candidate; bounded automatic source tracing and Git-backed history remain
-  roadmap work.
+- Source tracing remains deliberately bounded to explicit, validated mappings.
 
-Full documentation, feature parity, architecture and release evidence:
+Documentation and support:
 
 - [Product page](https://opace.agency/tools/astro/visual-editor/)
 - [GitHub repository](https://github.com/OpaceDigitalAgency/astro-visual-editor)
 - [Full configuration and source-mapping guide](https://github.com/OpaceDigitalAgency/astro-visual-editor#configuration)
 - [Security model](https://github.com/OpaceDigitalAgency/astro-visual-editor/security/policy)
-- [Release evidence and current status](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/<removed internal document>)
-- [Current release and takeover plan](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/<removed internal document>)
+- [Contributing](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/OpaceDigitalAgency/astro-visual-editor/security/policy)
 
 MIT © 2026 [Opace Digital Agency](https://opace.agency/services/web-design/).
 

@@ -18,25 +18,14 @@ development toolbar.
 [Contributing](./CONTRIBUTING.md) ·
 [Opace open-source portfolio](https://github.com/OpaceDigitalAgency/OpaceDigitalAgency)
 
-Astro Visual Editor is a reusable, development-only Astro integration. It
-rebuilds every user-facing capability of the original site-specific localhost
-editor and replaces that prototype's unfinished save endpoints with typed,
-syntax-aware transactions.
+Astro Visual Editor is a reusable, development-only Astro integration for
+reviewing and applying source-aware content changes from the rendered page.
 
 It is created and maintained by Opace Digital Agency's <a href="https://opace.agency/services/web-design/astro-development/">Astro development team</a>. If you need
 a wider website project, see the <a href="https://opace.agency/services/web-design/">web design services</a> provided by Opace or <a href="https://opace.agency/get-in-touch/">get in touch</a>.
 
-> **Release status:** the public beta is available from npm as
-> `@opacedev/astro-visual-editor`. The implementation is feature-complete
-> against the legacy editor, validated locally and in public CI, and backed by
-> a live canonical Opace product page. Astro's own current importer accepts the
-> package, while the scheduled public directory update and owner acceptance
-> remain separate gates. Exact evidence is maintained in
-> [<removed internal document>](./<removed internal document>) and the future version sequence in
-> [<removed internal document>](./<removed internal document>).
-
-> Beta 4 adds the bounded owner-facing Editability Setup and reviewed project
-> policy workflow.
+> **Release status:** install the current published version from npm. The
+> [changelog](./CHANGELOG.md) records released changes.
 
 | At a glance     | Behaviour                                                                         |
 | --------------- | --------------------------------------------------------------------------------- |
@@ -73,11 +62,9 @@ The workbench can be collapsed to a compact picker on desktop or mobile. Icon
 controls expose visible hover/focus tooltips and accessible names, and dialogs
 close through Cancel, Escape or a click on the backdrop.
 
-## Safety difference from the original
+## Source-write safety
 
-The original `/api/update-sections` route returned success without modifying
-Astro source. Its text and SEO routes relied on broad string replacement. This
-package instead provides:
+This package provides:
 
 - runtime-validated, size-bounded toolbar messages;
 - stable tab and request IDs with response filtering;
@@ -459,9 +446,8 @@ Astro integration (development command only)
   require declared, contiguous regions with stable IDs.
 - Existing sections cannot be moved across unrelated regions, and templates
   cannot be dropped onto arbitrary page locations.
-- It does not infer every import/data dependency or provide the planned full
-  schema-aware dependency graph; Beta 4 inventories visible content and records
-  reviewed mappings, while bounded automatic import tracing remains Beta 5.
+- It does not infer every import/data dependency or provide a full schema-aware
+  dependency graph.
 - Checksummed local receipt history survives a dev-server restart and refuses
   restore if the record was changed, expired, or the saved file has newer work.
 - Saved history is local and bounded; Git-backed history remains future work.
@@ -502,10 +488,6 @@ scripts/                       Production-isolation and package checks
 .github/                       CI, release automation and contribution templates
 ```
 
-For the proposed reusable Astro theme that will demonstrate this integration,
-including its product scope, quality gates and Developer Portal submission
-process, see [Astro Theme Product and Publishing Plan](./<removed internal document>).
-
 ## Astro integration discovery
 
 The package follows Astro's current published rules:
@@ -516,40 +498,23 @@ The package follows Astro's current published rules:
 - package metadata includes its repository, homepage and description;
 - the package exports only its built runtime, types, licence and package README.
 
-Astro documents that the integrations library is refreshed weekly from
-qualifying npm packages. The current unmodified Astro importer has been run
-against the live registry and generated the expected beta.2 entry with Dev
-Toolbar, Performance + SEO, Utilities and CSS + UI categories. The directory
-card uses the package homepage, which is the canonical
-[Astro Visual Editor product page](https://opace.agency/tools/astro/visual-editor/)
-within the Opace website. Technical documentation remains in this repository so
-the published guidance stays versioned with the source.
+Astro's integrations library is refreshed from qualifying npm packages. See
+Astro's [integration-library guidance](https://docs.astro.build/en/guides/integrations/#integrations-library)
+for its current catalogue process.
 
-The custom product avatar and metadata request is open as
-[withastro/astro.build#2597](https://github.com/withastro/astro.build/issues/2597).
-Importer acceptance is complete; Astro's scheduled catalogue PR, public listing
-and maintainer handling of the avatar remain external gates in
-[<removed internal document>](./<removed internal document>).
+## Repository documentation
 
-## Project documents
-
-- [<removed internal document>](./<removed internal document>) — release truth and gates.
-- [<removed internal document>](./<removed internal document>) — current test workflow, version sequence
-  and takeover plan.
-- [<removed internal document>](./<removed internal document>) — enforced publishing path,
-  GitHub protections and external Astro listing follow-up.
-- [<removed internal document>](./<removed internal document>) — exact legacy-to-package comparison.
-- [<removed internal document>](./<removed internal document>) — remaining roadmap.
-- [Complete research and assessment](./Astro%20Integrated%20CMS%20%26%20Frontend%20Editing_%20Complete%20Research%20%26%20Assessment.md) — market context.
-- [Current engineering review](./<removed internal review>) — code-quality assessment.
-- [Strategic product review](./<removed internal review>) — product priorities and recommendation changes.
-- [Astro Theme Product and Publishing Plan](./<removed internal document>) — a separate reusable theme and Developer Portal submission plan.
-- [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
+- [Package guide](./packages/astro-visual-editor/README.md) — installation and
+  configuration reference.
+- [Contributing](./CONTRIBUTING.md) — development and pull-request guidance.
+- [Security policy](./SECURITY.md) — supported versions and private reporting.
+- [Support](./SUPPORT.md) — help and issue-reporting guidance.
+- [Changelog](./CHANGELOG.md) — released changes.
 
 ## Questions, bugs and security
 
-- Read the [package documentation](./packages/astro-visual-editor/README.md) for
-  the concise install and configuration reference.
+- Read the [package guide](./packages/astro-visual-editor/README.md) for the
+  concise install and configuration reference.
 - Use the structured [GitHub issue forms](https://github.com/OpaceDigitalAgency/astro-visual-editor/issues/new/choose)
   for reproducible bugs and scoped feature proposals.
 - Read [SUPPORT.md](./SUPPORT.md) before opening an implementation question.

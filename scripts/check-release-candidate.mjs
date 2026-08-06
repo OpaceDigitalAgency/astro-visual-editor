@@ -48,12 +48,7 @@ export async function checkReleaseCandidate(requestedChannel, options = {}) {
   );
 
   await requireText(root, 'CHANGELOG.md', `## ${packageJson.version}`);
-  await requireText(root, '<removed internal document>', `Version \`${packageJson.version}\``);
-  await requireText(
-    root,
-    '<removed internal document>',
-    `**Current public version:** \`${packageJson.name}@${packageJson.version}\``,
-  );
+  await requireText(root, 'packages/astro-visual-editor/README.md', packageJson.name);
 
   for (const [file, expectedHash] of Object.entries(fixtures.files ?? {})) {
     const contents = await readFile(join(root, file));

@@ -35,13 +35,10 @@ async function makeCandidate() {
     files: { [fixture]: fixtureHash },
   });
   await mkdir(join(root, 'demo/src/pages'), { recursive: true });
+  await mkdir(join(root, 'packages/astro-visual-editor'), { recursive: true });
   await writeFile(join(root, fixture), fixtureContents);
   await writeFile(join(root, 'CHANGELOG.md'), `## ${version}\n`);
-  await writeFile(join(root, '<removed internal document>'), `Version \`${version}\`\n`);
-  await writeFile(
-    join(root, '<removed internal document>'),
-    `**Current public version:** \`${packageName}@${version}\`\n`,
-  );
+  await writeFile(join(root, 'packages/astro-visual-editor/README.md'), `${packageName}\n`);
 
   return { root, fixture };
 }

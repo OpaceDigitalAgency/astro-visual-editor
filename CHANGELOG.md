@@ -52,18 +52,12 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Replaced tag-triggered publishing with a guarded GitHub Actions release that
   enforces the complete test baseline, release documents, clean tarball
   consumer build and published-registry consumer build before it completes.
-- Added `<removed internal document>` with the only permitted release path, required
-  GitHub protections and Astro-directory follow-up.
+- Added protected release validation, clean-consumer checks and post-publish
+  verification.
 
 ### Documentation
 
-- Added an authoritative release and takeover plan beginning from the real
-  public beta.2 baseline.
-- Reconciled testing, npm trusted-publishing, registry-consumer and Astro
-  importer evidence across all current project documents.
-- Recorded that Astro's current unmodified importer generates the expected
-  integration entry and categories; public catalogue rendering remains an
-  external Astro step.
+- Improved release validation and package-discovery metadata.
 
 ## 0.1.0-beta.2 - 2026-08-04
 
@@ -77,8 +71,6 @@ The project follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Pinned the OIDC release workflow to npm 11.19.0.
-- Added the reusable Astro theme product, quality and Developer Portal
-  submission plan.
 - Added a catalogue-ready 64 × 64 product avatar.
 
 ## 0.1.0-beta.1 - 2026-08-04

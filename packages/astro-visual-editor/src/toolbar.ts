@@ -934,16 +934,17 @@ export default defineToolbarApp({
               ? 'No SEO changes queued.'
               : 'No queued changes. Select visible content to begin.';
         ledger.append(empty);
-        if (
-          mode === 'sections' &&
-          config.canManageEditability &&
-          !document.querySelector('[data-astro-edit-region], [data-astro-edit-sections]')
-        ) {
+        if (mode === 'sections' && config.canManageEditability) {
+          const existingRegions = document.querySelectorAll(
+            '[data-astro-edit-region], [data-astro-edit-sections]',
+          ).length;
           const enable = createElement('button', {
             class: 'primary enable-sections',
             type: 'button',
           });
-          enable.textContent = 'Enable sections on this page';
+          enable.textContent = existingRegions
+            ? 'Enable another section region'
+            : 'Enable sections on this page';
           enable.addEventListener('click', openRegionSetup);
           ledger.append(enable);
         }

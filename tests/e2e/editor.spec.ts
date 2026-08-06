@@ -386,11 +386,20 @@ test('enables and persists complex sections without source annotations', async (
     await workbench.getByRole('tab', { name: 'Sections' }).click();
     const picker = toolbar.locator('.picker');
     await expect(picker).toBeVisible();
+    await picker.getByRole('button', { name: 'Expand' }).click();
+    await expect(
+      workbench.getByRole('button', { name: 'Enable another section region' }),
+    ).toBeVisible();
+    await workbench.getByRole('button', { name: 'Enable another section region' }).click();
+    await toolbar
+      .locator('dialog')
+      .filter({ hasText: 'Choose a page region' })
+      .getByRole('button', { name: 'Cancel' })
+      .click();
     const moveHero = page.getByRole('button', { name: /Move source-hero-[a-f0-9]+ down/u });
     await expect(moveHero).toBeVisible();
     await moveHero.click();
     await expect(page.locator('main > *').first()).toHaveClass(/shared-note/u);
-    await picker.getByRole('button', { name: /Review 1/u }).click();
     await expect(workbench.locator('.change-summary')).toContainText('Reordered 4 sections');
     await workbench.getByRole('button', { name: /Review 1 file change/ }).click();
     await expect(workbench.locator('.message')).toBeHidden();

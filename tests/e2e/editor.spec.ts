@@ -32,10 +32,28 @@ async function enableEditor(page: import('@playwright/test').Page) {
   return { toolbar, workbench: toolbar.locator('.workbench') };
 }
 
+async function ensureDetailsOpen(details: import('@playwright/test').Locator): Promise<void> {
+  if ((await details.getAttribute('open')) === null)
+    await details.locator(':scope > summary').click();
+  await expect(details).toHaveAttribute('open', '');
+}
+
 async function restoreFromHistory(page: import('@playwright/test').Page): Promise<void> {
   // Do not force a reload while Astro is already applying the source-write
   // HMR update; two competing navigations can abort one another in Chromium.
   await page.waitForTimeout(1_000);
+  await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
+  const trayButtons = page
+    .locator('astro-dev-toolbar')
+    .locator('.workbench')
+    .getByRole('button', { name: /Open changes tray/ });
+  for (let index = (await trayButtons.count()) - 1; index >= 0; index -= 1) {
+    const tray = trayButtons.nth(index);
+    if (await tray.isEnabled()) {
+      await tray.evaluate((button: HTMLButtonElement) => button.click());
+      break;
+    }
+  }
   await waitForWorkbenchButtonEnabled(page, 'History');
   const historyButtons = page
     .locator('astro-dev-toolbar')
@@ -96,12 +114,13 @@ async function reviewAndCommit(
   toolbar: import('@playwright/test').Locator,
   workbench: import('@playwright/test').Locator,
 ): Promise<void> {
-  await workbench.getByRole('button', { name: /Review 1 file change/ }).click();
-  const review = toolbar.locator('dialog').filter({ hasText: 'Review file changes' });
+  await workbench.getByRole('button', { name: 'Open changes tray, 1 queued change' }).click();
+  await workbench.getByRole('button', { name: /Review and save \(1\)/ }).click();
+  const review = toolbar.locator('dialog').filter({ hasText: 'Review and save' });
   await expect(review).toBeVisible();
   expect(await review.locator('.diff-line.remove').count()).toBeGreaterThan(0);
   expect(await review.locator('.diff-line.add').count()).toBeGreaterThan(0);
-  const commit = review.getByRole('button', { name: 'Commit these changes' });
+  const commit = review.getByRole('button', { name: 'Save changes' });
   await expect(commit).toBeEnabled();
   // The click intentionally writes source and can replace the toolbar before
   // Playwright finishes its pointer action. Dispatch once from the confirmed
@@ -141,7 +160,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   const workbenchBox = (await workbench.boundingBox())!;
   expect(workbenchBox.width).toBeLessThanOrEqual(401);
   expect(workbenchBox.height).toBeLessThanOrEqual(611);
-  await expect(toolbar.getByText('Connected. Changes remain local until committed.')).toBeVisible();
+  await expect(toolbar.getByText('Ready. Changes stay local until saved.')).toBeVisible();
 
   await workbench.getByRole('button', { name: 'Collapse editor' }).click();
   await expect(workbench).toBeHidden();
@@ -164,8 +183,9 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(lead).toHaveText('Browser workflow preview copy.');
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(lead).toHaveText(originalLead);
+  await workbench.getByRole('button', { name: 'Open changes tray, 0 queued changes' }).click();
   await workbench.getByRole('button', { name: 'Redo', exact: true }).click();
-  await workbench.getByRole('button', { name: 'Clear' }).click();
+  await workbench.getByRole('button', { name: 'Discard changes' }).click();
 
   await workbench.getByRole('tab', { name: 'Sections' }).click();
   await expect(workbench).toBeHidden();
@@ -174,7 +194,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
     .locator('.astro-ve-section-controls')
     .first()
     .boundingBox())!;
-  expect(firstControlsBox.width).toBeLessThanOrEqual(137);
+  expect(firstControlsBox.width).toBeLessThanOrEqual(155);
   const source = page.getByRole('button', { name: 'Drag preview to reorder' });
   await expect(source).toHaveAttribute('title', 'Drag preview to reorder');
   await expect(source).toHaveAttribute('data-tooltip', 'Drag preview to reorder');
@@ -255,15 +275,18 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await expect(dialog).toContainText('src/content/case-studies/harbour.md → frontmatter.title');
     await dialog.locator('textarea').fill('Harbour launch plan, reviewed');
     await dialog.getByRole('button', { name: 'Queue change' }).click();
+    await complexWorkbench
+      .getByRole('button', { name: 'Open changes tray, 2 queued changes' })
+      .click();
     await expect(
-      complexWorkbench.getByRole('button', { name: /Review 2 file changes/ }),
+      complexWorkbench.getByRole('button', { name: /Review and save \(2\)/ }),
     ).toBeEnabled();
 
-    await complexWorkbench.getByRole('button', { name: /Review 2 file changes/ }).click();
-    const review = toolbar.locator('dialog').filter({ hasText: 'Review file changes' });
+    await complexWorkbench.getByRole('button', { name: /Review and save \(2\)/ }).click();
+    const review = toolbar.locator('dialog').filter({ hasText: 'Review and save' });
     await expect(review).toContainText('src/data/complex-page.json');
     await expect(review).toContainText('src/content/case-studies/harbour.md');
-    await review.getByRole('button', { name: 'Commit these changes' }).click();
+    await review.getByRole('button', { name: 'Save changes' }).click();
     await expect
       .poll(async () => readFile(complexJsonSource, 'utf8'))
       .toContain('A safely updated JSON title');
@@ -280,7 +303,7 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
       'A page assembled from trusted sources',
     );
     await expect(page.locator('[data-demo-collection-title]')).toHaveText('Harbour launch plan');
-    await waitForWorkbenchButtonEnabled(page, 'History');
+    await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
   } finally {
     if ((await readFile(complexJsonSource, 'utf8')) !== originalJson)
       await writeFile(complexJsonSource, originalJson);
@@ -334,7 +357,10 @@ test('targets each repeated JSON-backed evidence card independently', async ({ p
     'Direct JSON properties, updated',
   ]);
 
-  await complexWorkbench.getByRole('button', { name: 'Clear', exact: true }).click();
+  await complexWorkbench
+    .getByRole('button', { name: 'Open changes tray, 2 queued changes' })
+    .click();
+  await complexWorkbench.getByRole('button', { name: 'Discard changes', exact: true }).click();
   await expect(values).toHaveText([
     'Shared navigation and footer',
     'Reusable hero and proof cards',
@@ -355,11 +381,14 @@ test('enables and persists complex sections without source annotations', async (
     await page.goto('/fixtures/complex');
     let { toolbar, workbench } = await enableEditor(page);
     await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
-    await expect(workbench.getByRole('heading', { name: 'Editor Setup' })).toBeVisible();
-    await expect(workbench.getByRole('heading', { name: 'Section regions' })).toBeVisible();
+    await expect(workbench.getByRole('heading', { name: 'Editing permissions' })).toBeVisible();
+    await expect(workbench.getByRole('heading', { name: 'Sections' })).toBeVisible();
     await expect(workbench.getByText('0 enabled')).toBeVisible();
-    await expect(workbench.getByRole('heading', { name: 'Text permissions' })).toBeVisible();
-    await workbench.getByRole('button', { name: 'Select section on page' }).click();
+    await expect(workbench.getByRole('heading', { name: 'Text' })).toBeVisible();
+    await workbench
+      .locator('.section-setup')
+      .getByRole('button', { name: 'Select on page' })
+      .click();
     const evidenceHeading = page.getByRole('heading', {
       name: 'One rendered page, several deliberate owners',
     });
@@ -390,8 +419,15 @@ test('enables and persists complex sections without source annotations', async (
     ({ toolbar, workbench } = await enableEditor(page));
     await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
     await expect(workbench.getByText('1 enabled')).toBeVisible();
-    await expect(workbench.locator('.section-region-item')).toContainText(
-      'src/pages/fixtures/complex.astro → astro:children:component:DemoLayout:0',
+    const manageSections = workbench.locator('.manage-sections');
+    await expect(manageSections).not.toHaveAttribute('open', '');
+    await manageSections.locator(':scope > summary').focus();
+    await manageSections.locator(':scope > summary').press('Enter');
+    await expect(manageSections).toHaveAttribute('open', '');
+    await expect(workbench.locator('.section-region-item')).toContainText('Main section');
+    await expect(workbench.locator('.section-region-item .technical-details')).not.toHaveAttribute(
+      'open',
+      '',
     );
     await workbench.getByRole('button', { name: 'Back to editor' }).first().click();
     await workbench.getByRole('tab', { name: 'Sections' }).click();
@@ -408,11 +444,12 @@ test('enables and persists complex sections without source annotations', async (
     await moveHero.click();
     await expect(page.locator('main > *').first()).toHaveClass(/shared-note/u);
     await expect(workbench.locator('.change-summary')).toContainText('Reordered 4 sections');
-    await workbench.getByRole('button', { name: /Review 1 file change/ }).click();
+    await workbench.getByRole('button', { name: 'Open changes tray, 1 queued change' }).click();
+    await workbench.getByRole('button', { name: /Review and save \(1\)/ }).click();
     await expect(workbench.locator('.message')).toBeHidden();
-    const review = toolbar.locator('dialog').filter({ hasText: 'Review file changes' });
+    const review = toolbar.locator('dialog').filter({ hasText: 'Review and save' });
     await expect(review).toBeVisible();
-    await review.getByRole('button', { name: 'Commit these changes' }).dispatchEvent('click');
+    await review.getByRole('button', { name: 'Save changes' }).dispatchEvent('click');
     await expect
       .poll(async () => readFile(complexRouteSource, 'utf8'))
       .toMatch(/<p[\s\S]*?<SourceHero/u);
@@ -458,12 +495,15 @@ test('commits and restores literal text owned by the route, component and layout
     await dialog.locator('textarea').fill('Recovery, verified');
     await dialog.getByRole('button', { name: 'Queue change' }).click();
 
-    await complexWorkbench.getByRole('button', { name: /Review 3 file changes/ }).click();
-    const review = toolbar.locator('dialog').filter({ hasText: 'Review file changes' });
+    await complexWorkbench
+      .getByRole('button', { name: 'Open changes tray, 3 queued changes' })
+      .click();
+    await complexWorkbench.getByRole('button', { name: /Review and save \(3\)/ }).click();
+    const review = toolbar.locator('dialog').filter({ hasText: 'Review and save' });
     await expect(review).toContainText('src/pages/fixtures/complex.astro');
     await expect(review).toContainText('src/components/EvidenceGrid.astro');
     await expect(review).toContainText('src/layouts/DemoLayout.astro');
-    await review.getByRole('button', { name: 'Commit these changes' }).dispatchEvent('click');
+    await review.getByRole('button', { name: 'Save changes' }).dispatchEvent('click');
 
     await expect
       .poll(async () => readFile(complexRouteSource, 'utf8'))
@@ -482,7 +522,7 @@ test('commits and restores literal text owned by the route, component and layout
     await expect(page.getByText('Content Collection', { exact: true })).toBeVisible();
     await expect(page.getByText('What this route proves', { exact: true })).toBeVisible();
     await expect(page.getByText('Recovery', { exact: true })).toBeVisible();
-    await waitForWorkbenchButtonEnabled(page, 'History');
+    await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
   } finally {
     for (const [file, original] of originals) {
       if ((await readFile(file, 'utf8')) !== original) await writeFile(file, original);
@@ -540,13 +580,13 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
     const dialogB = editorB.toolbar.locator('dialog').filter({ hasText: 'Edit text' });
     await dialogB.locator('textarea').fill('Queued only in tab B');
     await dialogB.getByRole('button', { name: 'Queue change' }).click();
-    await waitForWorkbenchButtonEnabled(pageB, /Review 1 file change/);
+    await waitForWorkbenchButtonEnabled(pageB, 'Open changes tray, 1 queued change');
 
     await reviewAndCommit(editorA.toolbar, editorA.workbench);
     await expect(pageA.locator('[data-demo-banner]')).toHaveText('Committed only from tab A', {
       timeout: 15_000,
     });
-    await waitForWorkbenchButtonEnabled(pageB, /Review 1 file change/);
+    await waitForWorkbenchButtonEnabled(pageB, 'Open changes tray, 1 queued change');
     await expect(pageB.locator('[data-astro-edit-id="hero-title"]')).toHaveText(
       'Queued only in tab B',
       { timeout: 30_000 },
@@ -592,7 +632,10 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
 
   await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
-  await workbench.getByRole('button', { name: 'Select text on page' }).click();
+  await workbench
+    .locator('.text-settings-heading')
+    .getByRole('button', { name: 'Select on page' })
+    .click();
   await page.locator('[data-astro-edit-id="hero-lead"]').tap();
   const permissionChoice = toolbar
     .locator('dialog')
@@ -623,19 +666,30 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await page.setViewportSize({ width: 1440, height: 980 });
     let { toolbar, workbench } = await enableEditor(page);
     await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
-    await expect(workbench.getByRole('heading', { name: 'Editor Setup' })).toBeVisible();
-    await expect(workbench.getByRole('heading', { name: 'Section regions' })).toBeVisible();
-    await expect(workbench.getByRole('heading', { name: 'Text permissions' })).toBeVisible();
-    await expect(workbench.getByText('9 visible items')).toBeVisible();
+    await expect(workbench.getByRole('heading', { name: 'Editing permissions' })).toBeVisible();
+    await expect(workbench.getByRole('heading', { name: 'Sections' })).toBeVisible();
+    await expect(workbench.getByRole('heading', { name: 'Text' })).toBeVisible();
+    const manageText = workbench.locator('.manage-text > summary');
+    await expect(manageText).toHaveText('Manage all text (9)');
+    await expect(manageText).toBeVisible();
+    await expect(workbench.locator('.inventory-list')).toBeHidden();
+    await ensureDetailsOpen(workbench.locator('.manage-text'));
     await expect(workbench.getByRole('button', { name: 'Blocked 3' })).toBeVisible();
-    await expect(workbench.locator('.setup-toggle')).toHaveAccessibleName('Back to editor');
-    await expect(workbench.getByText('Text or section settings')).toBeVisible();
+    const inventorySearch = workbench.getByRole('searchbox', { name: 'Search visible text' });
+    await inventorySearch.fill('01 / PREVIEW');
+    await expect(workbench.locator('.inventory-item:visible')).toHaveCount(1);
+    await inventorySearch.fill('');
+    await expect(workbench.locator('.setup-toggle')).toBeHidden();
+    await expect(workbench.getByRole('button', { name: 'Back to editor' })).toBeVisible();
     expect((await workbench.boundingBox())!.width).toBeLessThanOrEqual(461);
     expect(
       await page.evaluate(() => Number.parseFloat(getComputedStyle(document.body).marginLeft)),
     ).toBeGreaterThanOrEqual(475);
 
-    await workbench.getByRole('button', { name: 'Select text on page' }).click();
+    await workbench
+      .locator('.text-settings-heading')
+      .getByRole('button', { name: 'Select on page' })
+      .click();
     const heroHeading = page.getByRole('heading', { name: 'Edit Astro where you can see it' });
     await heroHeading.hover();
     await expect(heroHeading).toHaveAttribute('data-astro-ve-setup-pick', 'true');
@@ -665,6 +719,7 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await expect(
       workbench.getByText(/text permissions and section mappings are now active/),
     ).toBeVisible();
+    await page.waitForTimeout(1_000);
     ({ toolbar, workbench } = await enableEditor(page));
 
     await page.locator('[data-section="preview"] strong').click();
@@ -675,12 +730,15 @@ test('inventories page content and persists reviewed owner allow and deny policy
 
     await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
     await expect(workbench.locator('.message')).toBeHidden();
+    await ensureDetailsOpen(workbench.locator('.manage-text'));
     const inventoryBox = await workbench.locator('.ledger').boundingBox();
     const setupActionsBox = await workbench.locator('.setup-actions').boundingBox();
     expect(inventoryBox!.y + inventoryBox!.height).toBeLessThanOrEqual(setupActionsBox!.y);
     previewLabel = workbench.locator('.inventory-item').filter({ hasText: '01 / PREVIEW' });
     await expect(previewLabel.locator('.inventory-status')).toHaveText('Editable');
-    await previewLabel.getByRole('button', { name: 'Block this item' }).click();
+    const blockPreview = previewLabel.getByRole('button', { name: 'Block this item' });
+    await expect(blockPreview).toBeVisible();
+    await blockPreview.click();
     await expect(previewLabel.locator('.inventory-status')).toHaveText('Blocked');
     policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor choices?' });
     await expect(policyReview.locator('.diff-line.add')).toContainText(['"effect": "deny"']);
@@ -688,11 +746,13 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await expect(
       workbench.getByText(/text permissions and section mappings are now active/),
     ).toBeVisible();
+    await page.waitForTimeout(1_000);
     ({ toolbar, workbench } = await enableEditor(page));
 
     await page.reload();
     ({ toolbar, workbench } = await enableEditor(page));
     await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
+    await ensureDetailsOpen(workbench.locator('.manage-text'));
     previewLabel = workbench.locator('.inventory-item').filter({ hasText: '01 / PREVIEW' });
     const reviewLabel = workbench.locator('.inventory-item').filter({ hasText: '02 / REVIEW' });
     await expect(previewLabel.locator('.inventory-status')).toHaveText('Blocked');
@@ -705,6 +765,7 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await page.goto('/fixtures/article');
     ({ toolbar, workbench } = await enableEditor(page));
     await workbench.getByRole('button', { name: 'Open Editor Setup' }).press('Enter');
+    await ensureDetailsOpen(workbench.locator('.manage-text'));
     const unresolved = workbench
       .locator('.inventory-item')
       .filter({ hasText: 'This source needs owner confirmation.' });
@@ -736,6 +797,7 @@ test('inventories page content and persists reviewed owner allow and deny policy
     await textDialog.getByRole('button', { name: 'Cancel' }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
+    await ensureDetailsOpen(workbench.locator('.manage-text'));
     await expect(workbench).toBeVisible();
     expect((await workbench.boundingBox())!.width).toBeLessThanOrEqual(379);
     expect(

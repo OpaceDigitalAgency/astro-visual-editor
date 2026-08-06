@@ -24,13 +24,13 @@ does not ship an editor client or write endpoint in production.
 
 Built by [Opace Astro developers](https://opace.agency/services/web-design/astro-development/).
 
-| Mode     | Included workflow                                                        |
-| -------- | ------------------------------------------------------------------------ |
-| Text     | Select rendered content, preview the replacement and queue it            |
-| Sections | Enable, map and reorder Astro children or JSON/YAML array items safely   |
-| SEO      | Edit title, description, keywords, canonical, Open Graph and robots      |
-| Review   | Inspect mixed changes, undo/redo, commit once and conflict-check reverts |
-| Setup    | Inventory visible content and review project-owned allow/deny policy     |
+| Mode     | Included workflow                                                       |
+| -------- | ----------------------------------------------------------------------- |
+| Text     | Select rendered content, preview the replacement and queue it           |
+| Sections | Enable, map and reorder Astro children or JSON/YAML array items safely  |
+| SEO      | Edit title, description, keywords, canonical, Open Graph and robots     |
+| Changes  | Inspect mixed changes, undo/redo, save once and conflict-check restores |
+| Setup    | Inventory visible content and review project-owned allow/deny policy    |
 
 ## Install
 
@@ -63,8 +63,8 @@ Run `astro dev`, open the Dev Toolbar and choose **Visual Editor**.
 - **Sections:** add from templates, delete and reorder with drag, buttons or
   keyboard controls.
 - **SEO:** title, description, keywords, canonical, Open Graph and robots.
-- **Review:** mixed-change ledger, individual removal, undo/redo, clear,
-  idempotent commit and conflict-protected revert.
+- **Changes:** compact mixed-change tray with individual removal, undo/redo,
+  discard, idempotent save and conflict-protected restore.
 
 The queue recovers through Astro HMR/navigation and stays isolated per browser
 tab. The workbench collapses to compact Pick mode on desktop or mobile. Icon
@@ -128,10 +128,11 @@ visualEditor({
 
 ## Editor Setup
 
-The settings control opens local owner-only controls for **Section regions**
-and **Text permissions**. Section regions can be added and removed for the
-current route without adding editor attributes to site components. The text
-inventory lists visible content.
+The settings control opens local owner-only controls for **Sections** and
+**Text**. Both start with the same on-page selection action. Full searchable
+text and section inventories remain collapsed behind **Manage all text** and
+**Manage sections** until needed. Section mappings can be added and removed for
+the current route without adding editor attributes to site components.
 Both areas support the same owner workflow: choose a readable item from the
 list or use **Select on page** to hover, highlight and click the exact content.
 Syntax-aware verification then runs silently. File paths and source locators

@@ -240,6 +240,7 @@ export default defineToolbarApp({
     let configConfirmed = false;
     let active = false;
     let mode: EditorMode = 'text';
+    let lastEditingMode: Exclude<EditorMode, 'review' | 'setup'> = 'text';
     let hovered: HTMLElement | null = null;
     let editing: HTMLElement | null = null;
     let draggedSection: HTMLElement | null = null;
@@ -261,6 +262,8 @@ export default defineToolbarApp({
     let editabilityPreviewId: string | undefined;
     let inventory: InventoryItem[] = [];
     let inventoryFilter: InventoryStatus | 'all' = 'all';
+    let inventoryManagerOpen = false;
+    let sectionManagerOpen = false;
     let setupBusy = false;
     let sourceDiscoveryRequestId: string | undefined;
     let sourceDiscoveryItem: InventoryItem | undefined;
@@ -282,35 +285,40 @@ export default defineToolbarApp({
     });
     panel.innerHTML = `
       <header class="masthead">
-        <div><p class="eyebrow">Local source workbench</p><h2>Visual Editor</h2>
+        <div><p class="eyebrow">Visual Editor</p><h2>Edit this page</h2>
           <p class="status" data-state="warning"><span class="status-dot" aria-hidden="true"></span><span class="status-copy">Connecting to Astro…</span></p>
         </div>
-        <div class="masthead-actions"><button class="icon-button setup-toggle" type="button" aria-label="Open Editor Setup" title="Open Editor Setup" hidden>⚙</button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button></div>
+        <div class="masthead-actions"><button class="utility-button setup-toggle" type="button" aria-label="Open Editor Setup" title="Open Editor Setup" hidden>Settings</button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button></div>
       </header>
+      <aside class="demo-context" hidden><span>Demo page</span><nav class="demo-surfaces" aria-label="Demo test pages"></nav></aside>
       <div class="mode-tabs" role="tablist" aria-label="Editing mode">
         <button class="mode-tab" role="tab" data-mode="text" aria-selected="true">Text</button>
         <button class="mode-tab" role="tab" data-mode="sections" aria-selected="false">Sections</button>
         <button class="mode-tab" role="tab" data-mode="seo" aria-selected="false">SEO</button>
-        <button class="mode-tab" role="tab" data-mode="review" aria-selected="false">Review</button>
       </div>
-      <div class="instructions"><span class="instructions-copy">Click visible text, or focus it and press Alt+Enter.</span><nav class="demo-surfaces" aria-label="Demo test pages" hidden></nav></div>
-      <div class="ledger" aria-live="polite" aria-label="Queued changes"></div>
-      <p class="message" role="status" aria-live="polite"></p>
-      <div class="history-actions">
-        <button class="secondary undo" type="button" disabled>Undo</button>
-        <button class="secondary redo" type="button" disabled>Redo</button>
-        <button class="secondary show-history" type="button">History</button>
-      </div>
+      <div class="instructions"><span class="instructions-copy">Click visible text, or focus it and press Alt+Enter.</span></div>
+      <section class="changes-tray" aria-label="Changes tray">
+        <div class="changes-header">
+          <button class="changes-toggle" type="button" aria-expanded="false"><span>Changes</span><span class="change-count">0</span></button>
+          <button class="secondary undo" type="button" disabled>Undo</button>
+        </div>
+        <div class="ledger" aria-live="polite" aria-label="Queued changes"></div>
+        <p class="message" role="status" aria-live="polite"></p>
+        <div class="history-actions">
+          <button class="secondary redo" type="button" disabled>Redo</button>
+          <button class="secondary show-history" type="button">History</button>
+        </div>
+        <footer class="actions">
+          <button class="primary commit" type="button" disabled>Review and save</button>
+          <button class="secondary clear" type="button">Discard changes</button>
+          <button class="secondary revert" type="button" disabled>Restore previous save</button>
+        </footer>
+      </section>
       <div class="setup-actions">
         <button class="secondary leave-setup" type="button">← Back to editor</button>
         <button class="primary review-policy" type="button" disabled>Review and save</button>
         <button class="secondary reload-policy" type="button" hidden>Discard unsaved changes</button>
-      </div>
-      <footer class="actions">
-        <button class="primary commit" type="button" disabled>Review file changes</button>
-        <button class="secondary clear" type="button">Clear</button>
-        <button class="secondary revert" type="button" disabled>Revert last commit</button>
-      </footer>`;
+      </div>`;
 
     const picker = createElement('div', { class: 'picker', 'data-open': 'false' });
     picker.innerHTML = `<span class="picker-label">Tap content to edit</span><button class="secondary picker-review" type="button" title="Expand editor and review queued changes">Review 0</button><button class="icon-button picker-close" type="button" aria-label="Disable Visual Editor" title="Disable Visual Editor">×</button>`;
@@ -360,7 +368,7 @@ export default defineToolbarApp({
       'aria-labelledby': 'ave-diff-title',
       'aria-describedby': 'ave-diff-help',
     });
-    diffDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Final safety check</p><h2 id="ave-diff-title">Review file changes</h2><p id="ave-diff-help" class="field-help">These are the exact source lines that will be written. Nothing is saved until you confirm.</p><div class="file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-diff" type="button">Cancel</button><button class="primary confirm-commit" type="button">Commit these changes</button></div></div>`;
+    diffDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Final safety check</p><h2 id="ave-diff-title">Review and save</h2><p id="ave-diff-help" class="field-help">These are the exact source lines that will be written. Nothing is saved until you confirm.</p><div class="file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-diff" type="button">Cancel</button><button class="primary confirm-commit" type="button">Save changes</button></div></div>`;
 
     const policyDialog = createElement('dialog', {
       'aria-labelledby': 'ave-policy-title',
@@ -416,6 +424,9 @@ export default defineToolbarApp({
     const statusCopy = panel.querySelector<HTMLElement>('.status-copy')!;
     const instructions = panel.querySelector<HTMLElement>('.instructions-copy')!;
     const demoSurfaces = panel.querySelector<HTMLElement>('.demo-surfaces')!;
+    const demoContext = panel.querySelector<HTMLElement>('.demo-context')!;
+    const changesToggle = panel.querySelector<HTMLButtonElement>('.changes-toggle')!;
+    const changeCount = panel.querySelector<HTMLElement>('.change-count')!;
     const commitButton = panel.querySelector<HTMLButtonElement>('.commit')!;
     const clearButton = panel.querySelector<HTMLButtonElement>('.clear')!;
     const revertButton = panel.querySelector<HTMLButtonElement>('.revert')!;
@@ -478,7 +489,7 @@ export default defineToolbarApp({
 
     function renderDemoSurfaces(): void {
       demoSurfaces.replaceChildren();
-      demoSurfaces.hidden = config.demoPages.length < 2;
+      demoContext.hidden = config.demoPages.length < 2;
       for (const page of config.demoPages) {
         const button = createElement('button', {
           class: 'demo-surface',
@@ -1081,6 +1092,10 @@ export default defineToolbarApp({
     }
 
     function renderInventory(): void {
+      const currentInventoryManager = ledger.querySelector<HTMLDetailsElement>('.manage-text');
+      const currentSectionManager = ledger.querySelector<HTMLDetailsElement>('.manage-sections');
+      if (currentInventoryManager) inventoryManagerOpen = currentInventoryManager.open;
+      if (currentSectionManager) sectionManagerOpen = currentSectionManager.open;
       clearInventoryMarkers();
       ledger.setAttribute('aria-label', 'Page editability inventory');
       inventory = inventoryPage(config, draftEditabilityPolicy);
@@ -1097,6 +1112,8 @@ export default defineToolbarApp({
         canManage: config.canManageEditability,
         pendingChanges: policyChangeCount(),
         filter: inventoryFilter,
+        inventoryOpen: inventoryManagerOpen,
+        sectionsOpen: sectionManagerOpen,
         onReview: requestPolicyPreview,
         onFilter: (filter) => {
           inventoryFilter = filter;
@@ -1138,6 +1155,7 @@ export default defineToolbarApp({
         renderInventory();
         return;
       }
+      panel.dataset.needsSection = 'false';
       clearInventoryMarkers();
       ledger.setAttribute('aria-label', 'Queued changes');
       ledger.replaceChildren();
@@ -1163,6 +1181,7 @@ export default defineToolbarApp({
             : 'Select section on page';
           enable.addEventListener('click', () => startSetupPagePicker('section'));
           ledger.append(enable);
+          panel.dataset.needsSection = 'true';
         }
       } else {
         for (const [key, change] of queue) {
@@ -1170,8 +1189,14 @@ export default defineToolbarApp({
           const copy = createElement('div');
           const type = createElement('span', { class: 'change-type' });
           type.textContent = change.kind;
+          const technical = createElement('details', {
+            class: 'technical-details change-technical',
+          });
+          const technicalSummary = createElement('summary');
+          technicalSummary.textContent = 'Technical details';
           const file = createElement('div', { class: 'file', title: change.filePath });
           file.textContent = change.filePath;
+          technical.append(technicalSummary, file);
           const values = summary(change);
           const summaryLine = createElement('div', { class: 'change-summary' });
           summaryLine.textContent = values.title;
@@ -1181,7 +1206,7 @@ export default defineToolbarApp({
           oldText.textContent = `Before: ${values.oldText}`;
           newText.textContent = `After: ${values.newText}`;
           diff.append(oldText, newText);
-          copy.append(type, file, summaryLine, diff);
+          copy.append(type, summaryLine, diff, technical);
           const removeLabel = `Undo ${change.kind} change in ${change.filePath}`;
           const remove = createElement('button', {
             class: 'icon-button',
@@ -1203,7 +1228,14 @@ export default defineToolbarApp({
           ? 'Checking source files…'
           : pendingRequestId
             ? `Retry ${queue.size} safely`
-            : `Review ${queue.size} file change${queue.size === 1 ? '' : 's'}`;
+            : `Review and save${queue.size ? ` (${queue.size})` : ''}`;
+      changeCount.textContent = String(queue.size);
+      changesToggle.setAttribute('aria-expanded', String(mode === 'review'));
+      changesToggle.setAttribute(
+        'aria-label',
+        `${mode === 'review' ? 'Close' : 'Open'} changes tray, ${queue.size} queued change${queue.size === 1 ? '' : 's'}`,
+      );
+      panel.dataset.hasChanges = String(queue.size > 0);
       undoButton.disabled = !history.canUndo || saveInFlight;
       redoButton.disabled = !history.canRedo || saveInFlight;
       revertButton.disabled = !lastReceiptId || saveInFlight || !config.writeEnabled;
@@ -1435,7 +1467,7 @@ export default defineToolbarApp({
       restoreHighlight();
       hovered = candidate;
       if (hovered) {
-        hovered.style.outline = '3px solid #ff7a3d';
+        hovered.style.outline = '3px solid #8fc7ee';
         hovered.style.outlineOffset = '3px';
         hovered.style.cursor = 'text';
       }
@@ -1825,6 +1857,7 @@ export default defineToolbarApp({
 
     function setMode(next: EditorMode): void {
       if (next === 'setup' && mode !== 'setup') clearMessage();
+      if (next !== 'review' && next !== 'setup') lastEditingMode = next;
       mode = next;
       panel.dataset.mode = mode;
       updateSetupDock();
@@ -1849,7 +1882,7 @@ export default defineToolbarApp({
         mode === 'setup' ? 'Back to editor' : 'Open Editor Setup',
       );
       setupButton.title = mode === 'setup' ? 'Back to editor' : 'Open Editor Setup';
-      setupButton.textContent = mode === 'setup' ? '← Back to editor' : '⚙';
+      setupButton.textContent = mode === 'setup' ? '← Back' : 'Settings';
       pickerLabel.textContent =
         mode === 'sections'
           ? 'Arrange sections'
@@ -2083,6 +2116,9 @@ export default defineToolbarApp({
       setMinimized(false);
       if (queue.size) setMode('review');
     });
+    changesToggle.addEventListener('click', () => {
+      setMode(mode === 'review' ? lastEditingMode : 'review');
+    });
     picker
       .querySelector<HTMLButtonElement>('.picker-close')!
       .addEventListener('click', () => app.toggleState({ state: false }));
@@ -2221,7 +2257,7 @@ export default defineToolbarApp({
       }
       if (config.writeEnabled)
         setConnection(
-          'Connected. Changes remain local until committed.',
+          'Ready. Changes stay local until saved.',
           config.remoteWarning ? 'warning' : 'ready',
         );
       else setConnection(config.remoteWarning ?? 'Source writes are unavailable.', 'error');

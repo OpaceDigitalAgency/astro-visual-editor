@@ -31,6 +31,17 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Simplified the workbench around three editing modes and one compact
+  **Changes (N)** tray, keeping review, undo, redo, history, discard and restore
+  available without presenting review as a competing editing mode.
+- Made owner Settings start with matching on-page selectors for text and
+  sections. Full searchable text and section management now stays behind
+  explicit progressive-disclosure controls.
+- Separated the neutral editor surface and demo-only route switcher from the
+  host page, reserved orange for primary save actions and limited page outlines
+  to the currently hovered or selected item.
+- Renamed ambiguous source-control language to owner-facing save, discard and
+  restore actions while preserving exact diffs and collapsed technical detail.
 - Kept syntax-aware adapters and confirmed project mappings as the final
   authority. Ambiguous, transformed or non-reversible data flow is refused
   rather than guessed or globally replaced.

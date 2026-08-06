@@ -27,13 +27,13 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 > **Release status:** install the current published version from npm. The
 > [changelog](./CHANGELOG.md) records released changes.
 
-| At a glance     | Behaviour                                                                         |
-| --------------- | --------------------------------------------------------------------------------- |
-| Editing surface | Astro's native development toolbar on the rendered page                           |
-| Content         | Discovered or mapped Astro/Markdown, JSON/JSONC and YAML values                   |
-| Page structure  | Enable and reorder Astro children or complete JSON/YAML arrays safely             |
-| Review          | One mixed text, SEO and section ledger with undo, redo, commit and guarded revert |
-| Safety boundary | Local development only; no editor client or write endpoint in production          |
+| At a glance     | Behaviour                                                                      |
+| --------------- | ------------------------------------------------------------------------------ |
+| Editing surface | Astro's native development toolbar on the rendered page                        |
+| Content         | Discovered or mapped Astro/Markdown, JSON/JSONC and YAML values                |
+| Page structure  | Enable and reorder Astro children or complete JSON/YAML arrays safely          |
+| Changes         | One mixed text, SEO and section tray with undo, redo, save and guarded restore |
+| Safety boundary | Local development only; no editor client or write endpoint in production       |
 
 ## What it does
 
@@ -132,13 +132,13 @@ toolbar and select **Astro Visual Editor**.
 Suggested review path:
 
 1. In **Text**, edit the hero heading and queue it without committing.
-2. Undo and redo the queued preview, then inspect the Review ledger.
+2. Undo and redo the queued preview, then open the **Changes** tray.
 3. In **Sections**, drag a card by its handle, use a move button, insert a
    template and undo the structural changes.
 4. In **SEO**, change a field and inspect its queued preview.
 5. Commit only when you intentionally want to modify `demo/src/pages/index.astro`;
-   use **Revert last commit** immediately afterwards to test safe restoration.
-6. Narrow the viewport to exercise compact Pick mode and the Review sheet.
+   use **Restore previous save** immediately afterwards to test safe restoration.
+6. Narrow the viewport to exercise compact Pick mode and the Changes sheet.
 7. Use **Complex sources** in the workbench to open `/fixtures/complex`. Queue
    the shared JSON hero title and the Content Collection title, review the
    two-file diff, then commit and restore it from History. The fixture proves
@@ -152,8 +152,10 @@ writes are disabled by default when the dev server is exposed beyond loopback.
 ### Editor Setup
 
 Choose the settings control in the workbench to open the owner-only setup mode.
-On desktop the inventory docks beside the page so the content remains visible.
-It exposes both **Section regions** and **Text permissions**. Section regions
+On desktop the settings panel docks beside the page so the content remains visible.
+It exposes matching **Sections** and **Text** on-page selectors. Full searchable
+text and section inventories remain collapsed under **Manage all text** and
+**Manage sections** until needed. Section mappings
 map existing page containers to syntax-aware source structures for safe
 reordering, while the text inventory lists each visible item with its status,
 plain-language reason, owning source file and structured path where known.
@@ -254,9 +256,10 @@ result is compiled before writing. For `.md` and `.mdx` owners, standard YAML
 frontmatter fields are updated. Length guidance is editorial and non-blocking;
 canonical URLs must be complete HTTP(S) URLs.
 
-### Review
+### Changes
 
-The ledger groups all queued changes by type and source file. It supports:
+The compact **Changes (N)** tray groups all queued changes by type and source
+file when opened. It supports:
 
 - remove one change;
 - undo/redo the last queued operation;
@@ -446,8 +449,8 @@ even if ordinary source writes were explicitly enabled with `allowRemoteDev`.
 ## Mobile and accessibility
 
 At phone widths, enabling the editor opens compact Pick mode rather than the
-full workbench. Page content remains tappable, while **Review N** opens a bottom
-sheet containing every mode and commit state.
+full workbench. Page content remains tappable, while **Review N** opens the
+Changes sheet with the complete mixed ledger and save state.
 
 Implemented accessibility behaviour includes:
 

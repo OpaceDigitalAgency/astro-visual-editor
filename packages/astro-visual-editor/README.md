@@ -15,9 +15,11 @@ The current public beta is `0.1.0-beta.4`. It is published through npm trusted
 GitHub OIDC with provenance and has passed a clean Astro 7.1.6 registry install
 and production build.
 
-The Beta 5 candidate adds syntax-aware source discovery and owner-confirmed,
-zero-annotation section mappings. The current public package remains Beta 4
-until the candidate passes owner acceptance and the protected release workflow.
+The Beta 6 candidate adds a direct Divi/Elementor-style canvas: all discovered
+elements and declared sections are visible immediately, with contextual
+settings, lock/unlock and safe structural controls. The current public package
+remains Beta 4 until the candidate passes owner acceptance and the protected
+release workflow.
 
 It uses Astro's native Dev Toolbar and `astro:server:setup` communication. It
 does not ship an editor client or write endpoint in production.
@@ -27,10 +29,10 @@ Built by [Opace Astro developers](https://opace.agency/services/web-design/astro
 | Mode      | Included workflow                                                       |
 | --------- | ----------------------------------------------------------------------- |
 | Content   | Select rendered content, edit it in the inspector and queue it          |
-| Structure | Enable, map and reorder Astro children or JSON/YAML array items safely  |
+| Structure | Select and reorder declared Astro children or JSON/YAML items safely    |
 | Page      | Edit title, description, keywords, canonical, Open Graph and robots     |
 | Changes   | Inspect mixed changes, undo/redo, save once and conflict-check restores |
-| Setup     | Inventory visible content and review project-owned allow/deny policy    |
+| Locks     | Lock or unlock an element/section directly on the rendered page         |
 
 ## Install
 
@@ -59,12 +61,13 @@ Run `astro dev`, open the Dev Toolbar and choose **Visual Editor**.
 
 ## Familiar visual-builder workflow
 
-- **Content:** click or focus (`Alt+Enter`) rendered text. Desktop selection
+- **Content:** every discovered text boundary appears when the editor opens;
+  click or focus (`Alt+Enter`) rendered text. Desktop selection
   stays outlined on the page and opens an element-named inspector with
   **Content**, **Design** and **Advanced** tabs. Mobile retains a focused dialog.
-- **Structure:** select a section, open its contextual settings, add from
-  templates, delete and reorder with drag, buttons or
-  keyboard controls.
+- **Structure:** every declared section is active immediately. Its contextual
+  toolbar provides settings, lock/unlock, drag, move and delete where the
+  validated source region supports them. Add from templates in the inspector.
 - **Page:** title, description, keywords, canonical, Open Graph and robots.
 - **Changes:** compact mixed-change tray with individual removal, undo/redo,
   discard, idempotent save and conflict-protected restore.
@@ -72,7 +75,7 @@ Run `astro dev`, open the Dev Toolbar and choose **Visual Editor**.
 The Content tab contains the source-safe editable value. Design reports the
 actual rendered typography and spacing, but does not pretend it can write an
 unresolved CSS/style owner. Advanced identifies the exact source file, field
-and page selector and links back to owner Setup when needed.
+and page selector and explains protected source ownership when needed.
 
 The queue recovers through Astro HMR/navigation and stays isolated per browser
 tab. The workbench collapses to compact Pick mode on desktop or mobile. Icon
@@ -81,12 +84,11 @@ Escape or a backdrop click.
 
 ## Automatic and explicit source mapping
 
-For unresolved rendered text, open **Editor Setup** and choose **Find
-exact source**. The editor searches supported files with their syntax-aware
-parsers and lists every exact candidate with its file, line and structured
-path. One confirmed mapping is saved in `astro-visual-editor.policy.json`.
+Unresolved rendered text remains source-protected. The underlying discovery
+engine can search supported files with syntax-aware parsers and retains exact
+file, line and structured-path candidates for advanced project tooling.
 Repeated Astro literals receive separate stale-checked node locators, so the
-editor changes the confirmed occurrence rather than guessing from global text.
+editor never guesses from global text.
 
 Explicit annotations remain useful when a project wants to publish its source
 ownership directly:
@@ -134,26 +136,14 @@ visualEditor({
 });
 ```
 
-## Editor Setup
+## Direct canvas locks
 
-The settings control opens local owner-only controls for **Sections** and
-**Text**. Both start with the same on-page selection action. Full searchable
-text and section inventories remain collapsed behind **Manage all text** and
-**Manage sections** until needed. Section mappings can be added and removed for
-the current route without adding editor attributes to site components.
-Both areas support the same owner workflow: choose a readable item from the
-list or use **Select on page** to hover, highlight and click the exact content.
-Syntax-aware verification then runs silently. File paths and source locators
-stay inside collapsed technical details unless the match is genuinely
-ambiguous.
-Each item is labelled editable, blocked, unresolved or structurally unsafe and
-shows the source reason. Owners can review element or selector-group allow/deny
-rules, discover and confirm an unresolved source candidate, inspect the exact
-JSON diff and save `astro-visual-editor.policy.json` in the project root. A
-manual file/path field remains available as a fallback. Choosing a
-permission opens that review immediately. Cancelling clearly marks the choice
-as unsaved, while saving returns directly to normal editing. Labelled **Back to
-editor** controls remain visible throughout setup.
+Ordinary editing has no separate permission setup screen. When the editor
+opens, blue boundaries are editable, gold boundaries are owner-locked and red
+boundaries are source-protected. Hover an element or section and click its lock
+icon, or use the same Lock/Unlock action in the selected-item inspector. That
+single owner action is server-validated and persisted to
+`astro-visual-editor.policy.json` with expected-hash conflict protection.
 
 Saved policy survives reloads and other checkouts because it is a normal
 Git-reviewable project file. Allow rules never bypass explicit ignore markers,
@@ -163,18 +153,13 @@ able to change it; network-exposed development servers cannot manage policy.
 
 ## Persistent section regions
 
-In Editor Setup, an owner can choose **Select section on page** or **Choose from
-list**; the same visual setup is available in Sections mode. Clicking page
-content reveals every valid nesting level under that point, from the smallest
-reorderable area through its parents to the whole page. Each level can be
-enabled independently, and the editor silently uses a unique structural source
-match.
-The mapping is stored in the project policy; site components do not need editor
-attributes. The candidate supports contiguous Astro component/element children
-and complete JSON/JSONC or YAML array items. Structured candidates must match
-the rendered child values in order. Source blocks and structured items are
-hash-checked before every reorder, and ambiguous candidates require owner
-selection.
+Declared and saved section regions are active as soon as the editor opens.
+Clicking a section switches the inspector to Structure automatically; its
+toolbar exposes only operations the source adapter can safely perform. The
+candidate supports contiguous Astro component/element children and complete
+JSON/JSONC or YAML array items. Structured candidates must match rendered child
+values in order. Source blocks and structured items are hash-checked before
+every reorder; ambiguous structure stays protected.
 
 Projects can still declare a region directly:
 

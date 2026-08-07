@@ -4,6 +4,44 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## 0.1.0-beta.6 - 2026-08-07
+
+### Added
+
+- Added persistent, source-aware canvas boundaries for every discovered text
+  element and declared section as soon as the visual editor is enabled.
+- Added Divi-style contextual element and section toolbars with edit/settings,
+  lock/unlock and source-protection states. Section toolbars also expose move,
+  drag and delete when the validated source region supports those operations.
+- Added deliberate locked and unlocked text and section examples to both demo
+  routes, plus an immutable source-protected example on the simple route.
+- Added an explicit source-owned four-section region to the composed fixture so
+  complex structure editing is available immediately rather than requiring a
+  setup journey.
+
+### Changed
+
+- Replaced the everyday Settings > select > hierarchy modal > review > save
+  permission journey with one-click Lock and Unlock controls directly on the
+  rendered page and in the selected-item inspector.
+- Made canvas selection authoritative: clicking text opens Content, while
+  clicking a section or its settings icon opens Structure automatically. The
+  Content and Structure tabs are optional navigators rather than prerequisites.
+- Kept advanced policy, source-discovery and syntax-aware validation machinery
+  internally, while removing Editor Setup from the ordinary editing surface.
+- Made all safe editable boundaries visible at activation, with blue editable,
+  gold owner-locked and red source-protected states; hover reveals a compact
+  labelled action bar.
+- Reduced contextual toolbars to familiar compact icons and moved add-before
+  and add-after into the section inspector, preserving those capabilities
+  without allowing a toolbar to overlap an adjacent column.
+
+### Security
+
+- Direct lock changes remain owner-only and loopback-only. The server validates
+  an exact policy diff and expected manifest hash before the one-click action is
+  persisted; source exclusions and adapter checks remain authoritative.
+
 ## 0.1.0-beta.5 - 2026-08-06
 
 ### Added

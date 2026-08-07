@@ -14,44 +14,60 @@ const dataSource = 'src/data/complex-page.json';
   title="Complex source fixture"
   description="Test source-aware editing across Astro layouts, components and structured content."
 >
-  <SourceHero {...content.hero} />
-  <p
-    class="shared-note"
-    data-astro-edit-file={dataSource}
-    data-astro-edit-path="shared.notice"
-    data-astro-edit-origin="a direct JSON import"
-    data-astro-edit-shared-routes="/,/fixtures/complex"
+  <div
+    class="complex-builder-region"
+    data-astro-edit-region="complex-sections"
+    data-astro-edit-file="src/pages/fixtures/complex.astro"
   >
-    {content.shared.notice}
-  </p>
-  <EvidenceGrid items={content.evidence} />
-  <section class="collection" aria-labelledby="collection-title">
-    <p class="kicker">Content Collection</p>
-    <h2
-      id="collection-title"
-      data-demo-collection-title
-      data-astro-edit-file={collectionSource}
-      data-astro-edit-path="frontmatter.title"
-      data-astro-edit-origin="a Content Collection field"
+    <div class="complex-builder-section" data-section="complex-hero">
+      <SourceHero {...content.hero} />
+    </div>
+    <div class="complex-builder-section" data-section="complex-shared">
+      <p
+        class="shared-note"
+        data-astro-edit-file={dataSource}
+        data-astro-edit-path="shared.notice"
+        data-astro-edit-origin="a direct JSON import"
+        data-astro-edit-shared-routes="/,/fixtures/complex"
+      >
+        {content.shared.notice}
+      </p>
+    </div>
+    <div class="complex-builder-section" data-section="complex-evidence">
+      <EvidenceGrid items={content.evidence} />
+    </div>
+    <section
+      class="collection complex-builder-section"
+      data-section="complex-collection"
+      aria-labelledby="collection-title"
     >
-      {caseStudy.data.title}
-    </h2>
-    <p
-      data-astro-edit-file={collectionSource}
-      data-astro-edit-path="frontmatter.summary"
-      data-astro-edit-origin="a Content Collection field"
-    >
-      {caseStudy.data.summary}
-    </p>
-    <p
-      class="client"
-      data-astro-edit-file={collectionSource}
-      data-astro-edit-path="frontmatter.client"
-      data-astro-edit-origin="a Content Collection field"
-    >
-      {caseStudy.data.client}
-    </p>
-  </section>
+      <p class="kicker">Content Collection</p>
+      <h2
+        id="collection-title"
+        data-demo-collection-title
+        data-astro-edit-file={collectionSource}
+        data-astro-edit-path="frontmatter.title"
+        data-astro-edit-origin="a Content Collection field"
+      >
+        {caseStudy.data.title}
+      </h2>
+      <p
+        data-astro-edit-file={collectionSource}
+        data-astro-edit-path="frontmatter.summary"
+        data-astro-edit-origin="a Content Collection field"
+      >
+        {caseStudy.data.summary}
+      </p>
+      <p
+        class="client"
+        data-astro-edit-file={collectionSource}
+        data-astro-edit-path="frontmatter.client"
+        data-astro-edit-origin="a Content Collection field"
+      >
+        {caseStudy.data.client}
+      </p>
+    </section>
+  </div>
 </DemoLayout>
 
 <style>
@@ -63,6 +79,10 @@ const dataSource = 'src/data/complex-page.json';
     border: 1px solid #65522b;
     border-radius: 11px;
     line-height: 1.5;
+  }
+  .complex-builder-region,
+  .complex-builder-section {
+    position: relative;
   }
   .collection {
     max-width: 760px;

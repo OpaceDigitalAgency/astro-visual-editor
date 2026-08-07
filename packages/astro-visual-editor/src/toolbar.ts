@@ -3,6 +3,7 @@ import { ChangeHistory, changeKey } from './client/history.js';
 import {
   classifyElement,
   inventoryPage,
+  matchingPolicyRule,
   policyAllowSelectors,
   type InventoryItem,
   type InventoryStatus,
@@ -79,7 +80,7 @@ const SESSION_CONFIG = `${APP_ID}:config:v1`;
 let hasUnsavedChanges = false;
 
 const defaultConfig: ClientEditorConfig = {
-  editableSelectors: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li'],
+  editableSelectors: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'strong', 'em', 'small'],
   excludeSelectors: [
     'pre',
     'code',
@@ -111,13 +112,16 @@ type IconName =
   | 'delete'
   | 'drag'
   | 'history'
+  | 'lock'
   | 'minus'
   | 'page'
   | 'plus'
   | 'redo'
   | 'settings'
+  | 'shield'
   | 'structure'
-  | 'undo';
+  | 'undo'
+  | 'unlock';
 
 function icon(name: IconName): string {
   const paths: Record<IconName, string> = {
@@ -128,15 +132,19 @@ function icon(name: IconName): string {
     delete: '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/>',
     drag: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>',
     history: '<path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v4l3 2"/>',
+    lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/>',
     minus: '<path d="M6 12h12"/>',
     page: '<path d="M7 3h7l4 4v14H7zM14 3v5h4M10 12h5M10 16h5"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     redo: '<path d="M16 7h4v4M20 7l-4-3M20 7h-9a6 6 0 0 0-6 6 6 6 0 0 0 6 6h3"/>',
     settings:
       '<circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2-.7-.7-1.7.9-1.9-2.1-2.1-1.9.9-1.7-.7L10.5 2h-3l-.7 2-1.7.7-1.9-.9-2.1 2.1.9 1.9-.7 1.7L0 10.5v3l2 .7.7 1.7-.9 1.9 2.1 2.1 1.9-.9 1.7.7.7 2h3l.7-2 1.7-.7 1.9.9 2.1-2.1-.9-1.9.7-1.7z" transform="translate(2 -1) scale(.84)"/>',
+    shield: '<path d="M12 3 5 6v5c0 4.6 2.8 8.1 7 10 4.2-1.9 7-5.4 7-10V6zM9 12l2 2 4-5"/>',
     structure:
       '<rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="15" width="8" height="5" rx="1"/><rect x="13" y="15" width="8" height="5" rx="1"/><path d="M12 9v3M7 12h10M7 12v3M17 12v3"/>',
     undo: '<path d="M8 7H4v4M4 7l4-3M4 7h9a6 6 0 0 1 6 6 6 6 0 0 1-6 6h-3"/>',
+    unlock:
+      '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M9 10V7a4 4 0 0 1 7-2.6M12 14v2"/>',
   };
   return `<svg class="ave-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name]}</svg>`;
 }
@@ -402,6 +410,8 @@ export default defineToolbarApp({
     let inventoryManagerOpen = false;
     let sectionManagerOpen = false;
     let setupBusy = false;
+    let directPolicySave = false;
+    let directPolicyLabel = '';
     let sourceDiscoveryRequestId: string | undefined;
     let sourceDiscoveryItem: InventoryItem | undefined;
     let sourceCandidates: SourceCandidate[] = [];
@@ -427,7 +437,7 @@ export default defineToolbarApp({
         <div class="masthead-copy"><p class="eyebrow">Astro Visual Builder</p><h2 class="panel-title">Edit content</h2>
           <p class="status" data-state="warning"><span class="status-dot" aria-hidden="true"></span><span class="status-copy">Connecting to Astro…</span></p>
         </div>
-        <div class="masthead-actions"><button class="utility-button setup-toggle" type="button" aria-label="Open Editor Setup" title="Open Editor Setup" hidden>${icon('settings')}<span class="utility-label">Settings</span></button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">${icon('minus')}</button></div>
+        <div class="masthead-actions"><button class="utility-button setup-toggle" type="button" aria-label="Developer diagnostics" title="Developer diagnostics" hidden>${icon('settings')}<span class="utility-label">Diagnostics</span></button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">${icon('minus')}</button></div>
       </header>
       <aside class="demo-context" hidden><span>Demo page</span><nav class="demo-surfaces" aria-label="Demo test pages"></nav></aside>
       <div class="mode-tabs" role="tablist" aria-label="Editing mode">
@@ -435,13 +445,14 @@ export default defineToolbarApp({
         <button class="mode-tab" role="tab" data-mode="sections" aria-selected="false">${icon('structure')}<span>Structure</span></button>
         <button class="mode-tab" role="tab" data-mode="seo" aria-selected="false">${icon('page')}<span>Page</span></button>
       </div>
-      <div class="instructions"><span class="instruction-icon" aria-hidden="true">${icon('content')}</span><span class="instructions-copy">Hover over page content, then click to edit.</span></div>
+      <div class="instructions"><span class="instruction-icon" aria-hidden="true">${icon('content')}</span><span class="instructions-copy">Click text to edit, or use a section handle to arrange the page.</span></div>
       <section class="changes-tray" aria-label="Changes tray">
         <section class="selection-inspector" aria-label="Selected element settings" hidden>
           <div class="selection-summary">
             <span class="selection-kicker">Selected element</span>
             <strong class="selection-name">Text</strong>
             <span class="selection-preview"></span>
+            <span class="selection-state" role="status"></span>
           </div>
           <div class="inspector-tabs" role="tablist" aria-label="Element settings">
             <button class="inspector-tab" type="button" role="tab" data-inspector-tab="content" aria-selected="true">Content</button>
@@ -482,10 +493,11 @@ export default defineToolbarApp({
               <summary>Source ownership</summary>
               <dl class="advanced-settings"><div><dt>File</dt><dd class="inspector-file"></dd></div><div><dt>Field</dt><dd class="inspector-source-path"></dd></div><div><dt>Page selector</dt><dd class="inspector-selector"></dd></div></dl>
             </details>
-            <button class="secondary manage-selected" type="button">Manage editability in Settings</button>
+            <p class="capability-note selection-protection-note"><strong>Source protection stays authoritative.</strong> User locks can be changed here; unsafe or unresolved source mappings remain protected.</p>
           </div>
           <footer class="inspector-actions">
             <button class="icon-button cancel-selection" type="button" aria-label="Cancel element editing" title="Cancel">${icon('close')}</button>
+            <button class="secondary toggle-selection-lock" type="button">${icon('lock')}<span>Lock</span></button>
             <button class="secondary reset-selection" type="button">Reset</button>
             <button class="primary apply-selection" type="button">Queue change</button>
           </footer>
@@ -635,6 +647,7 @@ export default defineToolbarApp({
     const inspectorTextarea = panel.querySelector<HTMLTextAreaElement>('#ave-inspector-text')!;
     const inspectorName = panel.querySelector<HTMLElement>('.selection-name')!;
     const inspectorPreview = panel.querySelector<HTMLElement>('.selection-preview')!;
+    const inspectorState = panel.querySelector<HTMLElement>('.selection-state')!;
     const inspectorFile = panel.querySelector<HTMLElement>('.inspector-file')!;
     const inspectorSourcePath = panel.querySelector<HTMLElement>('.inspector-source-path')!;
     const inspectorSelector = panel.querySelector<HTMLElement>('.inspector-selector')!;
@@ -642,7 +655,8 @@ export default defineToolbarApp({
     const applySelectionButton = panel.querySelector<HTMLButtonElement>('.apply-selection')!;
     const cancelSelectionButton = panel.querySelector<HTMLButtonElement>('.cancel-selection')!;
     const resetSelectionButton = panel.querySelector<HTMLButtonElement>('.reset-selection')!;
-    const manageSelectedButton = panel.querySelector<HTMLButtonElement>('.manage-selected')!;
+    const toggleSelectionLockButton =
+      panel.querySelector<HTMLButtonElement>('.toggle-selection-lock')!;
     const sectionSetting = panel.querySelector<HTMLElement>('.section-setting')!;
     const sectionSettingCopy = panel.querySelector<HTMLElement>('.section-setting-copy')!;
     const addBeforeSelectedButton = panel.querySelector<HTMLButtonElement>('.add-before-selected')!;
@@ -1281,9 +1295,10 @@ export default defineToolbarApp({
       saveSectionCandidate(candidate);
     }
 
-    function requestPolicyPreview(): void {
+    function requestPolicyPreview(saveDirectly = false): void {
       if (!policyIsDirty() || setupBusy || !config.canManageEditability) return;
       setupBusy = true;
+      directPolicySave = saveDirectly;
       editabilityPreviewId = crypto.randomUUID();
       server.send(EDITABILITY_PREVIEW_EVENT, {
         clientId,
@@ -1291,7 +1306,8 @@ export default defineToolbarApp({
         expectedHash: editabilityPolicyHash,
         policy: draftEditabilityPolicy,
       });
-      renderInventory();
+      if (mode === 'setup') renderInventory();
+      else renderQueue();
     }
 
     function leaveSetup(): void {
@@ -1321,6 +1337,59 @@ export default defineToolbarApp({
 
     function policyRuleId(effect: EditabilityEffect, scope: EditabilityRuleScope): string {
       return `${effect}-${scope}-${crypto.randomUUID()}`;
+    }
+
+    function userLockRule(
+      element: HTMLElement,
+      policy: EditabilityPolicy = editabilityPolicy,
+    ): EditabilityRule | undefined {
+      const rule = matchingPolicyRule(element, policy);
+      return rule?.effect === 'deny' ? rule : undefined;
+    }
+
+    function isSourceProtected(element: HTMLElement): boolean {
+      if (element.closest('[data-astro-edit-ignore], [data-astro-edit-protected]')) return true;
+      if (element.matches('[data-section]')) return !editableRegion(element);
+      const item = classifyElement(element, config, editabilityPolicy);
+      return item.status !== 'editable' && !userLockRule(element);
+    }
+
+    function toggleUserLock(element: HTMLElement): void {
+      if (!config.canManageEditability || setupBusy) return;
+      if (isSourceProtected(element)) {
+        showMessage(
+          'This item is source-protected. A user lock cannot override an unsafe or unresolved source mapping.',
+          'warning',
+        );
+        return;
+      }
+      const route = window.location.pathname;
+      const selector = selectorFor(element);
+      const currentLock = userLockRule(element);
+      draftEditabilityPolicy = structuredClone(editabilityPolicy);
+      if (currentLock) {
+        draftEditabilityPolicy.rules = draftEditabilityPolicy.rules.filter(
+          (rule) => rule.id !== currentLock.id,
+        );
+        directPolicyLabel = `Unlocked ${selectedKind === 'section' ? 'section' : 'element'}.`;
+      } else {
+        draftEditabilityPolicy.rules = [
+          ...draftEditabilityPolicy.rules.filter(
+            (rule) => !(rule.route === route && rule.selector === selector),
+          ),
+          {
+            id: policyRuleId('deny', 'element'),
+            effect: 'deny',
+            scope: 'element',
+            route,
+            selector,
+          },
+        ];
+        directPolicyLabel = `Locked ${selectedKind === 'section' ? 'section' : 'element'}.`;
+      }
+      showMessage(currentLock ? 'Unlocking…' : 'Locking…', 'warning');
+      renderSelectionState(element);
+      requestPolicyPreview(true);
     }
 
     function setDraftRule(
@@ -1538,21 +1607,6 @@ export default defineToolbarApp({
               ? 'No SEO changes queued.'
               : 'No queued changes. Select visible content to begin.';
         ledger.append(empty);
-        if (mode === 'sections' && config.canManageEditability) {
-          const existingRegions = document.querySelectorAll(
-            '[data-astro-edit-region], [data-astro-edit-sections]',
-          ).length;
-          const enable = createElement('button', {
-            class: 'primary enable-sections',
-            type: 'button',
-          });
-          enable.textContent = existingRegions
-            ? 'Select another section on page'
-            : 'Select section on page';
-          enable.addEventListener('click', () => startSetupPagePicker('section'));
-          ledger.append(enable);
-          panel.dataset.needsSection = 'true';
-        }
       } else {
         for (const [key, change] of queue) {
           const row = createElement('article', { class: 'change' });
@@ -1813,6 +1867,69 @@ export default defineToolbarApp({
       hovered = null;
     }
 
+    function setupTextBoundaries(): void {
+      document.querySelectorAll<HTMLElement>('[data-astro-ve-text-active]').forEach((element) => {
+        delete element.dataset.astroVeTextActive;
+        if (element !== editing) delete element.dataset.astroVeProtection;
+      });
+      if (!active || !configReady) return;
+      for (const item of inventoryPage(config, editabilityPolicy)) {
+        item.element.dataset.astroVeTextActive = 'true';
+        item.element.dataset.astroVeProtection = selectionProtection(item.element).state;
+      }
+    }
+
+    function showElementControls(candidate: HTMLElement): void {
+      document.querySelector('.astro-ve-element-controls')?.remove();
+      const protection = selectionProtection(candidate);
+      const label = textTargetLabel(candidate);
+      const controls = createElement('div', {
+        class: 'astro-ve-element-controls',
+        'data-astro-ve-ui': 'true',
+        'data-protection': protection.state,
+        role: 'toolbar',
+        'aria-label': `Controls for ${label}`,
+      });
+      const controlsLabel = createElement('span', { class: 'astro-ve-element-label' });
+      controlsLabel.textContent = label;
+      controls.append(controlsLabel);
+      addControl(controls, `Edit ${label}`, 'settings', () => openTextEditor(candidate));
+      if (protection.state === 'protected') {
+        const shield = addControl(
+          controls,
+          `${label} is source-protected`,
+          'shield',
+          () => undefined,
+        );
+        shield.disabled = true;
+      } else {
+        addControl(
+          controls,
+          `${protection.state === 'locked' ? 'Unlock' : 'Lock'} ${label}`,
+          protection.state === 'locked' ? 'unlock' : 'lock',
+          () => {
+            selectedKind = 'text';
+            editing = candidate;
+            toggleUserLock(candidate);
+          },
+        );
+      }
+      document.body.append(controls);
+      const rect = candidate.getBoundingClientRect();
+      const controlHeight = 34;
+      const top =
+        rect.top >= controlHeight + 8
+          ? window.scrollY + rect.top - controlHeight
+          : window.scrollY + rect.bottom + 4;
+      const controlsWidth = controls.getBoundingClientRect().width;
+      const left = Math.min(
+        window.scrollX + rect.right - controlsWidth,
+        window.scrollX + innerWidth - controlsWidth - 8,
+      );
+      controls.style.setProperty('top', `${top}px`, 'important');
+      controls.style.setProperty('left', `${Math.max(window.scrollX + 4, left)}px`, 'important');
+    }
+
     function setInspectorTab(next: 'content' | 'design' | 'advanced'): void {
       for (const tab of selectionInspector.querySelectorAll<HTMLButtonElement>('.inspector-tab')) {
         tab.setAttribute('aria-selected', String(tab.dataset.inspectorTab === next));
@@ -1824,6 +1941,7 @@ export default defineToolbarApp({
 
     function clearSelection(): void {
       editing?.removeAttribute('data-astro-ve-selected');
+      editing?.removeAttribute('data-astro-ve-protection');
       editing = null;
       selectedKind = null;
       selectionInspector.hidden = true;
@@ -1846,6 +1964,70 @@ export default defineToolbarApp({
       };
       for (const target of selectionInspector.querySelectorAll<HTMLElement>('[data-computed]')) {
         target.textContent = values[target.dataset.computed ?? ''] || 'Not set';
+      }
+    }
+
+    function selectionProtection(candidate: HTMLElement): {
+      state: 'unlocked' | 'locked' | 'protected';
+      reason: string;
+    } {
+      const lock = userLockRule(candidate);
+      if (lock)
+        return {
+          state: 'locked',
+          reason: 'Locked by the site owner. Unlock it here to edit or move it.',
+        };
+      if (isSourceProtected(candidate)) {
+        const item = candidate.matches('[data-section]')
+          ? undefined
+          : classifyElement(candidate, config, editabilityPolicy);
+        return {
+          state: 'protected',
+          reason:
+            item?.reason ??
+            'Protected because this section does not have a validated source-owned region.',
+        };
+      }
+      return {
+        state: 'unlocked',
+        reason: 'Unlocked and ready to edit.',
+      };
+    }
+
+    function renderSelectionState(candidate: HTMLElement): void {
+      const protection = selectionProtection(candidate);
+      selectionInspector.dataset.protection = protection.state;
+      candidate.dataset.astroVeProtection = protection.state;
+      inspectorState.textContent =
+        protection.state === 'unlocked'
+          ? 'Unlocked · ready to edit'
+          : protection.state === 'locked'
+            ? 'Locked · click Unlock to edit'
+            : `Protected · ${protection.reason}`;
+      toggleSelectionLockButton.hidden =
+        protection.state === 'protected' || !config.canManageEditability;
+      toggleSelectionLockButton.disabled = setupBusy;
+      toggleSelectionLockButton.innerHTML =
+        protection.state === 'locked'
+          ? `${icon('unlock')}<span>Unlock</span>`
+          : `${icon('lock')}<span>Lock</span>`;
+      toggleSelectionLockButton.setAttribute(
+        'aria-label',
+        protection.state === 'locked' ? 'Unlock selected item' : 'Lock selected item',
+      );
+      const editable = protection.state === 'unlocked';
+      if (selectedKind === 'text') {
+        inspectorTextarea.disabled = !editable;
+        resetSelectionButton.hidden = !editable;
+        applySelectionButton.hidden = !editable;
+      } else {
+        applySelectionButton.hidden = false;
+        for (const button of [
+          addBeforeSelectedButton,
+          addAfterSelectedButton,
+          deleteSelectedButton,
+        ])
+          button.disabled = !editable;
       }
     }
 
@@ -1896,6 +2078,7 @@ export default defineToolbarApp({
     }
 
     function openTextEditor(candidate: HTMLElement): void {
+      if (mode !== 'text') setMode('text');
       editing?.removeAttribute('data-astro-ve-selected');
       editing = candidate;
       selectedKind = 'text';
@@ -1912,7 +2095,8 @@ export default defineToolbarApp({
       sourceWarning.textContent = resolution.sharedRouteCount
         ? `Shared source: this edit will affect ${resolution.sharedRouteCount} routes.`
         : '';
-      if (matchMedia('(max-width: 640px)').matches) {
+      const protection = selectionProtection(candidate);
+      if (matchMedia('(max-width: 640px)').matches && protection.state === 'unlocked') {
         textDialog.showModal();
         textarea.focus();
         textarea.select();
@@ -1941,12 +2125,16 @@ export default defineToolbarApp({
       sectionSetting.hidden = true;
       resetSelectionButton.hidden = false;
       populateComputedSettings(candidate);
+      renderSelectionState(candidate);
       setInspectorTab('content');
-      inspectorTextarea.focus();
-      inspectorTextarea.select();
+      if (!inspectorTextarea.disabled) {
+        inspectorTextarea.focus();
+        inspectorTextarea.select();
+      } else toggleSelectionLockButton.focus();
     }
 
     function openSectionInspector(section: HTMLElement): void {
+      if (mode !== 'sections') setMode('sections');
       editing?.removeAttribute('data-astro-ve-selected');
       editing = section;
       selectedKind = 'section';
@@ -1976,6 +2164,7 @@ export default defineToolbarApp({
       resetSelectionButton.hidden = true;
       applySelectionButton.textContent = 'Done';
       populateComputedSettings(section);
+      renderSelectionState(section);
       setInspectorTab('content');
     }
 
@@ -1996,16 +2185,23 @@ export default defineToolbarApp({
         }
         return;
       }
-      if (!active || mode !== 'text' || textDialog.open) return;
+      if (!active || mode === 'review' || mode === 'seo' || mode === 'setup' || textDialog.open)
+        return;
+      if (event.target instanceof Element && event.target.closest('[data-astro-ve-ui]')) return;
+      if (event.target instanceof Element && !event.target.closest('[data-astro-ve-ui]')) {
+        const section = event.target.closest<HTMLElement>('[data-astro-ve-section-active="true"]');
+        if (section) revealSectionControls(section);
+      }
       const candidate = textCandidate(event.target);
       if (candidate === hovered) return;
       restoreHighlight();
       hovered = candidate;
       if (hovered) {
-        const state = classifyElement(hovered, config, editabilityPolicy).status;
-        hovered.dataset.astroVeTextState = state;
-        hovered.dataset.astroVeTextLabel = `${state === 'editable' ? 'Edit' : state === 'excluded' ? 'Locked' : state === 'unresolved' ? 'Needs setup' : 'Unsupported'} · ${textTargetLabel(hovered)}`;
-        hovered.style.cursor = state === 'editable' ? 'text' : 'not-allowed';
+        const protection = selectionProtection(hovered);
+        hovered.dataset.astroVeTextState = protection.state;
+        hovered.dataset.astroVeTextLabel = `${protection.state === 'unlocked' ? 'Edit' : protection.state === 'locked' ? 'Unlock' : 'Protected'} · ${textTargetLabel(hovered)}`;
+        hovered.style.cursor = protection.state === 'protected' ? 'not-allowed' : 'pointer';
+        showElementControls(hovered);
       }
     }
 
@@ -2045,7 +2241,19 @@ export default defineToolbarApp({
         if (row) locateInventoryItem(item, row);
         return;
       }
-      if (mode === 'sections' && event.target instanceof Element) {
+      if (mode === 'review' || mode === 'seo') return;
+      const text = textCandidate(event.target);
+      if (text) {
+        event.preventDefault();
+        event.stopPropagation();
+        const protection = selectionProtection(text);
+        if (matchMedia('(max-width: 640px)').matches && protection.state === 'locked') {
+          selectedKind = 'text';
+          toggleUserLock(text);
+        } else openTextEditor(text);
+        return;
+      }
+      if (event.target instanceof Element) {
         const section = event.target.closest<HTMLElement>(
           '[data-section][data-astro-ve-section-active="true"]',
         );
@@ -2053,29 +2261,7 @@ export default defineToolbarApp({
         event.preventDefault();
         event.stopPropagation();
         openSectionInspector(section);
-        return;
       }
-      if (mode !== 'text') return;
-      const candidate = editableTarget(event.target);
-      if (!candidate) {
-        const blocked = textCandidate(event.target);
-        if (!blocked) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const state = classifyElement(blocked, config, editabilityPolicy).status;
-        showMessage(
-          state === 'excluded'
-            ? 'This text is locked. Open Settings to allow it for editing.'
-            : state === 'unresolved'
-              ? 'This text needs source setup before it can be edited safely.'
-              : 'This content structure cannot be edited safely.',
-          state === 'unsafe' ? 'error' : 'warning',
-        );
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      openTextEditor(candidate);
     }
 
     function queueText(): void {
@@ -2216,6 +2402,7 @@ export default defineToolbarApp({
     }
 
     function moveSection(section: HTMLElement, direction: -1 | 1): void {
+      if (selectionProtection(section).state !== 'unlocked') return;
       const region = editableRegion(section);
       if (!region) return;
       const sections = directSections(region);
@@ -2228,6 +2415,7 @@ export default defineToolbarApp({
         queueRegion(region);
       });
       setupSectionControls();
+      setupTextBoundaries();
     }
 
     function addControl(
@@ -2252,6 +2440,19 @@ export default defineToolbarApp({
       return button;
     }
 
+    function revealSectionControls(section: HTMLElement): void {
+      const region = editableRegion(section);
+      if (!region) return;
+      region
+        .querySelectorAll<HTMLElement>('.astro-ve-section-controls')
+        .forEach(
+          (toolbar) =>
+            (toolbar.dataset.visible = String(
+              toolbar.dataset.sectionId === section.dataset.section,
+            )),
+        );
+    }
+
     function setupSectionControls(): void {
       sectionListenerController.abort();
       sectionListenerController = new AbortController();
@@ -2265,7 +2466,7 @@ export default defineToolbarApp({
             delete section.dataset.astroVeAddedTabindex;
           }
         });
-      if (!active || mode !== 'sections') return;
+      if (!active) return;
       for (const region of document.querySelectorAll<HTMLElement>(
         '[data-astro-edit-region], [data-astro-edit-sections]',
       )) {
@@ -2274,7 +2475,7 @@ export default defineToolbarApp({
           initialSections.set(regionKey(region), structuredClone(current));
         ensureAnchor(region);
         const regionSections = directSections(region);
-        for (const [sectionIndex, section] of regionSections.entries()) {
+        for (const section of regionSections) {
           const id = section.dataset.section!;
           const label = sectionControlLabel(section);
           sectionNodes.set(id, section);
@@ -2283,10 +2484,14 @@ export default defineToolbarApp({
             section.tabIndex = 0;
             section.dataset.astroVeAddedTabindex = 'true';
           }
+          const protection = selectionProtection(section);
+          section.dataset.astroVeProtection = protection.state;
           const controls = createElement('div', {
             class: 'astro-ve-section-controls',
             'data-astro-ve-ui': 'true',
-            'data-visible': String(sectionIndex === 0),
+            'data-section-id': id,
+            'data-visible': 'false',
+            'data-protection': protection.state,
             role: 'toolbar',
             'aria-label': `Controls for ${label}`,
           });
@@ -2296,35 +2501,53 @@ export default defineToolbarApp({
           addControl(controls, `Open settings for ${label}`, 'settings', () =>
             openSectionInspector(section),
           );
-          addControl(controls, `Add section before ${label}`, 'plus', () =>
-            openTemplates(section, 'before'),
-          );
-          addControl(controls, `Move ${label} up`, 'chevron-up', () => moveSection(section, -1));
-          const drag = addControl(controls, `Drag ${label} to reorder`, 'drag', () => undefined);
-          drag.classList.add('astro-ve-drag-handle');
-          drag.draggable = true;
-          drag.addEventListener('dragstart', (event) => {
-            draggedSection = section;
-            section.dataset.astroVeDragging = 'true';
-            event.dataTransfer?.setData('text/plain', id);
-            if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-          });
-          drag.addEventListener('dragend', () => {
-            delete section.dataset.astroVeDragging;
-            draggedSection = null;
-            document
-              .querySelectorAll('[data-astro-ve-drag-over]')
-              .forEach((node) => node.removeAttribute('data-astro-ve-drag-over'));
-          });
-          addControl(controls, `Move ${label} down`, 'chevron-down', () => moveSection(section, 1));
-          addControl(controls, `Add section after ${label}`, 'plus', () =>
-            openTemplates(section, 'after'),
-          );
-          addControl(controls, `Delete section ${label}`, 'delete', () => {
-            deleteTarget = section;
-            confirmDialog.showModal();
-            confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
-          });
+          if (protection.state === 'protected') {
+            const shield = addControl(
+              controls,
+              `${label} is source-protected`,
+              'shield',
+              () => undefined,
+            );
+            shield.disabled = true;
+          } else {
+            addControl(
+              controls,
+              `${protection.state === 'locked' ? 'Unlock' : 'Lock'} ${label}`,
+              protection.state === 'locked' ? 'unlock' : 'lock',
+              () => {
+                selectedKind = 'section';
+                editing = section;
+                toggleUserLock(section);
+              },
+            );
+          }
+          if (protection.state === 'unlocked') {
+            addControl(controls, `Move ${label} up`, 'chevron-up', () => moveSection(section, -1));
+            const drag = addControl(controls, `Drag ${label} to reorder`, 'drag', () => undefined);
+            drag.classList.add('astro-ve-drag-handle');
+            drag.draggable = true;
+            drag.addEventListener('dragstart', (event) => {
+              draggedSection = section;
+              section.dataset.astroVeDragging = 'true';
+              event.dataTransfer?.setData('text/plain', id);
+              if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+            });
+            drag.addEventListener('dragend', () => {
+              delete section.dataset.astroVeDragging;
+              draggedSection = null;
+              document
+                .querySelectorAll('[data-astro-ve-drag-over]')
+                .forEach((node) => node.removeAttribute('data-astro-ve-drag-over'));
+            });
+            addControl(controls, `Move ${label} down`, 'chevron-down', () =>
+              moveSection(section, 1),
+            );
+            addControl(controls, `Delete section ${label}`, 'delete', () => {
+              deleteTarget = section;
+              confirmDialog.showModal();
+              confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
+            });
+          }
           region.append(controls);
           const regionRect = region.getBoundingClientRect();
           const sectionRect = section.getBoundingClientRect();
@@ -2339,9 +2562,7 @@ export default defineToolbarApp({
             'important',
           );
           const showControls = () => {
-            region
-              .querySelectorAll<HTMLElement>('.astro-ve-section-controls')
-              .forEach((toolbar) => (toolbar.dataset.visible = String(toolbar === controls)));
+            revealSectionControls(section);
           };
           section.addEventListener('pointerenter', showControls, {
             signal: sectionListenerController.signal,
@@ -2401,6 +2622,7 @@ export default defineToolbarApp({
         queueRegion(region);
       });
       setupSectionControls();
+      setupTextBoundaries();
     }
 
     function openTemplates(section: HTMLElement, placement: 'before' | 'after'): void {
@@ -2528,11 +2750,13 @@ export default defineToolbarApp({
         tab.setAttribute('aria-selected', String(tab.dataset.mode === mode));
       if (mode === 'text') {
         panelTitle.textContent = 'Edit content';
-        instructions.textContent = 'Hover over page content, then click to edit.';
+        instructions.textContent =
+          'Click text to edit, or use a section handle to arrange the page.';
       }
       if (mode === 'sections') {
         panelTitle.textContent = 'Edit structure';
-        instructions.textContent = 'Select a section on the page, then drag, move, add or delete.';
+        instructions.textContent =
+          'Section handles are available directly on the page. This tab is an optional navigator.';
       }
       if (mode === 'seo') {
         panelTitle.textContent = 'Page settings';
@@ -2575,7 +2799,7 @@ export default defineToolbarApp({
         setMinimized(matchMedia('(max-width: 640px)').matches);
         if (!hasEditableRegion) {
           showMessage(
-            'No section area is enabled yet. Select an area on the page to start arranging it.',
+            'No source-owned section region is available on this page. Unsupported structure stays protected rather than appearing movable.',
             'warning',
           );
         }
@@ -2611,6 +2835,7 @@ export default defineToolbarApp({
         signal: listenerController.signal,
       });
       setupSectionControls();
+      setupTextBoundaries();
     }
 
     function deactivate(): void {
@@ -2623,6 +2848,10 @@ export default defineToolbarApp({
       clearSelection();
       clearInventoryMarkers();
       document.querySelectorAll('[data-astro-ve-ui]').forEach((element) => element.remove());
+      document.querySelectorAll<HTMLElement>('[data-astro-ve-text-active]').forEach((element) => {
+        delete element.dataset.astroVeTextActive;
+        delete element.dataset.astroVeProtection;
+      });
       document
         .querySelectorAll<HTMLElement>('[data-astro-ve-section-active]')
         .forEach((section) => {
@@ -2832,7 +3061,9 @@ export default defineToolbarApp({
       inspectorTextarea.focus();
       inspectorTextarea.select();
     });
-    manageSelectedButton.addEventListener('click', () => setMode('setup'));
+    toggleSelectionLockButton.addEventListener('click', () => {
+      if (editing) toggleUserLock(editing);
+    });
     addBeforeSelectedButton.addEventListener('click', () => {
       if (selectedKind === 'section' && editing) openTemplates(editing, 'before');
     });
@@ -2841,6 +3072,7 @@ export default defineToolbarApp({
     });
     deleteSelectedButton.addEventListener('click', () => {
       if (selectedKind !== 'section' || !editing) return;
+      if (selectionProtection(editing).state !== 'unlocked') return;
       deleteTarget = editing;
       confirmDialog.showModal();
       confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
@@ -2876,6 +3108,7 @@ export default defineToolbarApp({
         confirmDialog.close();
         deleteTarget = null;
         setupSectionControls();
+        setupTextBoundaries();
       });
     clearButton.addEventListener('click', () => mutate(() => queue.clear()));
     undoButton.addEventListener('click', undo);
@@ -2908,7 +3141,7 @@ export default defineToolbarApp({
       server.send(EDITABILITY_POLICY_EVENT, { clientId, requestId: editabilityRequestId });
       renderInventory();
     });
-    reviewPolicyButton.addEventListener('click', requestPolicyPreview);
+    reviewPolicyButton.addEventListener('click', () => requestPolicyPreview());
     policyDialog
       .querySelector<HTMLButtonElement>('.cancel-policy')!
       .addEventListener('click', () => {
@@ -2963,7 +3196,7 @@ export default defineToolbarApp({
       configConfirmed = true;
       renderDemoSurfaces();
       sessionStorage.setItem(SESSION_CONFIG, JSON.stringify(next));
-      setupButton.hidden = !config.canManageEditability;
+      setupButton.hidden = true;
       try {
         for (const selector of [
           ...config.editableSelectors,
@@ -2983,6 +3216,7 @@ export default defineToolbarApp({
         renderQueue();
         return;
       }
+      setupTextBoundaries();
       if (config.writeEnabled)
         setConnection(
           'Ready. Changes stay local until saved.',
@@ -3049,8 +3283,10 @@ export default defineToolbarApp({
         editabilityPolicyHash = response.policyHash;
         applySectionRegionPolicy(editabilityPolicy);
         config.canManageEditability = response.canManage ?? config.canManageEditability;
-        setupButton.hidden = !config.canManageEditability;
+        setupButton.hidden = true;
         if (mode === 'setup') showMessage('Editability policy loaded from the project.', 'success');
+        setupSectionControls();
+        setupTextBoundaries();
       }
       renderQueue();
     });
@@ -3059,7 +3295,17 @@ export default defineToolbarApp({
       setupBusy = false;
       if (!response.success || !response.diff) {
         editabilityPreviewId = undefined;
+        directPolicySave = false;
+        draftEditabilityPolicy = structuredClone(editabilityPolicy);
         showMessage(response.error ?? 'The editability policy preview was rejected.', 'error');
+      } else if (directPolicySave) {
+        setupBusy = true;
+        server.send(EDITABILITY_SAVE_EVENT, {
+          clientId,
+          requestId: editabilityPreviewId,
+          expectedHash: editabilityPolicyHash,
+          policy: draftEditabilityPolicy,
+        });
       } else {
         renderFileDiffPanel(policyDiffList, [response.diff]);
         policyDialog.showModal();
@@ -3071,18 +3317,30 @@ export default defineToolbarApp({
       if (response.clientId !== clientId || response.requestId !== editabilityPreviewId) return;
       setupBusy = false;
       editabilityPreviewId = undefined;
+      const wasDirect = directPolicySave;
+      directPolicySave = false;
       if (!response.success || !response.policy || response.policyHash === undefined) {
+        draftEditabilityPolicy = structuredClone(editabilityPolicy);
         showMessage(response.error ?? 'The editability policy was not saved.', 'error');
       } else {
         editabilityPolicy = structuredClone(response.policy);
         draftEditabilityPolicy = structuredClone(response.policy);
         editabilityPolicyHash = response.policyHash;
         applySectionRegionPolicy(editabilityPolicy);
-        setMode('text');
+        if (!wasDirect) setMode('text');
         showMessage(
-          `Saved ${response.policyFile ?? config.editabilityPolicyFile}. Your text permissions and section mappings are now active.`,
+          wasDirect
+            ? directPolicyLabel
+            : `Saved ${response.policyFile ?? config.editabilityPolicyFile}. Your text permissions and section mappings are now active.`,
           'success',
         );
+      }
+      directPolicyLabel = '';
+      setupSectionControls();
+      setupTextBoundaries();
+      if (editing?.isConnected) {
+        if (selectedKind === 'section') openSectionInspector(editing);
+        else if (selectedKind === 'text') openTextEditor(editing);
       }
       renderQueue();
     });

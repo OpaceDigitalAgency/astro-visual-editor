@@ -1,4 +1,33 @@
 {
   "version": 1,
-  "rules": []
+  "rules": [
+    {
+      "id": "lock-simple-banner",
+      "effect": "deny",
+      "scope": "element",
+      "route": "/",
+      "selector": "[data-demo-banner]"
+    },
+    {
+      "id": "lock-simple-review-section",
+      "effect": "deny",
+      "scope": "element",
+      "route": "/",
+      "selector": "[data-section=\"review\"]"
+    },
+    {
+      "id": "lock-complex-client",
+      "effect": "deny",
+      "scope": "element",
+      "route": "/fixtures/complex",
+      "selector": "[data-astro-edit-path=\"frontmatter.client\"]"
+    },
+    {
+      "id": "lock-complex-shared-section",
+      "effect": "deny",
+      "scope": "element",
+      "route": "/fixtures/complex",
+      "selector": "[data-section=\"complex-shared\"]"
+    }
+  ]
 }

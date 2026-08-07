@@ -108,6 +108,9 @@ const defaults: NormalizedOptions = {
     'label',
     'td',
     'th',
+    'strong',
+    'em',
+    'small',
     '[data-astro-editable]',
   ],
   excludeSelectors: [

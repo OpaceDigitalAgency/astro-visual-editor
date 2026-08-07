@@ -31,18 +31,20 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 | --------------- | ------------------------------------------------------------------------------ |
 | Editing surface | A Divi/Elementor-style inspector docked beside the rendered page               |
 | Content         | Discovered or mapped Astro/Markdown, JSON/JSONC and YAML values                |
-| Page structure  | Enable and reorder Astro children or complete JSON/YAML arrays safely          |
+| Page structure  | See and reorder declared Astro children or complete JSON/YAML arrays safely    |
 | Changes         | One mixed text, SEO and section tray with undo, redo, save and guarded restore |
 | Safety boundary | Local development only; no editor client or write endpoint in production       |
 
 ## What it does
 
 - Click rendered text and preview a replacement in place.
-- Hover familiar page content to see an **Edit · Heading**, **Edit · Paragraph**
-  or clear locked/unsupported state before clicking.
+- See every discovered text element and declared section as soon as the editor
+  opens; hover to reveal its labelled action bar.
+- Click an element or section directly. Use one-click **Lock** and **Unlock**
+  without opening a separate permission screen.
 - Edit title, description, keywords, canonical URL, Open Graph fields and
   robots directives in one SEO form.
-- Enable existing page regions, then add, delete or reorder supported sections.
+- Add, delete or reorder supported source-owned sections immediately.
 - Reorder with real pointer drag-and-drop, move buttons or keyboard controls.
 - Add sections from a reusable template registry.
 - Queue mixed text, SEO and structural changes in one visible ledger.
@@ -51,10 +53,9 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 - Recover queued and in-flight work across Astro HMR and navigation.
 - Keep queues and responses isolated between multiple browser tabs.
 - Provide a compact touch Pick mode on narrow screens.
-- Inventory visible page content and explain whether each item is editable,
-  blocked, unresolved or structurally unsafe.
-- Let a loopback site owner review element/group allow and deny rules, inspect
-  the exact policy diff and save it as a Git-reviewable project manifest.
+- Distinguish blue editable, gold owner-locked and red source-protected areas.
+- Persist owner locks in a Git-reviewable project manifest after server-side
+  diff and conflict validation.
 
 The old editor documented drag-and-drop but only implemented up/down buttons.
 This package provides both genuine drag-and-drop and accessible button/keyboard
@@ -62,9 +63,11 @@ alternatives.
 
 The visual builder uses a familiar purple inspector with icon-led **Content**,
 **Structure** and **Page** tabs. The page makes room for the inspector on
-desktop rather than hiding it over the content. Structure mode adds Divi-style
-blue outlines and a contextual toolbar to the selected page item, with add,
-move, drag and delete actions in one place. The inspector can be collapsed to a
+desktop rather than hiding it over the content. Enabling the editor adds
+Elementor-style boundaries to every safe discovered element and declared
+section. Hovering reveals a Divi-style contextual toolbar with settings and
+lock state; source-owned sections also expose move, drag and delete. Add before
+and Add after remain in the section inspector. The inspector can be collapsed to a
 compact picker on desktop or mobile. Icon controls expose visible hover/focus
 tooltips and accessible names, and dialogs close through Cancel, Escape or a
 click on the backdrop.
@@ -82,8 +85,8 @@ that cannot persist.
 
 The familiar presentation does not weaken the source boundary: **Review
 changes** still exposes the exact mixed change ledger before anything is saved,
-and all existing Setup, undo, redo, history, safe retry and restore capabilities
-remain available.
+and the existing policy engine, undo, redo, history, safe retry and restore
+capabilities remain available.
 
 ## Source-write safety
 
@@ -172,36 +175,20 @@ writes are disabled by default when the dev server is exposed beyond loopback.
 
 ## Editor modes
 
-### Editor Setup
+### Direct canvas permissions
 
-Choose the settings control in the workbench to open the owner-only setup mode.
-On desktop the settings panel docks beside the page so the content remains visible.
-It exposes matching **Structure** and **Content** on-page selectors. Full searchable
-text and section inventories remain collapsed under **Manage all text** and
-**Manage sections** until needed. Section mappings
-map existing page containers to syntax-aware source structures for safe
-reordering, while the text inventory lists each visible item with its status,
-plain-language reason, owning source file and structured path where known.
-Both use the same non-technical interaction: choose a readable item from the
-list or select it directly on the page with hover highlighting. Source
-verification runs behind that visual choice; technical paths stay collapsed
-unless ambiguity requires explicit confirmation.
+There is no permission setup journey in ordinary editing. The visual editor
+automatically displays every discovered element and declared section, then
+labels it **Unlocked**, **Locked** or **Protected**. An owner clicks the lock
+icon on the element/section toolbar or the selected-item inspector; the server
+validates the exact policy diff and expected hash before persisting the change
+to `astro-visual-editor.policy.json`.
 
-An owner can allow or block one stable element or an appropriate element group,
-such as all `<strong>` labels on the current route. Choosing a permission opens
-its exact review immediately; saving returns to the normal editor with the new
-permission active. Cancelling review leaves a prominent **Not saved yet**
-warning and one-click **Review and save** action. A labelled **Back to editor**
-control remains visible throughout setup. Unresolved items can confirm their
-project-relative source file and optional structured path. Every change is
-shown as an exact diff before it is written to
-`astro-visual-editor.policy.json`.
-
-Choosing **Find source and allow editing** searches supported project files with Astro,
-Markdown/frontmatter, JSON/JSONC and YAML parsers. It lists every exact
-candidate with its line and structured path. The owner confirms one candidate,
-and repeated Astro literals remain separate stale-checked nodes instead of
-being changed by a global string replacement.
+The syntax-aware policy and discovery machinery remains available to project
+configuration and future advanced diagnostics, but users do not need to choose
+a page area, confirm a hierarchy modal or save a second settings dialog before
+editing. Repeated Astro literals remain separate stale-checked nodes instead
+of being changed by global text replacement.
 
 An allow rule only makes an element selectable. It does not override explicit
 `data-astro-edit-ignore` exclusions, unsafe nested structure, missing source
@@ -216,16 +203,13 @@ Keyboard users can focus editable content and press `Alt+Enter`.
 
 ### Structure
 
-An owner can choose **Select section on page** or **Choose from list**. After
-clicking page content, the editor shows every valid nesting level under that
-point: the smallest reorderable area, its parent areas and the whole page.
-Each level can be enabled independently, so a page's major sections and the
-cards, headings, text or buttons inside them can all be maintained. The editor
-automatically uses a unique structural source match and stores a project policy
-mapping without adding editor attributes to the site's components. The candidate
-supports contiguous Astro component/element children and complete JSON/JSONC
-or YAML arrays. Structured arrays must also match the visible values in order,
-and every complete item is hash-checked before reordering.
+Every declared or saved source-owned region is active immediately. Hover a
+section to reveal settings, lock, move, drag and delete icons; clicking the
+section switches the inspector to Structure automatically. Add before and Add
+after are available in that inspector. Contiguous Astro component/element
+children and complete JSON/JSONC or YAML arrays remain hash-checked before
+reordering, and unsupported structure is visibly protected rather than
+appearing movable.
 
 Each enabled container moves only its direct items. Parent and inner regions
 can be reordered in the same reviewed multi-file save while each remains tied
@@ -411,9 +395,9 @@ Exclude content with:
 <p data-astro-edit-ignore>Managed externally.</p>
 ```
 
-The visual Editor Setup adds project-owned policy on top of these explicit
-annotations. Source exclusions remain authoritative, and saved rules are
-visible in Git rather than being hidden in browser storage.
+Front-end Lock/Unlock adds project-owned policy on top of these explicit
+annotations. Source exclusions remain authoritative, and saved rules remain
+visible in Git rather than browser storage.
 
 ## Section templates
 
@@ -478,10 +462,11 @@ HTML-escapes structural characters so they remain visible text.
 is off by default because another device on the network could otherwise send
 development-toolbar write messages.
 
-`editabilityRole: 'owner'` enables the local Setup control. Use `editor` to
-apply the saved project policy without allowing that user to broaden it. Policy
-management is always disabled when the development server is network-exposed,
-even if ordinary source writes were explicitly enabled with `allowRemoteDev`.
+`editabilityRole: 'owner'` enables direct local Lock/Unlock controls. Use
+`editor` to apply the saved project policy without allowing that user to
+broaden it. Policy management is always disabled when the development server
+is network-exposed, even if ordinary source writes were explicitly enabled
+with `allowRemoteDev`.
 
 ## Mobile and accessibility
 

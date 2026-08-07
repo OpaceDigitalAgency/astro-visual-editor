@@ -376,6 +376,8 @@ export const pageSectionStyles = String.raw`
   .astro-ve-lock-chip .ave-icon { width: 11px !important; height: 11px !important; fill: none !important; stroke: currentColor !important; stroke-width: 2.2 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
   [data-astro-edit-region], [data-astro-edit-sections] { position: relative !important; }
   [data-astro-ve-drag-over="true"] { outline: 4px dashed #e94b8a !important; outline-offset: -5px; }
+  /* Must outrank the block/section hover rules above (drops happen while hovered). */
+  [data-astro-ve-section-active="true"][data-astro-ve-hierarchy][data-astro-ve-drag-over="true"] { outline: 4px dashed #e94b8a !important; outline-offset: -5px !important; }
   [data-astro-ve-dragging="true"] { opacity: .55 !important; }
   [data-astro-ve-ui] { box-sizing: border-box; }
   [data-astro-ve-inventory-status] { outline: none !important; }

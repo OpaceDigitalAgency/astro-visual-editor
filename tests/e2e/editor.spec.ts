@@ -239,6 +239,8 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
     .first()
     .boundingBox())!;
   expect(firstControlsBox.width).toBeLessThanOrEqual(430);
+  // Progressive chrome: controls stay hidden until the section is hovered.
+  await page.locator('[data-section="preview"]').hover();
   const source = page.getByRole('button', { name: 'Drag Preview to reorder' });
   await expect(source).toHaveAttribute('title', 'Drag Preview to reorder');
   await expect(source).toHaveAttribute('data-tooltip', 'Drag Preview to reorder');
@@ -280,6 +282,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await workbench.getByRole('tab', { name: 'Builder' }).click();
 
   const commitControls = page.locator('.astro-ve-section-controls[data-section-id="commit"]');
+  await page.locator('[data-section="commit"]').hover();
   await commitControls.getByRole('button', { name: 'Drag Commit to reorder' }).click();
   await commitControls.getByRole('button', { name: 'Delete section Commit' }).click();
   await toolbar.getByRole('button', { name: 'Delete section', exact: true }).click();
@@ -535,6 +538,7 @@ test('reorders nested hero blocks and saves two structural changes consecutively
     ).toHaveCount(1);
 
     let actionControls = page.locator('.astro-ve-section-controls[data-section-id="hero-action"]');
+    await page.locator('[data-section="hero-action"]').hover();
     await actionControls.getByRole('button', { name: 'Drag Primary action to reorder' }).click();
     await actionControls
       .getByRole('button', { name: 'Move Primary action up' })
@@ -557,6 +561,7 @@ test('reorders nested hero blocks and saves two structural changes consecutively
     await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
     current = await enableEditor(page);
     actionControls = page.locator('.astro-ve-section-controls[data-section-id="hero-action"]');
+    await page.locator('[data-section="hero-action"]').hover();
     await actionControls.getByRole('button', { name: 'Drag Primary action to reorder' }).click();
     await actionControls
       .getByRole('button', { name: 'Move Primary action down' })
@@ -694,6 +699,11 @@ test('uses direct canvas locks and exposes complex sections without setup', asyn
     await expect(lockedText).toHaveAttribute('data-astro-ve-protection', 'locked');
 
     const heroControls = page.locator('.astro-ve-section-controls[data-section-id="complex-hero"]');
+    // Peek the hero's own toolbar: its centre sits over a nested block, and a
+    // real hover near the edge would land on the toolbar that appears.
+    await page
+      .locator('[data-section="complex-hero"]')
+      .dispatchEvent('pointerover', { bubbles: true });
     await heroControls.getByRole('button', { name: 'Drag Hero to reorder' }).click();
     const moveHero = heroControls.getByRole('button', { name: 'Move Hero down' });
     await expect(moveHero).toBeVisible();
@@ -870,7 +880,8 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   await workbench.getByRole('tab', { name: 'Builder' }).click();
   await expect(workbench).toBeVisible();
   const previewControls = page.locator('.astro-ve-section-controls[data-section-id="preview"]');
-  await previewControls.getByRole('button', { name: 'Drag Preview to reorder' }).click();
+  // Keyboard path: focusing the section reveals its full toolbar without a pointer.
+  await page.locator('[data-section="preview"]').focus();
   const move = previewControls.getByRole('button', { name: 'Move Preview down' });
   await move.focus();
   await move.press('Enter');
@@ -928,12 +939,17 @@ test('shows unlocked, owner-locked and source-protected states on the canvas', a
   const lockedSection = page.locator('[data-section="review"]');
   await lockedSection.hover();
   await expect(lockedSection).toHaveAttribute('data-astro-ve-protection', 'locked');
+  // The locked state stays visible at rest as a corner chip; the Unlock
+  // control appears once the section is selected.
+  await expect(page.locator('.astro-ve-lock-chip[data-protection="locked"]')).toBeVisible();
+  await lockedSection.dispatchEvent('click');
   await expect(page.getByRole('button', { name: 'Unlock Review' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Move Review down' })).toHaveCount(0);
 
   const editableSection = page.locator('[data-section="preview"]');
   await expect(editableSection).toHaveAttribute('data-astro-ve-protection', 'unlocked');
   const sectionControls = page.locator('.astro-ve-section-controls[data-section-id="preview"]');
+  await editableSection.hover();
   await sectionControls.getByRole('button', { name: 'Drag Preview to reorder' }).click();
   await expect(
     sectionControls.getByRole('button', { name: 'Open settings for Preview' }),

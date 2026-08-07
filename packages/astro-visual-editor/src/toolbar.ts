@@ -2845,9 +2845,13 @@ export default defineToolbarApp({
           const sectionRect = section.getBoundingClientRect();
           const sectionTop = sectionRect.top - regionRect.top + region.scrollTop;
           // Anchor the toolbar to the section's top edge, above the content.
-          // Flip inside only when the region leaves no room above.
+          // Flip inside when the region — or the document itself — leaves no
+          // room above, so a section at the very top of the page keeps its
+          // toolbar reachable.
           const controlHeight = 38;
-          const top = sectionTop >= controlHeight ? sectionTop - controlHeight : sectionTop + 6;
+          const documentTop = regionRect.top + window.scrollY + sectionTop;
+          const roomAbove = Math.min(sectionTop, documentTop);
+          const top = roomAbove >= controlHeight ? sectionTop - controlHeight : sectionTop + 6;
           controls.style.setProperty('top', `${top}px`, 'important');
           if (nestedRegion) {
             controls.style.setProperty(

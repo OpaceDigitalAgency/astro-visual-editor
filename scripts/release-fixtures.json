@@ -2,12 +2,12 @@
   "description": "Canonical demo files that localhost acceptance testing may change. Regenerate only after an intentional fixture change.",
   "files": {
     "demo/astro-visual-editor.policy.json": "65f3ae2116c535e2010c753d9a7ddfc01ac9d2d7d5fc32324e31e53ee620c011",
-    "demo/src/components/EvidenceGrid.astro": "cd0fb3821037e981187eec05125dd04fe3eecc81b6f23ac3752fa40de47db9cf",
+    "demo/src/components/EvidenceGrid.astro": "352110b2f9c140d8e5aa16d09abc8dda8dc138bac3df58e7920f0ed3c305ab75",
     "demo/src/components/SourceHero.astro": "ad5e8dccd1287cf9d4b3ed633f9e2d391122616db814e90066fe6e83ce187fd6",
     "demo/src/content/case-studies/harbour.md": "50b57a09f2691f3ea07465ab7506bd9456a7bde5f636996fdba640eb73c420ec",
     "demo/src/data/complex-page.json": "e63a9bec45bd0231521f77c78c8e24e35a9bd04374b2602dd6e69107be16da39",
-    "demo/src/layouts/DemoLayout.astro": "a1dcd4b2aec8d93891085b3e89dbcf86f98091343c02f14cf563a926d0a2b6ce",
-    "demo/src/pages/fixtures/complex.astro": "f812b85cdc9dd2946abc62d767fa2e41c1e29a3e18e9cae9a1af3b2580a68398",
+    "demo/src/layouts/DemoLayout.astro": "f99c53eb35aea92c93cbd16ac4bc59a28d0abfaf0658a1072fb94b039a7e9e75",
+    "demo/src/pages/fixtures/complex.astro": "809c210479faf8ff13a71b5e8f4a5d90b295053858dce1a353bcc232b8e5b28b",
     "demo/src/pages/fixtures/article.astro": "e11687bbf53f3b78824290105a02e533e4f96c784947ec0c48e7d45e4ebb0bfa",
     "demo/src/pages/index.astro": "1ebeea2dd8b7e5ff8fd198028e07bfa67555e712305039008e4935acf91c61db"
   }

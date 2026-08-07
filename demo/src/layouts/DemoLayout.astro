@@ -2,9 +2,14 @@
 interface Props {
   title: string;
   description: string;
+  keywords: string;
+  canonical: string;
+  ogTitle: string;
+  ogDescription: string;
+  robots: string;
 }
 
-const { title, description } = Astro.props;
+const { title, description, keywords, canonical, ogTitle, ogDescription, robots } = Astro.props;
 ---
 
 <!doctype html>
@@ -14,6 +19,11 @@ const { title, description } = Astro.props;
     <meta name="viewport" content="width=device-width" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {keywords && <meta name="keywords" content={keywords} />}
+    {canonical && <link rel="canonical" href={canonical} />}
+    {ogTitle && <meta property="og:title" content={ogTitle} />}
+    {ogDescription && <meta property="og:description" content={ogDescription} />}
+    {robots && <meta name="robots" content={robots} />}
     <style>
       :root {
         color-scheme: dark;

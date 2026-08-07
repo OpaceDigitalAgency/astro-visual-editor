@@ -213,6 +213,12 @@ visualEditor({
 Literal Astro head elements are updated/inserted and compiler-validated.
 Markdown/MDX SEO updates use YAML frontmatter.
 
+When a route delegates its head to a layout, each editable field must be
+exposed as a unique literal route prop: `title`, `description`, `keywords`,
+`canonical`, `ogTitle`, `ogDescription` and `robots`. The adapter refuses a
+missing, computed or ambiguous prop instead of guessing which shared layout
+source should change.
+
 ## Safety
 
 The integration rejects unsafe or unproven writes through:

@@ -168,6 +168,9 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Made delegated Astro SEO fields update unique literal route props when a
   layout owns the rendered `<head>`, while refusing missing, computed or
   ambiguous prop matches.
+- Exposed every SEO field shown by the complex fixture through its layout, so
+  keywords, canonical, social metadata and robots changes all have a safe,
+  explicit source target at final review.
 - Matched structured-array section candidates against the ordered rendered
   values before enabling card reordering, preventing unrelated equal-length
   arrays from being selected.

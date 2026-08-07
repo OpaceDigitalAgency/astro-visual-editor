@@ -1,13 +1,32 @@
 import type { NormalizedOptions } from '../../options.js';
-import type { EditorChange } from '../../shared/types.js';
-import { applyAstroSections, applyAstroSeo, applyAstroText } from './astro.js';
-import { applyMarkdownSeo, applyMarkdownText } from './markdown.js';
+import type { EditorChange, SeoField, SeoFieldCapability } from '../../shared/types.js';
+import {
+  applyAstroSections,
+  applyAstroSeo,
+  applyAstroText,
+  describeAstroSeoCapabilities,
+} from './astro.js';
+import {
+  applyMarkdownSeo,
+  applyMarkdownText,
+  describeMarkdownSeoCapabilities,
+} from './markdown.js';
 import {
   applyJsonSections,
   applyJsonText,
   applyYamlSections,
   applyYamlText,
 } from './structured.js';
+
+export async function describeSeoCapabilitiesWithAdapter(
+  source: string,
+  extension: string,
+  filePath: string,
+): Promise<Record<SeoField, SeoFieldCapability>> {
+  if (extension === '.astro') return describeAstroSeoCapabilities(source, filePath);
+  if (extension === '.md' || extension === '.mdx') return describeMarkdownSeoCapabilities(source);
+  throw new Error(`SEO editing is not supported for ${extension} files.`);
+}
 
 export async function applyChangeWithAdapter(
   source: string,

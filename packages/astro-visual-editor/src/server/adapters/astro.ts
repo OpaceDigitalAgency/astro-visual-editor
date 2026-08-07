@@ -5,6 +5,7 @@ import type {
   SectionsEditorChange,
   SeoEditorChange,
   SeoField,
+  SeoFieldCapability,
   TextEditorChange,
 } from '../../shared/types.js';
 import {
@@ -19,11 +20,19 @@ import { createHash } from 'node:crypto';
 interface PositionPoint {
   offset: number;
 }
+interface AstroAttribute {
+  name: string;
+  value?: string;
+  kind?: string;
+  /** Raw source text of the value, including its quotes, when quoted. */
+  raw?: string;
+  position?: { start: PositionPoint };
+}
 interface AstroNode {
   type: string;
   name?: string;
   value?: string;
-  attributes?: Array<{ name: string; value?: string; kind?: string }>;
+  attributes?: AstroAttribute[];
   children?: AstroNode[];
   position?: { start: PositionPoint; end?: PositionPoint };
 }
@@ -45,7 +54,7 @@ function attribute(node: AstroNode, name: string): string | undefined {
 
 function elementSource(source: string, node: AstroNode): string {
   if (!node.position) throw new Error('Astro compiler did not provide source positions.');
-  return source.slice(node.position.start.offset, nodeEndOffset(source, node));
+  return source.slice(nodeStartOffset(source, node), nodeEndOffset(source, node));
 }
 
 function nodeEndOffset(source: string, node: AstroNode): number {
@@ -76,9 +85,37 @@ function nodeEndOffset(source: string, node: AstroNode): number {
     // the final `>`, while normal element ranges are end-exclusive.
     return source[end] === '>' ? end + 1 : end;
   }
-  const end = source.indexOf('>', node.position.start.offset);
-  if (end === -1) throw new Error(`Cannot locate the end of <${node.name ?? node.type}>.`);
-  return end + 1;
+  // Void elements carry no end position. Scan for the closing bracket while
+  // skipping quoted attribute values so a `>` inside content="a > b" cannot
+  // truncate the element.
+  let quote = '';
+  for (let index = nodeStartOffset(source, node); index < source.length; index += 1) {
+    const character = source[index]!;
+    if (quote) {
+      if (character === quote) quote = '';
+      continue;
+    }
+    if (character === '"' || character === "'") quote = character;
+    else if (character === '>') return index + 1;
+  }
+  throw new Error(`Cannot locate the end of <${node.name ?? node.type}>.`);
+}
+
+/**
+ * The Astro compiler reports void elements such as `<meta>` at their tag name
+ * rather than at the opening bracket. Replacing from the reported offset would
+ * leave the original `<` behind, so recover the true element start.
+ */
+function nodeStartOffset(source: string, node: AstroNode): number {
+  const start = node.position?.start.offset;
+  if (start === undefined)
+    throw new Error('Astro compiler did not provide a source start position.');
+  if (source[start] === '<') return start;
+  const bracket = source.lastIndexOf('<', start);
+  if (bracket === -1 || source.slice(bracket + 1, start) !== '') {
+    throw new Error(`Cannot locate the start of <${node.name ?? node.type}>.`);
+  }
+  return bracket;
 }
 
 async function parseAstro(source: string): Promise<AstroNode> {
@@ -295,6 +332,16 @@ function seoMarkup(field: SeoField, value: string): string {
   }
 }
 
+const seoFieldOrder: readonly SeoField[] = [
+  'title',
+  'description',
+  'keywords',
+  'canonical',
+  'ogTitle',
+  'ogDescription',
+  'robots',
+];
+
 const delegatedSeoProps: Record<SeoField, string> = {
   title: 'title',
   description: 'description',
@@ -315,6 +362,47 @@ const delegatedSeoLabels: Record<SeoField, string> = {
   robots: 'search visibility',
 };
 
+interface LiteralSeoProp {
+  /** Offset of the first character inside the opening quote. */
+  start: number;
+  end: number;
+  quote: string;
+  /** Decoded attribute value as the Astro compiler reports it. */
+  value: string;
+}
+
+/**
+ * Locates every quoted `name="value"` prop with this name on a component or
+ * custom element. Matching is by prop name only so that a value that has
+ * drifted from the rendered page can be reported as a stale edit instead of a
+ * missing prop.
+ */
+function literalSeoProps(source: string, ast: AstroNode, propName: string): LiteralSeoProp[] {
+  const found: LiteralSeoProp[] = [];
+  walk(ast, (node) => {
+    if (!node.position || !['component', 'custom-element'].includes(node.type)) return;
+    for (const item of node.attributes ?? []) {
+      if (item.name !== propName || item.kind !== 'quoted') continue;
+      const nameStart = item.position?.start.offset;
+      const raw = item.raw;
+      if (nameStart === undefined || raw === undefined || raw.length < 2) continue;
+      const quote = raw[0]!;
+      if (quote !== '"' && quote !== "'") continue;
+      const opening = source.slice(nameStart, nodeEndOffset(source, node));
+      const assignment = /^[^\s=/>]+\s*=\s*/u.exec(opening);
+      if (!assignment || !opening.startsWith(raw, assignment[0].length)) continue;
+      const start = nameStart + assignment[0].length + 1;
+      found.push({ start, end: start + raw.length - 2, quote, value: item.value ?? '' });
+    }
+  });
+  return found;
+}
+
+function escapeSeoPropValue(value: string, quote: string): string {
+  const escaped = escapeHtmlAttribute(value);
+  return quote === "'" ? escaped.replaceAll("'", '&#39;') : escaped;
+}
+
 function literalSeoPropRange(
   source: string,
   ast: AstroNode,
@@ -324,30 +412,7 @@ function literalSeoPropRange(
   filePath: string,
 ): SourceRange {
   const propName = delegatedSeoProps[field];
-  const matches: SourceRange[] = [];
-  walk(ast, (node) => {
-    if (!node.position || !['component', 'custom-element'].includes(node.type)) return;
-    for (const item of node.attributes ?? []) {
-      if (item.name !== propName || item.kind !== 'quoted' || item.value !== value) continue;
-      const opening = source.slice(node.position.start.offset, nodeEndOffset(source, node));
-      for (const quote of ['"', "'"]) {
-        const literal = `${item.name}=${quote}${value}${quote}`;
-        let cursor = 0;
-        while (cursor <= opening.length) {
-          const found = opening.indexOf(literal, cursor);
-          if (found === -1) break;
-          const start = node.position.start.offset + found + item.name.length + 2;
-          matches.push({
-            start,
-            end: start + value.length,
-            replacement: escapeHtmlAttribute(replacement),
-            label: `SEO ${delegatedSeoLabels[field]} prop in ${filePath}`,
-          });
-          cursor = found + literal.length;
-        }
-      }
-    }
-  });
+  const matches = literalSeoProps(source, ast, propName);
   if (matches.length === 0)
     throw new Error(
       `This page delegates its SEO, but ${delegatedSeoLabels[field]} is not a literal “${propName}” prop in ${filePath}.`,
@@ -356,7 +421,84 @@ function literalSeoPropRange(
     throw new Error(
       `More than one literal “${propName}” prop matches ${delegatedSeoLabels[field]} in ${filePath}.`,
     );
-  return matches[0]!;
+  const match = matches[0]!;
+  if (match.value !== value)
+    throw new Error(`SEO field changed before commit in ${filePath}: ${field}.`);
+  return {
+    start: match.start,
+    end: match.end,
+    replacement: escapeSeoPropValue(replacement, match.quote),
+    label: `SEO ${delegatedSeoLabels[field]} prop in ${filePath}`,
+  };
+}
+
+function isLiteralSeoNode(node: AstroNode, field: SeoField): boolean {
+  if (field === 'title') return (node.children ?? []).every((child) => child.type === 'text');
+  const name = field === 'canonical' ? 'href' : 'content';
+  return node.attributes?.find((item) => item.name === name)?.kind === 'quoted';
+}
+
+/**
+ * Reports, per SEO field, whether this page has a source location the adapter
+ * can safely rewrite, and the literal value it will compare against. Pages that
+ * delegate their head to a layout can only edit props that already exist, so
+ * the toolbar uses this to disable the rest instead of failing a whole batch.
+ */
+export async function describeAstroSeoCapabilities(
+  source: string,
+  filePath: string,
+): Promise<Record<SeoField, SeoFieldCapability>> {
+  const ast = await parseAstro(source);
+  let head: AstroNode | undefined;
+  const existing = new Map<SeoField, AstroNode[]>();
+  walk(ast, (node) => {
+    if (node.type === 'element' && node.name === 'head') head ??= node;
+    const field = classifySeoNode(node);
+    if (field) existing.set(field, [...(existing.get(field) ?? []), node]);
+  });
+
+  const fields = {} as Record<SeoField, SeoFieldCapability>;
+  for (const field of seoFieldOrder) {
+    const label = delegatedSeoLabels[field];
+    if (head?.position?.end) {
+      const nodes = existing.get(field) ?? [];
+      if (nodes.length > 1) {
+        fields[field] = {
+          editable: false,
+          value: '',
+          reason: `${filePath} declares ${label} more than once, so it cannot be edited safely here.`,
+        };
+      } else if (nodes.length === 0) {
+        fields[field] = { editable: true, value: '' };
+      } else if (isLiteralSeoNode(nodes[0]!, field)) {
+        fields[field] = { editable: true, value: currentSeoValue(nodes[0]!, field) };
+      } else {
+        fields[field] = {
+          editable: false,
+          value: '',
+          reason: `${label} is rendered from an expression in ${filePath}. Edit it where its value comes from.`,
+        };
+      }
+      continue;
+    }
+    const matches = literalSeoProps(source, ast, delegatedSeoProps[field]);
+    if (matches.length === 1) {
+      fields[field] = { editable: true, value: matches[0]!.value };
+    } else if (matches.length > 1) {
+      fields[field] = {
+        editable: false,
+        value: '',
+        reason: `${filePath} passes more than one “${delegatedSeoProps[field]}” prop, so ${label} cannot be edited safely here.`,
+      };
+    } else {
+      fields[field] = {
+        editable: false,
+        value: '',
+        reason: `${filePath} passes its page metadata to a layout and has no “${delegatedSeoProps[field]}” prop, so ${label} cannot be edited from this page.`,
+      };
+    }
+  }
+  return fields;
 }
 
 export async function applyAstroSeo(source: string, change: SeoEditorChange): Promise<string> {
@@ -399,6 +541,11 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
     if (change.after[field] === change.before[field]) continue;
     const node = existing.get(field);
     if (node) {
+      if (!isLiteralSeoNode(node, field)) {
+        throw new Error(
+          `${delegatedSeoLabels[field]} is rendered from an expression in ${change.filePath}. Edit it where its value comes from.`,
+        );
+      }
       const current = currentSeoValue(node, field);
       const comparableCanonical = field !== 'canonical' || /^https?:\/\//u.test(current);
       if (comparableCanonical && current !== change.before[field]) {
@@ -408,9 +555,18 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
       throw new Error(`SEO field disappeared before commit in ${change.filePath}: ${field}.`);
     }
     if (node?.position) {
+      let start = nodeStartOffset(source, node);
+      let end = nodeEndOffset(source, node);
+      if (!change.after[field]) {
+        // Remove the whole line so deleting a field leaves no blank remnant.
+        while (start > 0 && (source[start - 1] === ' ' || source[start - 1] === '\t')) start -= 1;
+        if (source[end] === '\r') end += 1;
+        if (source[end] === '\n') end += 1;
+        else start = nodeStartOffset(source, node);
+      }
       ranges.push({
-        start: node.position.start.offset,
-        end: nodeEndOffset(source, node),
+        start,
+        end,
         replacement: change.after[field] ? seoMarkup(field, change.after[field]) : '',
         label: `SEO ${field}`,
       });
@@ -424,7 +580,10 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
     const current = source.slice(range.start, range.end);
     const indentMatch = current.match(/\n([ \t]+)\S/u);
     const indent = indentMatch?.[1] ?? '  ';
-    range.start = range.end;
+    // Insert before the whitespace that closes the head so the existing
+    // indentation of `</head>` survives.
+    range.start = range.end - (current.length - current.trimEnd().length);
+    range.end = range.start;
     range.replacement = `\n${indent}${inserts.join(`\n${indent}`)}`;
     range.label = 'SEO insertions';
     ranges.push(range);

@@ -285,6 +285,10 @@ export const toolbarStyles = String.raw`
   .technical-details code, .technical-details .dialog-file { display: block; margin-top: 5px; color: #b8d0e2; overflow-wrap: anywhere; }
   .seo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
   .seo-grid .wide { grid-column: 1 / -1; }
+  .seo-grid input:disabled, .seo-grid textarea:disabled { color: #8e959c; background: #1b1e21; border-style: dashed; cursor: not-allowed; }
+  .seo-field-note { color: #f0c98a; }
+  .seo-status { margin: 10px 0 0; color: #aeb4bb; font-size: 11px; }
+  .seo-status:empty { display: none; }
   .picker { display: none; align-items: center; gap: 8px; min-height: 48px; padding: 6px; color: #fff; background: #151719; border: 1px solid #3a4046; border-radius: 999px; box-shadow: 0 12px 35px rgba(0,0,0,.45); font: 12px/1.2 Inter,system-ui,sans-serif; }
   .picker[data-open="true"] { display: flex; }
   .picker-label { padding-left: 9px; font-weight: 700; white-space: nowrap; }

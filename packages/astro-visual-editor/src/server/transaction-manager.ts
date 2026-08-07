@@ -11,8 +11,10 @@ import type {
   RevertResponse,
   SaveRequest,
   SaveResponse,
+  SeoCapabilitiesRequest,
+  SeoCapabilitiesResponse,
 } from '../shared/types.js';
-import { applyChangeWithAdapter } from './adapters/index.js';
+import { applyChangeWithAdapter, describeSeoCapabilitiesWithAdapter } from './adapters/index.js';
 import { hashSource, readSourceSnapshot, type SourceSnapshot } from './source-files.js';
 
 interface Receipt {
@@ -295,6 +297,35 @@ export class TransactionManager {
         },
       ];
     });
+  }
+
+  async seoCapabilities(request: SeoCapabilitiesRequest): Promise<SeoCapabilitiesResponse> {
+    const base = { clientId: request.clientId, requestId: request.requestId };
+    try {
+      const snapshot = await readSourceSnapshot(
+        this.projectRoot,
+        this.sourceRoot,
+        request.filePath,
+        this.options,
+      );
+      return {
+        ...base,
+        success: true,
+        filePath: request.filePath,
+        fields: await describeSeoCapabilitiesWithAdapter(
+          snapshot.source,
+          snapshot.extension,
+          snapshot.displayPath,
+        ),
+      };
+    } catch (error) {
+      return {
+        ...base,
+        success: false,
+        filePath: request.filePath,
+        error: error instanceof Error ? error.message : 'Unknown SEO capabilities error.',
+      };
+    }
   }
 
   async preview(request: SaveRequest): Promise<PreviewResponse> {

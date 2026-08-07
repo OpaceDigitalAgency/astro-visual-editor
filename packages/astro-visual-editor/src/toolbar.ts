@@ -41,6 +41,8 @@ import {
   SOURCE_DISCOVERY_RESULT_EVENT,
   SECTION_DISCOVERY_EVENT,
   SECTION_DISCOVERY_RESULT_EVENT,
+  SEO_CAPABILITIES_EVENT,
+  SEO_CAPABILITIES_RESULT_EVENT,
 } from './shared/events.js';
 import type {
   ClientEditorConfig,
@@ -57,8 +59,9 @@ import type {
   RevertResponse,
   SectionDescriptor,
   SectionsEditorChange,
-  SeoEditorChange,
+  SeoCapabilitiesResponse,
   SeoField,
+  SeoFieldCapability,
   SeoValues,
   SaveResponse,
   SourceCandidate,
@@ -265,6 +268,16 @@ function changedTextDescription(before: string, after: string): string {
   return `Changed visible text to ${quoted(after)}`;
 }
 
+const seoFieldOrder: SeoField[] = [
+  'title',
+  'description',
+  'keywords',
+  'canonical',
+  'ogTitle',
+  'ogDescription',
+  'robots',
+];
+
 const seoLabels: Record<SeoField, string> = {
   title: 'page title',
   description: 'search description',
@@ -434,6 +447,8 @@ export default defineToolbarApp({
     let sectionDiscoveryRequestId: string | undefined;
     let sectionDiscoveryElement: HTMLElement | undefined;
     let sectionCandidates: SectionRegionCandidate[] = [];
+    let seoCapabilities: Record<SeoField, SeoFieldCapability> | undefined;
+    let seoCapabilitiesRequestId: string | undefined;
     let setupPickerKind: 'text' | 'section' | undefined;
     let setupPickerTarget: HTMLElement | undefined;
     let setupPickerCandidates: HTMLElement[] = [];
@@ -574,7 +589,7 @@ export default defineToolbarApp({
       <div><label for="ave-seo-og-title">Open Graph title</label><input id="ave-seo-og-title" name="ogTitle"></div>
       <div><label for="ave-seo-robots">Robots</label><input id="ave-seo-robots" name="robots" placeholder="index, follow"></div>
       <div class="wide"><label for="ave-seo-og-description">Open Graph description</label><textarea id="ave-seo-og-description" name="ogDescription"></textarea></div>
-      </div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary queue-seo" type="button">Queue SEO change</button></div></form>`;
+      </div><p class="seo-status" role="status"></p><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary queue-seo" type="button">Queue SEO change</button></div></form>`;
 
     const templateDialog = createElement('dialog', { 'aria-labelledby': 'ave-template-title' });
     templateDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Component library</p><h2 id="ave-template-title">Add a section</h2><div class="template-grid"></div><div class="dialog-actions"><button class="secondary close-templates" type="button">Cancel</button></div></div>`;
@@ -802,6 +817,14 @@ export default defineToolbarApp({
         return 'This page changed after you started editing. Nothing was saved, and all of your changes are still here.';
       if (/Original text was not found|Could not find|exact source match/u.test(detail))
         return 'The original page text changed after you started editing it. Nothing was saved, and your edited version is still here.';
+      if (
+        /no .+ prop|not a literal|passes its page metadata|rendered from an expression/u.test(
+          detail,
+        )
+      )
+        return 'One of these page settings has no editable value in this page\u2019s source file. Nothing was saved, and all of your changes are still here.';
+      if (/changed before commit|disappeared before commit/u.test(detail))
+        return 'This page\u2019s settings changed after you started editing them. Nothing was saved, and all of your changes are still here.';
       if (/non-section markup|not contiguous/u.test(detail))
         return 'This group contains content that cannot be moved safely as one block. Nothing was saved, and all of your changes are still here.';
       return 'We could not safely apply one of these changes. Nothing was saved, and all of your changes are still here.';
@@ -2804,40 +2827,108 @@ export default defineToolbarApp({
       node.focus();
     }
 
+    function seoInput(field: SeoField): HTMLInputElement | HTMLTextAreaElement | null {
+      return seoDialog.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${field}"]`);
+    }
+
+    /**
+     * The values a queued change is measured against. Once the server has
+     * reported what this file actually contains, its literal source values win
+     * over the rendered page so a layout that decorates a title cannot make the
+     * save look like a conflicting edit.
+     */
+    function seoBaseline(filePath: string): SeoValues {
+      const queued = queue.get(`seo:${filePath}`);
+      if (queued?.kind === 'seo') return queued.before;
+      const rendered = seoValues();
+      if (!seoCapabilities) return rendered;
+      const baseline = {} as SeoValues;
+      for (const field of seoFieldOrder) {
+        const capability = seoCapabilities[field];
+        baseline[field] = capability.editable ? capability.value : rendered[field];
+      }
+      return baseline;
+    }
+
+    function setSeoFieldNote(field: SeoField, text: string): void {
+      const input = seoInput(field);
+      const cell = input?.parentElement;
+      if (!cell) return;
+      let note = cell.querySelector<HTMLElement>('.seo-field-note');
+      if (!text) {
+        note?.remove();
+        return;
+      }
+      if (!note) {
+        note = createElement('p', { class: 'field-help seo-field-note' });
+        cell.append(note);
+      }
+      note.textContent = text;
+    }
+
+    /** Locks the form while the server reports which fields this file can save. */
+    function renderSeoCapabilities(pending: boolean): void {
+      const queueButton = seoDialog.querySelector<HTMLButtonElement>('.queue-seo')!;
+      queueButton.disabled = pending;
+      const filePath = seoDialog.querySelector<HTMLElement>('.dialog-file')!.textContent!;
+      const queued = queue.get(`seo:${filePath}`);
+      // A queued change already holds the values the editor is showing. Only
+      // seed the form from the source when nothing is queued for this file.
+      const values = queued?.kind === 'seo' ? queued.after : seoBaseline(filePath);
+      for (const field of seoFieldOrder) {
+        const input = seoInput(field);
+        if (!input) continue;
+        const capability = seoCapabilities?.[field];
+        input.disabled = pending || capability?.editable === false;
+        if (!pending && capability) input.value = values[field];
+        setSeoFieldNote(
+          field,
+          pending || capability?.editable !== false ? '' : (capability.reason ?? ''),
+        );
+      }
+      const status = seoDialog.querySelector<HTMLElement>('.seo-status')!;
+      status.textContent = pending
+        ? 'Checking which page settings this file can save…'
+        : seoCapabilities && seoFieldOrder.some((field) => !seoCapabilities?.[field].editable)
+          ? 'Greyed-out settings have no editable value in this file. Everything else saves normally.'
+          : '';
+    }
+
     function openSeo(): void {
-      const current = [...queue.values()].find(
-        (change): change is SeoEditorChange => change.kind === 'seo',
-      );
-      const values = current?.after ?? seoValues();
       const filePath =
         document.querySelector<HTMLElement>('[data-astro-edit-seo-file]')?.dataset
           .astroEditSeoFile ?? sourceFileFor(document.documentElement, config, editabilityPolicy);
+      const current = queue.get(`seo:${filePath}`);
+      const values = current?.kind === 'seo' ? current.after : seoValues();
       seoDialog.querySelector<HTMLElement>('.dialog-file')!.textContent = filePath;
       for (const [field, value] of Object.entries(values)) {
-        const input = seoDialog.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-          `[name="${field}"]`,
-        );
+        const input = seoInput(field as SeoField);
         if (input) input.value = value;
       }
+      seoCapabilities = undefined;
+      const requestId = crypto.randomUUID();
+      seoCapabilitiesRequestId = requestId;
+      renderSeoCapabilities(true);
+      server.send(SEO_CAPABILITIES_EVENT, { clientId, requestId, filePath });
+      // An older or unreachable server must not leave the form locked.
+      window.setTimeout(() => {
+        if (seoCapabilitiesRequestId !== requestId) return;
+        seoCapabilitiesRequestId = undefined;
+        renderSeoCapabilities(false);
+      }, 3_000);
       seoDialog.showModal();
       seoDialog.querySelector<HTMLInputElement>('[name="title"]')?.focus();
     }
 
     function queueSeo(): void {
+      const filePath = seoDialog.querySelector<HTMLElement>('.dialog-file')!.textContent!;
+      const before = seoBaseline(filePath);
       const after = {} as SeoValues;
-      for (const field of [
-        'title',
-        'description',
-        'keywords',
-        'canonical',
-        'ogTitle',
-        'ogDescription',
-        'robots',
-      ] as SeoField[]) {
+      for (const field of seoFieldOrder) {
         after[field] =
-          seoDialog
-            .querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${field}"]`)
-            ?.value.trim() ?? '';
+          seoCapabilities?.[field].editable === false
+            ? before[field]
+            : (seoInput(field)?.value.trim() ?? '');
       }
       if (after.canonical) {
         try {
@@ -2848,7 +2939,6 @@ export default defineToolbarApp({
           return;
         }
       }
-      const filePath = seoDialog.querySelector<HTMLElement>('.dialog-file')!.textContent!;
       const key = `seo:${filePath}`;
       const existing = queue.get(key);
       if (!existing && queue.size >= config.maxChanges) {
@@ -2858,7 +2948,6 @@ export default defineToolbarApp({
         );
         return;
       }
-      const before = existing?.kind === 'seo' ? existing.before : seoValues();
       mutate(() => {
         if (JSON.stringify(before) === JSON.stringify(after)) queue.delete(key);
         else
@@ -3554,6 +3643,18 @@ export default defineToolbarApp({
         }
       }
       if (mode === 'setup') renderInventory();
+    });
+    server.on(SEO_CAPABILITIES_RESULT_EVENT, (response: SeoCapabilitiesResponse) => {
+      if (response.clientId !== clientId || response.requestId !== seoCapabilitiesRequestId) return;
+      seoCapabilitiesRequestId = undefined;
+      seoCapabilities = response.success ? response.fields : undefined;
+      renderSeoCapabilities(false);
+      if (!response.success) {
+        showMessage(
+          response.error ?? 'This page\u2019s metadata source could not be inspected.',
+          'warning',
+        );
+      }
     });
     server.on(SECTION_DISCOVERY_RESULT_EVENT, (response: SectionDiscoveryResponse) => {
       if (response.clientId !== clientId || response.requestId !== sectionDiscoveryRequestId)

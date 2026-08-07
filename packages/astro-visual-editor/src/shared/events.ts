@@ -19,5 +19,7 @@ export const EDITABILITY_SAVE_EVENT = `${APP_ID}:editability-save`;
 export const EDITABILITY_SAVE_RESULT_EVENT = `${APP_ID}:editability-save-result`;
 export const SOURCE_DISCOVERY_EVENT = `${APP_ID}:source-discovery`;
 export const SOURCE_DISCOVERY_RESULT_EVENT = `${APP_ID}:source-discovery-result`;
+export const SEO_CAPABILITIES_EVENT = `${APP_ID}:seo-capabilities`;
+export const SEO_CAPABILITIES_RESULT_EVENT = `${APP_ID}:seo-capabilities-result`;
 export const SECTION_DISCOVERY_EVENT = `${APP_ID}:section-discovery`;
 export const SECTION_DISCOVERY_RESULT_EVENT = `${APP_ID}:section-discovery-result`;

@@ -297,6 +297,13 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await seoDialog.locator('[name="title"]').fill('Queued browser SEO title');
   await seoDialog.getByRole('button', { name: 'Queue SEO change' }).click();
   await expect(page).toHaveTitle('Queued browser SEO title');
+  // Reopening must show the queued edit, not reset the form to the source.
+  await workbench.getByRole('tab', { name: 'Page' }).click();
+  seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
+  await expect(seoDialog.locator('[name="title"]')).toHaveValue('Queued browser SEO title');
+  await expect(seoDialog.locator('[name="keywords"]')).toBeEnabled();
+  await page.mouse.click(5, 5);
+  await expect(seoDialog).toBeHidden();
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(page).toHaveTitle('Astro Visual Editor demo');
 });
@@ -339,6 +346,12 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await complexWorkbench.getByRole('tab', { name: 'Page' }).click();
     const seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
     await expect(seoDialog).toContainText('src/pages/fixtures/complex.astro');
+    // This route delegates its head to a layout that only receives title and
+    // description, so the remaining fields must be locked rather than queued
+    // into a save the adapter cannot apply.
+    await expect(seoDialog.locator('[name="keywords"]')).toBeDisabled();
+    await expect(seoDialog).toContainText('has no “keywords” prop');
+    await expect(seoDialog.locator('[name="title"]')).toBeEnabled();
     await seoDialog.locator('[name="title"]').fill('Complex fixture, reviewed');
     await seoDialog
       .locator('[name="description"]')

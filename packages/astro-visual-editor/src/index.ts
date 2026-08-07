@@ -10,6 +10,7 @@ import {
   parseSaveRequest,
   parseSourceDiscoveryRequest,
   parseSectionDiscoveryRequest,
+  parseSeoCapabilitiesRequest,
 } from './shared/protocol.js';
 import {
   APP_ID,
@@ -35,6 +36,8 @@ import {
   SOURCE_DISCOVERY_RESULT_EVENT,
   SECTION_DISCOVERY_EVENT,
   SECTION_DISCOVERY_RESULT_EVENT,
+  SEO_CAPABILITIES_EVENT,
+  SEO_CAPABILITIES_RESULT_EVENT,
 } from './shared/events.js';
 import type {
   EditabilityPolicyResponse,
@@ -45,6 +48,7 @@ import type {
   SaveResponse,
   SourceDiscoveryResponse,
   SectionDiscoveryResponse,
+  SeoCapabilitiesResponse,
 } from './shared/types.js';
 import { EditabilityPolicyManager } from './server/editability-policy.js';
 import { TransactionManager } from './server/transaction-manager.js';
@@ -222,6 +226,22 @@ export default function astroVisualEditor(
           if (response.success) logger.info(`Updated ${options.editabilityPolicyFile}.`);
           else logger.warn(`Editability policy rejected: ${response.error}`);
           toolbar.send(EDITABILITY_SAVE_RESULT_EVENT, response);
+        });
+
+        toolbar.on(SEO_CAPABILITIES_EVENT, async (raw: unknown) => {
+          let response: SeoCapabilitiesResponse;
+          try {
+            response = await manager.seoCapabilities(parseSeoCapabilitiesRequest(raw));
+          } catch (error) {
+            const candidate = raw as { clientId?: unknown; requestId?: unknown };
+            response = {
+              clientId: typeof candidate?.clientId === 'string' ? candidate.clientId : 'invalid',
+              requestId: typeof candidate?.requestId === 'string' ? candidate.requestId : 'invalid',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown SEO capabilities error.',
+            };
+          }
+          toolbar.send(SEO_CAPABILITIES_RESULT_EVENT, response);
         });
 
         toolbar.on(PREVIEW_EVENT, async (raw: unknown) => {

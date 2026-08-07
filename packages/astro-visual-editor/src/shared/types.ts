@@ -239,6 +239,28 @@ export interface SourceDiscoveryResponse extends ClientMessage {
   error?: string;
 }
 
+export interface SeoFieldCapability {
+  /** False when no safe literal source location exists for this field. */
+  editable: boolean;
+  /** The literal source value the adapter will compare against when saving. */
+  value: string;
+  /** Plain-language explanation shown beside a field that cannot be saved. */
+  reason?: string;
+}
+
+export interface SeoCapabilitiesRequest extends ClientMessage {
+  requestId: string;
+  filePath: string;
+}
+
+export interface SeoCapabilitiesResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  filePath?: string;
+  fields?: Record<SeoField, SeoFieldCapability>;
+  error?: string;
+}
+
 export interface SectionDiscoveryRequest extends ClientMessage {
   requestId: string;
   route: string;

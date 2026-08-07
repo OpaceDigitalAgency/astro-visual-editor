@@ -6,6 +6,7 @@ import type {
   ReceiptRequest,
   RevertRequest,
   SaveRequest,
+  SeoCapabilitiesRequest,
   SeoValues,
   SourceDiscoveryRequest,
   SectionDiscoveryRequest,
@@ -156,6 +157,18 @@ export function parseSourceDiscoveryRequest(
     throw new Error('Source discovery request failed runtime validation.');
   }
   return value as unknown as SourceDiscoveryRequest;
+}
+
+export function parseSeoCapabilitiesRequest(value: unknown): SeoCapabilitiesRequest {
+  if (
+    !isRecord(value) ||
+    !isString(value.clientId, 200) ||
+    !isString(value.requestId, 200) ||
+    !isString(value.filePath, 4_096)
+  ) {
+    throw new Error('SEO capabilities request failed runtime validation.');
+  }
+  return value as unknown as SeoCapabilitiesRequest;
 }
 
 export function parseSectionDiscoveryRequest(

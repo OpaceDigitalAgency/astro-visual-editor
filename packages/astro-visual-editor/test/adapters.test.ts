@@ -235,6 +235,135 @@ describe('source adapters', () => {
     ).rejects.toThrow('search description is not a literal “description” prop');
   });
 
+  it('rewrites head SEO elements without leaving a stray opening bracket', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(
+      page,
+      `<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="Old &gt; description" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Old title</title>
+  </head>
+  <body />
+</html>
+`,
+    );
+    await applyChangeBatch(
+      root,
+      src,
+      [
+        {
+          kind: 'seo',
+          id: 'head-seo',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          before: {
+            ...emptySeo,
+            title: 'Old title',
+            description: 'Old > description',
+            robots: 'noindex, nofollow',
+          },
+          after: {
+            ...emptySeo,
+            title: 'New title',
+            description: 'New description',
+            robots: '',
+            keywords: 'one, two',
+          },
+        },
+      ],
+      normalizeOptions(),
+    );
+    expect(await readFile(page, 'utf8')).toBe(
+      `<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="New description" />
+    <title>New title</title>
+    <meta name="keywords" content="one, two" />
+  </head>
+  <body />
+</html>
+`,
+    );
+  });
+
+  it('separates a stale delegated SEO prop from a missing one', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(page, '<Layout title="Source title" />');
+    await expect(
+      applyChangeBatch(
+        root,
+        src,
+        [
+          {
+            kind: 'seo',
+            id: 'stale-prop',
+            filePath: 'src/pages/index.astro',
+            route: '/',
+            before: { ...emptySeo, title: 'Decorated title | Site' },
+            after: { ...emptySeo, title: 'Replacement title' },
+          },
+        ],
+        normalizeOptions(),
+      ),
+    ).rejects.toThrow('SEO field changed before commit in src/pages/index.astro: title.');
+  });
+
+  it('escapes quotes and entities written into a delegated SEO prop', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(page, "<Layout title='Old title' />");
+    await applyChangeBatch(
+      root,
+      src,
+      [
+        {
+          kind: 'seo',
+          id: 'escaped',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          before: { ...emptySeo, title: 'Old title' },
+          after: { ...emptySeo, title: `Ben's "R&D" <notes>` },
+        },
+      ],
+      normalizeOptions(),
+    );
+    expect(await readFile(page, 'utf8')).toBe(
+      "<Layout title='Ben&#39;s &quot;R&amp;D&quot; &lt;notes&gt;' />",
+    );
+  });
+
+  it('refuses an Astro SEO field that is rendered from an expression', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(
+      page,
+      '---\nconst title = "Computed";\n---\n<html><head><title>{title}</title></head><body /></html>',
+    );
+    await expect(
+      applyChangeBatch(
+        root,
+        src,
+        [
+          {
+            kind: 'seo',
+            id: 'expression-title',
+            filePath: 'src/pages/index.astro',
+            route: '/',
+            before: { ...emptySeo, title: 'Computed' },
+            after: { ...emptySeo, title: 'Replacement' },
+          },
+        ],
+        normalizeOptions(),
+      ),
+    ).rejects.toThrow('page title is rendered from an expression');
+  });
+
   it('persists section reorder, delete and template insertion', async () => {
     const { root, src } = await project();
     const page = join(src, 'pages', 'index.astro');

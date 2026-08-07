@@ -37,6 +37,21 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Reworked the rendered-page editor around the interaction model familiar from
+  Divi and Elementor: a persistent purple left inspector, icon-led **Content**,
+  **Structure** and **Page** tabs, clear mode titles and one prominent **Review
+  changes** action.
+- Added persistent page-facing content affordances that identify editable
+  headings, paragraphs and other text before selection, while explaining
+  locked, unresolved and unsupported content instead of ignoring the click.
+- Replaced scattered section actions with contextual blue on-page toolbars for
+  add, move, drag and delete. Only the active section toolbar is shown within a
+  region, reducing visual collisions on nested layouts.
+- Kept the inspector open beside the page during desktop structure editing and
+  retained the compact touch picker on narrow screens, so selection no longer
+  causes an unexpected desktop mode change.
+- Preserved all existing source-aware Setup, change review, undo, redo, history,
+  safe retry, save and restore capabilities behind the redesigned interface.
 - Simplified the workbench around three editing modes and one compact
   **Changes (N)** tray, keeping review, undo, redo, history, discard and restore
   available without presenting review as a competing editing mode.
@@ -75,6 +90,9 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Preserved page-authored accessible names and tab states while structure
+  controls are active, instead of overwriting or removing them when the editor
+  changes mode.
 - Made delegated Astro SEO fields update unique literal route props when a
   layout owns the rendered `<head>`, while refusing missing, computed or
   ambiguous prop matches.

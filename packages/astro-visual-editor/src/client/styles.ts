@@ -1,45 +1,54 @@
 export const toolbarStyles = String.raw`
   :host {
     color-scheme: dark;
-    --ave-accent: #ff7a3d;
+    --ave-accent: #e94b8a;
+    --ave-builder: #6c2eb9;
+    --ave-builder-dark: #4f1f91;
     --ave-ink: #f4f7fa;
-    --ave-muted: #b7c0c9;
-    --ave-surface: #202832;
-    --ave-surface-raised: #27323d;
-    --ave-surface-soft: #19212a;
-    --ave-border: #43515e;
-    --ave-focus: #a9c7df;
+    --ave-muted: #b9b7c4;
+    --ave-surface: #24232a;
+    --ave-surface-raised: #302f38;
+    --ave-surface-soft: #1c1b21;
+    --ave-border: #47454f;
+    --ave-focus: #f49bc0;
   }
   * { box-sizing: border-box; }
   button, input, textarea, select { font: inherit; }
-  button { min-width: 44px; min-height: 44px; transition: background-color .18s ease, border-color .18s ease, color .18s ease, opacity .18s ease; }
+  button { min-width: 44px; min-height: 44px; transition: background-color .16s ease, border-color .16s ease, color .16s ease, opacity .16s ease, transform .16s ease; }
+  .ave-icon { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .workbench {
-    width: min(400px, calc(100vw - 24px)); max-height: min(610px, calc(100vh - 92px));
-    display: none; overflow: hidden; color: var(--ave-ink); background: var(--ave-surface);
-    border: 1px solid #536271; border-radius: 15px; box-shadow: 0 22px 64px rgba(0,0,0,.58), 0 0 0 1px rgba(255,255,255,.05);
+    width: min(420px, calc(100vw - 24px)); max-height: min(720px, calc(100vh - 88px));
+    position: fixed; z-index: 2147483000; top: 12px; left: 12px; display: none; overflow: hidden; color: var(--ave-ink); background: var(--ave-surface);
+    border: 1px solid #514d59; border-radius: 7px; box-shadow: 0 18px 55px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04);
     font: 13px/1.42 Inter, ui-sans-serif, system-ui, sans-serif;
   }
   .workbench[data-open="true"] { display: grid; grid-template-rows: auto auto auto auto minmax(0,1fr) auto; }
   .workbench[data-open="true"][data-minimized="true"] { display: none; }
-  .masthead { grid-row: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 12px 13px 10px; border-bottom: 1px solid var(--ave-border); }
+  .masthead { grid-row: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 72px; padding: 11px 12px 10px 15px; background: linear-gradient(135deg,var(--ave-builder),var(--ave-builder-dark)); border-bottom: 1px solid rgba(255,255,255,.14); }
+  .masthead-copy { min-width: 0; }
   .masthead-actions { display: flex; gap: 7px; }
-  .eyebrow { margin: 0 0 3px; color: #a9c7df; font: 750 9px/1.2 ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; }
+  .eyebrow { margin: 0 0 3px; color: rgba(255,255,255,.72); font: 750 9px/1.2 ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; }
   h2, h3 { margin: 0; letter-spacing: -.025em; }
   h2 { font-size: 17px; } h3 { font-size: 14px; }
-  .status { display: flex; align-items: center; gap: 7px; margin: 5px 0 0; color: var(--ave-muted); font-size: 11px; }
+  .status { display: flex; align-items: center; gap: 7px; margin: 5px 0 0; color: rgba(255,255,255,.8); font-size: 10px; }
   .status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: #6ee7a8; box-shadow: 0 0 0 4px rgba(110,231,168,.1); }
   .status[data-state="warning"] .status-dot { background: #ffd166; }
   .status[data-state="error"] .status-dot { background: #ff8585; }
-  .icon-button, .utility-button { display: inline-grid; place-items: center; padding: 0; color: #e3e9ee; background: var(--ave-surface-raised); border: 1px solid #566574; border-radius: 10px; cursor: pointer; }
+  .icon-button, .utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0; color: #f5f2f8; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.24); border-radius: 5px; cursor: pointer; }
   .utility-button { min-height: 44px; padding-inline: 12px; font-size: 11px; font-weight: 750; }
-  .icon-button:hover, .icon-button:focus-visible, .utility-button:hover, .utility-button:focus-visible { color: white; background: #33414d; outline: 2px solid var(--ave-focus); outline-offset: 2px; }
+  .icon-button:hover, .icon-button:focus-visible, .utility-button:hover, .utility-button:focus-visible { color: white; background: rgba(255,255,255,.2); outline: 2px solid #fff; outline-offset: 2px; }
+  .utility-label { display: inline; }
   .demo-context { grid-row: 2; display: flex; align-items: center; gap: 8px; padding: 6px 10px; color: #9fabB6; background: #182029; border-bottom: 1px solid var(--ave-border); font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
   .demo-context[hidden] { display: none; }
-  .mode-tabs { grid-row: 3; display: grid; grid-template-columns: repeat(3,1fr); gap: 3px; padding: 5px; background: var(--ave-surface-soft); border-bottom: 1px solid var(--ave-border); }
-  .mode-tab { min-width: 0; min-height: 36px; padding: 4px; color: #aeb4bb; background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 750; }
-  .mode-tab[aria-selected="true"] { color: #fff; background: #34414d; border-color: #607080; }
-  .mode-tab:focus-visible { outline: 2px solid var(--ave-focus); outline-offset: 1px; }
-  .instructions { grid-row: 4; display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: #cbd3da; background: #202832; border-bottom: 1px solid var(--ave-border); font-size: 11px; }
+  .mode-tabs { grid-row: 3; display: grid; grid-template-columns: repeat(3,1fr); gap: 0; padding: 0; background: var(--ave-surface-soft); border-bottom: 1px solid var(--ave-border); }
+  .mode-tab { position: relative; min-width: 0; min-height: 58px; display: grid; place-items: center; align-content: center; gap: 4px; padding: 6px 4px; color: #aaa7b2; background: transparent; border: 0; border-right: 1px solid #34323a; border-radius: 0; cursor: pointer; font-size: 10px; font-weight: 760; }
+  .mode-tab:last-child { border-right: 0; }
+  .mode-tab[aria-selected="true"] { color: #fff; background: #302e37; box-shadow: inset 0 -3px 0 var(--ave-accent); }
+  .mode-tab[aria-selected="true"] .ave-icon { color: #ff82b5; }
+  .mode-tab:focus-visible { outline: 2px solid var(--ave-focus); outline-offset: -3px; }
+  .instructions { grid-row: 4; display: flex; align-items: center; gap: 9px; min-height: 43px; padding: 8px 12px; color: #d1cfd7; background: #292730; border-bottom: 1px solid var(--ave-border); font-size: 11px; }
+  .instruction-icon { display: inline-flex; flex: 0 0 auto; color: #f071a6; }
+  .instruction-icon .ave-icon { width: 16px; height: 16px; }
   .instructions-copy { min-width: 0; }
   .demo-surfaces { display: flex; flex: 1 1 auto; gap: 4px; min-width: 0; overflow-x: auto; }
   .demo-surface { min-width: max-content; min-height: 32px; padding: 5px 9px; color: #bfc5cb; background: #24282c; border: 1px solid #3a4046; border-radius: 999px; cursor: pointer; font-size: 10px; font-weight: 760; }
@@ -47,10 +56,11 @@ export const toolbarStyles = String.raw`
   .demo-surface:focus-visible { outline: 2px solid var(--ave-focus); outline-offset: 1px; }
   .changes-tray { grid-row: 5; min-height: 0; display: grid; grid-template-rows: auto minmax(0,1fr) auto auto auto; overflow: hidden; background: var(--ave-surface-soft); }
   .changes-header { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px; padding: 8px; border-top: 1px solid rgba(255,255,255,.03); }
-  .changes-toggle { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 11px; color: #eef3f7; background: var(--ave-surface-raised); border: 1px solid #52616f; border-radius: 10px; cursor: pointer; font-weight: 780; }
-  .changes-toggle:hover, .changes-toggle:focus-visible { background: #33414d; outline: 2px solid var(--ave-focus); outline-offset: 1px; }
-  .change-count { display: inline-grid; place-items: center; min-width: 25px; min-height: 25px; padding: 0 7px; color: #182029; background: #dce6ed; border-radius: 999px; font-size: 10px; font-variant-numeric: tabular-nums; }
+  .changes-toggle { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 11px; color: #fff; background: #34313c; border: 1px solid #56515f; border-radius: 5px; cursor: pointer; font-weight: 780; }
+  .changes-toggle:hover, .changes-toggle:focus-visible { background: #403b48; outline: 2px solid var(--ave-focus); outline-offset: 1px; }
+  .change-count { display: inline-grid; place-items: center; min-width: 25px; min-height: 25px; padding: 0 7px; color: #fff; background: var(--ave-builder); border-radius: 999px; font-size: 10px; font-variant-numeric: tabular-nums; }
   .changes-header .undo { min-height: 44px; }
+  .changes-header .icon-button { color: #ddd9e2; background: #34313c; border-color: #56515f; }
   .ledger { min-height: 92px; overflow: auto; padding: 8px; overscroll-behavior: contain; scrollbar-gutter: stable; }
   .workbench:not([data-mode="review"]):not([data-mode="setup"]) .ledger,
   .workbench:not([data-mode="review"]):not([data-mode="setup"]) .history-actions,
@@ -88,7 +98,8 @@ export const toolbarStyles = String.raw`
   .message[data-kind="success"] { color: #c9f7de; background: #183128; border: 1px solid #2d624b; }
   .message[data-kind="warning"] { color: #ffe8ae; background: #352d18; border: 1px solid #66562b; }
   .history-actions { display: flex; gap: 6px; padding: 0 8px 8px; }
-  .history-actions button { flex: 1; min-height: 38px; }
+  .history-actions button { flex: 1; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+  .history-actions .ave-icon { width: 16px; height: 16px; }
   .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 8px; border-top: 1px solid var(--ave-border); }
   .setup-actions { grid-row: 6; display: none; grid-template-columns: auto minmax(0,1fr); gap: 7px; padding: 8px; border-top: 1px solid var(--ave-border); }
   .setup-actions .reload-policy { grid-column: 1 / -1; }
@@ -100,22 +111,22 @@ export const toolbarStyles = String.raw`
   .workbench:not([data-mode="setup"]) .setup-actions { display: none; }
   .commit { grid-column: 1 / -1; }
   .clear, .revert { width: 100%; }
-  .primary, .secondary, .danger { min-height: 44px; padding-inline: 14px; border-radius: 10px; font-weight: 780; cursor: pointer; }
-  .primary { color: #17191b; background: var(--ave-accent); border: 1px solid #ff9e6b; }
-  .primary:hover:not(:disabled), .primary:focus-visible { background: #ff9664; outline: 2px solid #ffd0b5; outline-offset: 2px; }
-  .secondary { color: #e0e6eb; background: var(--ave-surface-raised); border: 1px solid #52616f; }
-  .secondary:hover:not(:disabled), .secondary:focus-visible { background: #30353a; outline: 2px solid #8f98a1; outline-offset: 2px; }
+  .primary, .secondary, .danger { min-height: 44px; padding-inline: 14px; border-radius: 5px; font-weight: 780; cursor: pointer; }
+  .primary { color: #fff; background: var(--ave-builder); border: 1px solid #8650ca; }
+  .primary:hover:not(:disabled), .primary:focus-visible { background: #7b3bc5; outline: 2px solid #d9bdf7; outline-offset: 2px; }
+  .secondary { color: #e0dde5; background: var(--ave-surface-raised); border: 1px solid #57535f; }
+  .secondary:hover:not(:disabled), .secondary:focus-visible { background: #3c3943; outline: 2px solid #9f99a8; outline-offset: 2px; }
   .danger { color: #ffc9c9; background: #352326; border: 1px solid #60363b; }
   button:disabled { cursor: not-allowed; opacity: .34; filter: grayscale(.45); }
-  dialog { width: min(600px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto; padding: 0; color: #f4f7fa; background: #202832; border: 1px solid #566574; border-radius: 17px; box-shadow: 0 28px 90px rgba(0,0,0,.68); }
+  dialog { width: min(600px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto; padding: 0; color: #f4f7fa; background: #24232a; border: 1px solid #5b5763; border-radius: 7px; box-shadow: 0 28px 90px rgba(0,0,0,.68); }
   dialog::backdrop { background: rgba(7,9,10,.72); backdrop-filter: blur(5px); }
   .dialog-body { padding: 20px; }
   .dialog-file { margin: 5px 0 16px; overflow-wrap: anywhere; color: #b8d0e2; font: 600 11px/1.45 ui-monospace, monospace; }
   .source-warning { margin: -7px 0 14px; padding: 8px 10px; color: #ffe4a8; background: #352d18; border: 1px solid #66562b; border-radius: 9px; font-size: 11px; }
   label { display: block; margin: 12px 0 6px; color: #d4d8dc; font-size: 12px; font-weight: 720; }
-  input, textarea { width: 100%; min-height: 44px; padding: 11px 12px; color: #fff; background: #151c23; border: 1px solid #586877; border-radius: 10px; }
+  input, textarea { width: 100%; min-height: 44px; padding: 11px 12px; color: #fff; background: #17161b; border: 1px solid #5d5963; border-radius: 4px; }
   textarea { min-height: 150px; resize: vertical; line-height: 1.55; }
-  input:focus, textarea:focus { border-color: #9dbbd3; outline: 3px solid rgba(157,187,211,.22); }
+  input:focus, textarea:focus { border-color: #e56aa0; outline: 3px solid rgba(233,75,138,.2); }
   .field-help { margin: 5px 0 0; color: #929aa2; font-size: 11px; }
   .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
   .file-diff-list, .history-list { display: grid; gap: 10px; margin-top: 16px; }
@@ -229,7 +240,7 @@ export const toolbarStyles = String.raw`
   .picker-label { padding-left: 9px; font-weight: 700; white-space: nowrap; }
   .picker button { min-height: 36px; min-width: 36px; border-radius: 999px; }
   @media (max-width: 640px) {
-    .workbench { width: calc(100vw - 12px); max-height: min(72vh, 680px); border-radius: 16px 16px 8px 8px; }
+    .workbench { top: 6px; left: 6px; width: calc(100vw - 12px); max-height: min(72vh, 680px); border-radius: 7px; }
     .instructions { align-items: flex-start; }
     .demo-surfaces { max-width: 100%; }
     .template-grid { grid-template-columns: 1fr; } .seo-grid { grid-template-columns: 1fr; }
@@ -254,27 +265,43 @@ export const toolbarStyles = String.raw`
 
 export const pageSectionStyles = String.raw`
   @media (min-width: 900px) {
+    html[data-astro-ve-docked="true"] { overflow-x: hidden !important; }
+    html[data-astro-ve-docked="true"] body { width: calc(100% - 436px) !important; margin-left: 436px !important; transition: width .18s ease, margin-left .18s ease !important; }
     html[data-astro-ve-setup-docked="true"] { overflow-x: hidden !important; }
     html[data-astro-ve-setup-docked="true"] body { width: calc(100% - 476px) !important; margin-left: 476px !important; }
   }
-  [data-astro-ve-section-active="true"] { position: relative !important; outline: 3px solid #8fc7ee !important; outline-offset: -3px; }
+  [data-astro-ve-text-state] { position: relative !important; outline: 2px solid #e94b8a !important; outline-offset: 4px !important; }
+  [data-astro-ve-text-state]:after { position: absolute !important; z-index: 2147483500 !important; top: -34px !important; left: -2px !important; display: block !important; width: max-content !important; max-width: min(280px,80vw) !important; padding: 6px 9px !important; color: #fff !important; background: #6c2eb9 !important; border-radius: 4px 4px 4px 0 !important; box-shadow: 0 6px 18px rgba(0,0,0,.32) !important; content: attr(data-astro-ve-text-label) !important; font: 700 11px/1.2 Inter,system-ui,sans-serif !important; letter-spacing: .01em !important; pointer-events: none !important; }
+  [data-astro-ve-text-state="excluded"], [data-astro-ve-text-state="unresolved"] { outline-color: #e0a72f !important; outline-style: dashed !important; }
+  [data-astro-ve-text-state="excluded"]:after, [data-astro-ve-text-state="unresolved"]:after { color: #1d1710 !important; background: #f0bd5b !important; }
+  [data-astro-ve-text-state="unsafe"] { outline-color: #e45b67 !important; outline-style: dashed !important; }
+  [data-astro-ve-text-state="unsafe"]:after { background: #b73745 !important; }
+  [data-astro-ve-section-active="true"] { position: relative !important; outline: 2px solid #2ea3f2 !important; outline-offset: -2px; }
   [data-astro-edit-region], [data-astro-edit-sections] { position: relative !important; }
-  [data-astro-ve-drag-over="true"] { outline: 4px dashed #8fc7ee !important; outline-offset: -5px; }
+  [data-astro-ve-drag-over="true"] { outline: 4px dashed #e94b8a !important; outline-offset: -5px; }
   [data-astro-ve-dragging="true"] { opacity: .55 !important; }
   [data-astro-ve-ui] { box-sizing: border-box; }
   [data-astro-ve-inventory-status] { outline: none !important; }
   [data-astro-ve-inventory-focus="true"] { outline: 4px solid #8fc7ee !important; outline-offset: 5px !important; }
   [data-astro-ve-setup-pick="true"] { outline: 4px solid #8fc7ee !important; outline-offset: 5px !important; cursor: pointer !important; box-shadow: 0 0 0 8px rgba(75,151,203,.2) !important; }
-  .astro-ve-section-controls { position: absolute !important; z-index: 2147483000 !important; top: 10px !important; right: 10px !important; display: grid !important; grid-template-columns: repeat(3,44px) !important; gap: 4px !important; width: fit-content !important; padding: 5px !important; color: #fff !important; background: rgba(29,38,47,.98) !important; border: 1px solid #667788 !important; border-radius: 11px !important; box-shadow: 0 8px 24px rgba(0,0,0,.42) !important; font: 700 12px/1 system-ui,sans-serif !important; }
-  .astro-ve-section-controls button { position: relative !important; width: 44px !important; height: 44px !important; min-width: 44px !important; min-height: 44px !important; padding: 0 !important; color: inherit !important; background: #2b3844 !important; border: 1px solid #586a7a !important; border-radius: 8px !important; cursor: pointer !important; font: inherit !important; }
-  .astro-ve-section-controls button:hover, .astro-ve-section-controls button:focus-visible { background: #3b4b59 !important; outline: 3px solid #a9c7df !important; outline-offset: 1px !important; }
+  .astro-ve-section-controls { position: absolute !important; z-index: 2147483000 !important; top: 10px !important; left: 10px !important; display: flex !important; align-items: center !important; gap: 0 !important; width: fit-content !important; max-width: calc(100% - 20px) !important; min-height: 42px !important; padding: 0 !important; color: #fff !important; background: #2ea3f2 !important; border: 0 !important; border-radius: 4px !important; box-shadow: 0 8px 24px rgba(0,0,0,.36) !important; font: 700 12px/1 Inter,system-ui,sans-serif !important; opacity: 0 !important; pointer-events: none !important; transform: translateY(-4px) !important; transition: opacity .14s ease, transform .14s ease !important; }
+  .astro-ve-section-controls[data-visible="true"] { opacity: 1 !important; pointer-events: auto !important; transform: translateY(0) !important; }
+  .astro-ve-section-label { min-width: 0 !important; max-width: 180px !important; overflow: hidden !important; padding: 0 12px !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+  .astro-ve-section-controls button { position: relative !important; display: inline-grid !important; place-items: center !important; width: 42px !important; height: 42px !important; min-width: 42px !important; min-height: 42px !important; padding: 0 !important; color: inherit !important; background: rgba(0,0,0,.08) !important; border: 0 !important; border-left: 1px solid rgba(255,255,255,.2) !important; border-radius: 0 !important; cursor: pointer !important; font: inherit !important; }
+  .astro-ve-section-controls button:last-child { border-radius: 0 4px 4px 0 !important; }
+  .astro-ve-section-controls button:hover, .astro-ve-section-controls button:focus-visible { background: rgba(0,0,0,.22) !important; outline: 3px solid #fff !important; outline-offset: -3px !important; }
+  .astro-ve-section-controls .ave-icon { width: 18px !important; height: 18px !important; fill: none !important; stroke: currentColor !important; stroke-width: 1.8 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
   .astro-ve-section-controls button::after { position: absolute !important; z-index: 2147483647 !important; top: calc(100% + 8px) !important; left: 50% !important; width: max-content !important; max-width: min(240px, 70vw) !important; padding: 7px 9px !important; color: #fff !important; background: #090b0c !important; border: 1px solid #5b6269 !important; border-radius: 7px !important; box-shadow: 0 8px 22px rgba(0,0,0,.48) !important; content: attr(data-tooltip) !important; font: 600 12px/1.35 system-ui,sans-serif !important; opacity: 0 !important; pointer-events: none !important; transform: translateX(-50%) translateY(-2px) !important; transition: opacity .12s ease, transform .12s ease !important; white-space: normal !important; }
   .astro-ve-section-controls button:hover::after, .astro-ve-section-controls button:focus-visible::after { opacity: 1 !important; transform: translateX(-50%) translateY(0) !important; }
   .astro-ve-section-controls button:nth-child(3n + 1)::after { left: 0 !important; transform: translateY(-2px) !important; }
   .astro-ve-section-controls button:nth-child(3n + 1):hover::after, .astro-ve-section-controls button:nth-child(3n + 1):focus-visible::after { transform: translateY(0) !important; }
   .astro-ve-section-controls button:nth-child(3n)::after { right: 0 !important; left: auto !important; transform: translateY(-2px) !important; }
   .astro-ve-section-controls button:nth-child(3n):hover::after, .astro-ve-section-controls button:nth-child(3n):focus-visible::after { transform: translateY(0) !important; }
-  .astro-ve-drag-handle { cursor: grab !important; }
+  .astro-ve-drag-handle { order: -1 !important; cursor: grab !important; background: rgba(0,0,0,.15) !important; }
   @media (prefers-reduced-motion: reduce) { .astro-ve-section-controls button::after { transition: none !important; } }
-  @media (max-width: 640px) { .astro-ve-section-controls { position: sticky !important; top: 6px !important; margin: 6px !important; width: fit-content !important; } }
+  @media (max-width: 640px) {
+    [data-astro-ve-text-state]:after { top: -31px !important; max-width: 70vw !important; font-size: 10px !important; }
+    .astro-ve-section-controls { position: sticky !important; top: 6px !important; margin: 6px !important; max-width: calc(100% - 12px) !important; overflow-x: auto !important; }
+    .astro-ve-section-label { max-width: 112px !important; }
+  }
 `;

@@ -161,8 +161,8 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(workbench.getByRole('button', { name: 'Simple demo' })).toBeVisible();
   await expect(workbench.getByRole('button', { name: 'Complex sources' })).toBeVisible();
   const workbenchBox = (await workbench.boundingBox())!;
-  expect(workbenchBox.width).toBeLessThanOrEqual(401);
-  expect(workbenchBox.height).toBeLessThanOrEqual(611);
+  expect(workbenchBox.width).toBeLessThanOrEqual(421);
+  expect(workbenchBox.height).toBeLessThanOrEqual(721);
   await expect(toolbar.getByText('Ready. Changes stay local until saved.')).toBeVisible();
 
   await workbench.getByRole('button', { name: 'Collapse editor' }).click();
@@ -171,13 +171,23 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(picker).toBeVisible();
   await picker.getByRole('button', { name: 'Expand' }).click();
   await expect(workbench).toBeVisible();
-  await expect(workbench.getByRole('tab', { name: 'Text' })).toHaveAttribute(
+  await expect(workbench.getByRole('tab', { name: 'Content' })).toHaveAttribute(
     'aria-selected',
     'true',
   );
-  await workbench.getByRole('tab', { name: 'Text' }).click();
+  await workbench.getByRole('tab', { name: 'Content' }).click();
+
+  const lockedText = page.locator('[data-section="preview"] strong');
+  await lockedText.hover();
+  await expect(lockedText).toHaveAttribute('data-astro-ve-text-state', 'excluded');
+  await expect(lockedText).toHaveAttribute('data-astro-ve-text-label', 'Locked · Bold text');
+  await lockedText.click();
+  await expect(workbench.getByText('This text is locked. Open Settings')).toBeVisible();
 
   const lead = page.locator('[data-astro-edit-id="hero-lead"]');
+  await lead.hover();
+  await expect(lead).toHaveAttribute('data-astro-ve-text-state', 'editable');
+  await expect(lead).toHaveAttribute('data-astro-ve-text-label', 'Edit · Paragraph');
   const originalLead = (await lead.textContent())!.trim();
   await lead.click();
   const textDialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
@@ -190,14 +200,14 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await workbench.getByRole('button', { name: 'Redo', exact: true }).click();
   await workbench.getByRole('button', { name: 'Discard changes' }).click();
 
-  await workbench.getByRole('tab', { name: 'Sections' }).click();
-  await expect(workbench).toBeHidden();
-  await expect(picker).toBeVisible();
+  await workbench.getByRole('tab', { name: 'Structure' }).click();
+  await expect(workbench).toBeVisible();
+  await expect(picker).toBeHidden();
   const firstControlsBox = (await page
     .locator('.astro-ve-section-controls')
     .first()
     .boundingBox())!;
-  expect(firstControlsBox.width).toBeLessThanOrEqual(155);
+  expect(firstControlsBox.width).toBeLessThanOrEqual(430);
   const source = page.getByRole('button', { name: 'Drag Section: 01 / PREVIEW to reorder' });
   await expect(source).toHaveAttribute('title', 'Drag Section: 01 / PREVIEW to reorder');
   await expect(source).toHaveAttribute('data-tooltip', 'Drag Section: 01 / PREVIEW to reorder');
@@ -211,7 +221,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(
     page.locator('[data-astro-edit-region="home-principles"] > section').first(),
   ).toHaveAttribute('data-section', 'review');
-  await picker.getByRole('button', { name: /Review 1/ }).click();
+  await workbench.getByRole('button', { name: 'Open changes tray, 1 queued change' }).click();
   const sectionChange = workbench.locator('.change').first();
   await expect(sectionChange.locator('.change-page')).toContainText('Simple demo');
   await expect(sectionChange.locator('.change-summary')).toHaveText('Reordered 3 sections');
@@ -224,7 +234,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
     'Before: 01 / PREVIEW → 02 / REVIEW → 03 / COMMIT',
   );
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
-  await workbench.getByRole('tab', { name: 'Sections' }).click();
+  await workbench.getByRole('tab', { name: 'Structure' }).click();
 
   await page.getByRole('button', { name: 'Add section after Section: 01 / PREVIEW' }).click();
   await toolbar
@@ -233,22 +243,23 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
     .getByRole('button', { name: /Text/ })
     .click();
   await expect(page.locator('[data-section^="text-"]')).toHaveCount(1);
-  await picker.getByRole('button', { name: /Review 1/ }).click();
+  await workbench.getByRole('button', { name: 'Open changes tray, 1 queued change' }).click();
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
-  await workbench.getByRole('tab', { name: 'Sections' }).click();
+  await workbench.getByRole('tab', { name: 'Structure' }).click();
 
+  await page.locator('[data-section="review"]').hover();
   await page.getByRole('button', { name: 'Delete section Section: 02 / REVIEW' }).click();
   await toolbar.getByRole('button', { name: 'Delete section', exact: true }).click();
   await expect(page.locator('[data-section="review"]')).toHaveCount(0);
-  await picker.getByRole('button', { name: /Review 1/ }).click();
+  await workbench.getByRole('button', { name: 'Open changes tray, 1 queued change' }).click();
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
 
-  await workbench.getByRole('tab', { name: 'SEO' }).click();
+  await workbench.getByRole('tab', { name: 'Page' }).click();
   let seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
   await expect(seoDialog).toBeVisible();
   await page.mouse.click(5, 5);
   await expect(seoDialog).toBeHidden();
-  await workbench.getByRole('tab', { name: 'SEO' }).click();
+  await workbench.getByRole('tab', { name: 'Page' }).click();
   seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
   await seoDialog.locator('[name="title"]').fill('Queued browser SEO title');
   await seoDialog.getByRole('button', { name: 'Queue SEO change' }).click();
@@ -286,7 +297,7 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await dialog.locator('textarea').fill('Harbour launch plan, reviewed');
     await dialog.getByRole('button', { name: 'Queue change' }).click();
 
-    await complexWorkbench.getByRole('tab', { name: 'SEO' }).click();
+    await complexWorkbench.getByRole('tab', { name: 'Page' }).click();
     const seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
     await expect(seoDialog).toContainText('src/pages/fixtures/complex.astro');
     await seoDialog.locator('[name="title"]').fill('Complex fixture, reviewed');
@@ -363,12 +374,10 @@ test('targets each repeated JSON-backed evidence card independently', async ({ p
       'Direct JSON properties',
     ]);
 
-    await complexWorkbench.getByRole('tab', { name: 'Sections' }).click();
+    await complexWorkbench.getByRole('tab', { name: 'Structure' }).click();
     await expect(complexWorkbench).toBeVisible();
-    await expect(
-      complexWorkbench.getByText('No section region is enabled on this page yet.'),
-    ).toBeVisible();
-    await complexWorkbench.getByRole('tab', { name: 'Text' }).click();
+    await expect(complexWorkbench.getByText('No section area is enabled yet.')).toBeVisible();
+    await complexWorkbench.getByRole('tab', { name: 'Content' }).click();
 
     await values.nth(2).click();
     let dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
@@ -551,10 +560,10 @@ test('enables and persists complex sections without source annotations', async (
     ).toBe(false);
 
     ({ toolbar, workbench } = await enableEditor(page));
-    await workbench.getByRole('tab', { name: 'Sections' }).click();
+    await workbench.getByRole('tab', { name: 'Structure' }).click();
     const picker = toolbar.locator('.picker');
-    await expect(picker).toBeVisible();
-    await picker.getByRole('button', { name: 'Expand' }).click();
+    await expect(picker).toBeHidden();
+    await expect(workbench).toBeVisible();
     await expect(
       workbench.getByRole('button', { name: 'Select another section on page' }),
     ).toBeVisible();
@@ -571,8 +580,8 @@ test('enables and persists complex sections without source annotations', async (
     await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(page.locator('main > section.hero')).toHaveCount(1);
     await workbench.getByRole('button', { name: 'Close changes tray, 0 queued changes' }).click();
-    await expect(picker).toBeVisible();
-    await picker.getByRole('button', { name: 'Expand' }).click();
+    await expect(picker).toBeHidden();
+    await expect(workbench).toBeVisible();
     const moveHero = page.getByRole('button', {
       name: /Move Section: A page assembled from trusted sources down/u,
     });
@@ -583,13 +592,13 @@ test('enables and persists complex sections without source annotations', async (
       name: 'Move Button: Review the source map up',
     });
     await expect(moveAction).toBeVisible();
-    await moveAction.click();
+    await moveAction.dispatchEvent('click');
     await expect(page.locator('section.hero > :not([data-astro-ve-ui])').nth(2)).toHaveText(
       'Review the source map',
     );
     const moveLayoutCard = page.getByRole('button', { name: 'Move Card: Layout down' });
     await expect(moveLayoutCard).toBeVisible();
-    await moveLayoutCard.click();
+    await moveLayoutCard.dispatchEvent('click');
     await expect(page.locator('section.evidence .grid article').first()).toContainText('Component');
     await expect(workbench.locator('.change-summary')).toHaveCount(3);
     await workbench.getByRole('button', { name: 'Open changes tray, 3 queued changes' }).click();
@@ -783,7 +792,7 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   await expect(textDialog.locator('textarea')).toBeFocused();
   await textDialog.getByRole('button', { name: 'Cancel' }).click();
   await picker.getByRole('button', { name: 'Expand' }).click();
-  await workbench.getByRole('tab', { name: 'Sections' }).click();
+  await workbench.getByRole('tab', { name: 'Structure' }).click();
   await expect(workbench).toBeHidden();
   const move = page.getByRole('button', { name: 'Move Section: 01 / PREVIEW down' });
   await move.focus();

@@ -103,6 +103,44 @@ const defaultConfig: ClientEditorConfig = {
 
 const emptyEditabilityPolicy: EditabilityPolicy = { version: 1, rules: [] };
 
+type IconName =
+  | 'chevron-down'
+  | 'chevron-up'
+  | 'close'
+  | 'content'
+  | 'delete'
+  | 'drag'
+  | 'history'
+  | 'minus'
+  | 'page'
+  | 'plus'
+  | 'redo'
+  | 'settings'
+  | 'structure'
+  | 'undo';
+
+function icon(name: IconName): string {
+  const paths: Record<IconName, string> = {
+    'chevron-down': '<path d="m7 10 5 5 5-5"/>',
+    'chevron-up': '<path d="m7 14 5-5 5 5"/>',
+    close: '<path d="m7 7 10 10M17 7 7 17"/>',
+    content: '<path d="M5 6h14M5 10h14M5 14h9M5 18h7"/>',
+    delete: '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/>',
+    drag: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>',
+    history: '<path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v4l3 2"/>',
+    minus: '<path d="M6 12h12"/>',
+    page: '<path d="M7 3h7l4 4v14H7zM14 3v5h4M10 12h5M10 16h5"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    redo: '<path d="M16 7h4v4M20 7l-4-3M20 7h-9a6 6 0 0 0-6 6 6 6 0 0 0 6 6h3"/>',
+    settings:
+      '<circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2-.7-.7-1.7.9-1.9-2.1-2.1-1.9.9-1.7-.7L10.5 2h-3l-.7 2-1.7.7-1.9-.9-2.1 2.1.9 1.9-.7 1.7L0 10.5v3l2 .7.7 1.7-.9 1.9 2.1 2.1 1.9-.9 1.7.7.7 2h3l.7-2 1.7-.7 1.9.9 2.1-2.1-.9-1.9.7-1.7z" transform="translate(2 -1) scale(.84)"/>',
+    structure:
+      '<rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="15" width="8" height="5" rx="1"/><rect x="13" y="15" width="8" height="5" rx="1"/><path d="M12 9v3M7 12h10M7 12v3M17 12v3"/>',
+    undo: '<path d="M8 7H4v4M4 7l4-3M4 7h9a6 6 0 0 1 6 6 6 6 0 0 1-6 6h-3"/>',
+  };
+  return `<svg class="ave-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name]}</svg>`;
+}
+
 function createElement<K extends keyof HTMLElementTagNameMap>(
   name: K,
   attributes: Record<string, string> = {},
@@ -383,28 +421,28 @@ export default defineToolbarApp({
     });
     panel.innerHTML = `
       <header class="masthead">
-        <div><p class="eyebrow">Visual Editor</p><h2>Edit this page</h2>
+        <div class="masthead-copy"><p class="eyebrow">Astro Visual Builder</p><h2 class="panel-title">Edit content</h2>
           <p class="status" data-state="warning"><span class="status-dot" aria-hidden="true"></span><span class="status-copy">Connecting to Astro…</span></p>
         </div>
-        <div class="masthead-actions"><button class="utility-button setup-toggle" type="button" aria-label="Open Editor Setup" title="Open Editor Setup" hidden>Settings</button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button></div>
+        <div class="masthead-actions"><button class="utility-button setup-toggle" type="button" aria-label="Open Editor Setup" title="Open Editor Setup" hidden>${icon('settings')}<span class="utility-label">Settings</span></button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">${icon('minus')}</button></div>
       </header>
       <aside class="demo-context" hidden><span>Demo page</span><nav class="demo-surfaces" aria-label="Demo test pages"></nav></aside>
       <div class="mode-tabs" role="tablist" aria-label="Editing mode">
-        <button class="mode-tab" role="tab" data-mode="text" aria-selected="true">Text</button>
-        <button class="mode-tab" role="tab" data-mode="sections" aria-selected="false">Sections</button>
-        <button class="mode-tab" role="tab" data-mode="seo" aria-selected="false">SEO</button>
+        <button class="mode-tab" role="tab" data-mode="text" aria-selected="true">${icon('content')}<span>Content</span></button>
+        <button class="mode-tab" role="tab" data-mode="sections" aria-selected="false">${icon('structure')}<span>Structure</span></button>
+        <button class="mode-tab" role="tab" data-mode="seo" aria-selected="false">${icon('page')}<span>Page</span></button>
       </div>
-      <div class="instructions"><span class="instructions-copy">Click visible text, or focus it and press Alt+Enter.</span></div>
+      <div class="instructions"><span class="instruction-icon" aria-hidden="true">${icon('content')}</span><span class="instructions-copy">Hover over page content, then click to edit.</span></div>
       <section class="changes-tray" aria-label="Changes tray">
         <div class="changes-header">
-          <button class="changes-toggle" type="button" aria-expanded="false"><span>Changes</span><span class="change-count">0</span></button>
-          <button class="secondary undo" type="button" disabled>Undo</button>
+          <button class="changes-toggle" type="button" aria-expanded="false"><span>Review changes</span><span class="change-count">0</span></button>
+          <button class="icon-button undo" type="button" aria-label="Undo" title="Undo last change" disabled>${icon('undo')}</button>
         </div>
         <div class="ledger" aria-live="polite" aria-label="Queued changes"></div>
         <p class="message" role="status" aria-live="polite"></p>
         <div class="history-actions">
-          <button class="secondary redo" type="button" disabled>Redo</button>
-          <button class="secondary show-history" type="button">History</button>
+          <button class="secondary redo" type="button" disabled>${icon('redo')}<span>Redo</span></button>
+          <button class="secondary show-history" type="button">${icon('history')}<span>History</span></button>
         </div>
         <footer class="actions">
           <button class="primary commit" type="button" disabled>Review and save</button>
@@ -419,7 +457,7 @@ export default defineToolbarApp({
       </div>`;
 
     const picker = createElement('div', { class: 'picker', 'data-open': 'false' });
-    picker.innerHTML = `<span class="picker-label">Tap content to edit</span><button class="secondary picker-review" type="button" title="Expand editor and review queued changes">Review 0</button><button class="icon-button picker-close" type="button" aria-label="Disable Visual Editor" title="Disable Visual Editor">×</button>`;
+    picker.innerHTML = `<span class="picker-label">Tap content to edit</span><button class="secondary picker-review" type="button" title="Expand editor and review queued changes">Review 0</button><button class="icon-button picker-close" type="button" aria-label="Disable Visual Editor" title="Disable Visual Editor">${icon('close')}</button>`;
 
     const setupPagePicker = createElement('div', {
       class: 'setup-page-picker',
@@ -520,6 +558,7 @@ export default defineToolbarApp({
     const message = panel.querySelector<HTMLElement>('.message')!;
     const status = panel.querySelector<HTMLElement>('.status')!;
     const statusCopy = panel.querySelector<HTMLElement>('.status-copy')!;
+    const panelTitle = panel.querySelector<HTMLElement>('.panel-title')!;
     const instructions = panel.querySelector<HTMLElement>('.instructions-copy')!;
     const demoSurfaces = panel.querySelector<HTMLElement>('.demo-surfaces')!;
     const demoContext = panel.querySelector<HTMLElement>('.demo-context')!;
@@ -811,6 +850,7 @@ export default defineToolbarApp({
           ? sectionRegionElements()
           : inventory.map((item) => item.element).filter((element) => element.isConnected);
       clearInventoryMarkers();
+      document.documentElement.dataset.astroVeDocked = 'false';
       document.documentElement.dataset.astroVeSetupDocked = 'false';
       panel.dataset.open = 'false';
       picker.dataset.open = 'false';
@@ -1198,6 +1238,9 @@ export default defineToolbarApp({
     }
 
     function updateSetupDock(): void {
+      document.documentElement.dataset.astroVeDocked = String(
+        active && !minimized && mode !== 'setup',
+      );
       document.documentElement.dataset.astroVeSetupDocked = String(active && mode === 'setup');
     }
 
@@ -1690,7 +1733,34 @@ export default defineToolbarApp({
       hovered.style.removeProperty('outline');
       hovered.style.removeProperty('outline-offset');
       hovered.style.removeProperty('cursor');
+      delete hovered.dataset.astroVeTextState;
+      delete hovered.dataset.astroVeTextLabel;
       hovered = null;
+    }
+
+    function textCandidate(target: EventTarget | null): HTMLElement | null {
+      if (!(target instanceof Element) || !configReady) return null;
+      const candidate = target.closest<HTMLElement>(
+        'h1,h2,h3,h4,h5,h6,p,li,strong,em,blockquote,figcaption,a,button,span',
+      );
+      if (
+        !candidate ||
+        candidate.closest('astro-dev-toolbar') ||
+        candidate.closest('[data-astro-ve-ui]') ||
+        !candidate.textContent?.trim()
+      )
+        return null;
+      return candidate;
+    }
+
+    function textTargetLabel(candidate: HTMLElement): string {
+      if (/^H[1-6]$/.test(candidate.tagName)) return 'Heading';
+      if (candidate.tagName === 'P') return 'Paragraph';
+      if (candidate.tagName === 'LI') return 'List item';
+      if (candidate.tagName === 'A') return 'Link text';
+      if (candidate.tagName === 'BUTTON') return 'Button text';
+      if (candidate.tagName === 'STRONG') return 'Bold text';
+      return 'Text';
     }
 
     function editableTarget(target: EventTarget | null): HTMLElement | null {
@@ -1751,14 +1821,15 @@ export default defineToolbarApp({
         return;
       }
       if (!active || mode !== 'text' || textDialog.open) return;
-      const candidate = editableTarget(event.target);
+      const candidate = textCandidate(event.target);
       if (candidate === hovered) return;
       restoreHighlight();
       hovered = candidate;
       if (hovered) {
-        hovered.style.outline = '3px solid #8fc7ee';
-        hovered.style.outlineOffset = '3px';
-        hovered.style.cursor = 'text';
+        const state = classifyElement(hovered, config, editabilityPolicy).status;
+        hovered.dataset.astroVeTextState = state;
+        hovered.dataset.astroVeTextLabel = `${state === 'editable' ? 'Edit' : state === 'excluded' ? 'Locked' : state === 'unresolved' ? 'Needs setup' : 'Unsupported'} · ${textTargetLabel(hovered)}`;
+        hovered.style.cursor = state === 'editable' ? 'text' : 'not-allowed';
       }
     }
 
@@ -1800,7 +1871,22 @@ export default defineToolbarApp({
       }
       if (mode !== 'text') return;
       const candidate = editableTarget(event.target);
-      if (!candidate) return;
+      if (!candidate) {
+        const blocked = textCandidate(event.target);
+        if (!blocked) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const state = classifyElement(blocked, config, editabilityPolicy).status;
+        showMessage(
+          state === 'excluded'
+            ? 'This text is locked. Open Settings to allow it for editing.'
+            : state === 'unresolved'
+              ? 'This text needs source setup before it can be edited safely.'
+              : 'This content structure cannot be edited safely.',
+          state === 'unsafe' ? 'error' : 'warning',
+        );
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
       openTextEditor(candidate);
@@ -1954,7 +2040,7 @@ export default defineToolbarApp({
     function addControl(
       controls: HTMLElement,
       label: string,
-      text: string,
+      iconName: IconName,
       action: () => void,
     ): HTMLButtonElement {
       const button = createElement('button', {
@@ -1963,7 +2049,7 @@ export default defineToolbarApp({
         title: label,
         'data-tooltip': label,
       });
-      button.textContent = text;
+      button.innerHTML = icon(iconName);
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -1981,8 +2067,10 @@ export default defineToolbarApp({
         .querySelectorAll<HTMLElement>('[data-astro-ve-section-active]')
         .forEach((section) => {
           section.removeAttribute('data-astro-ve-section-active');
-          section.removeAttribute('tabindex');
-          section.removeAttribute('aria-label');
+          if (section.dataset.astroVeAddedTabindex === 'true') {
+            section.removeAttribute('tabindex');
+            delete section.dataset.astroVeAddedTabindex;
+          }
         });
       if (!active || mode !== 'sections') return;
       for (const region of document.querySelectorAll<HTMLElement>(
@@ -1992,24 +2080,31 @@ export default defineToolbarApp({
         if (!initialSections.has(regionKey(region)))
           initialSections.set(regionKey(region), structuredClone(current));
         ensureAnchor(region);
-        for (const section of directSections(region)) {
+        const regionSections = directSections(region);
+        for (const [sectionIndex, section] of regionSections.entries()) {
           const id = section.dataset.section!;
           const label = sectionControlLabel(section);
           sectionNodes.set(id, section);
           section.dataset.astroVeSectionActive = 'true';
-          section.tabIndex = 0;
-          section.setAttribute('aria-label', `Editable section ${label}`);
+          if (section.tabIndex < 0) {
+            section.tabIndex = 0;
+            section.dataset.astroVeAddedTabindex = 'true';
+          }
           const controls = createElement('div', {
             class: 'astro-ve-section-controls',
             'data-astro-ve-ui': 'true',
+            'data-visible': String(sectionIndex === 0),
             role: 'toolbar',
             'aria-label': `Controls for ${label}`,
           });
-          addControl(controls, `Add section before ${label}`, '+↑', () =>
+          const controlsLabel = createElement('span', { class: 'astro-ve-section-label' });
+          controlsLabel.textContent = label;
+          controls.append(controlsLabel);
+          addControl(controls, `Add section before ${label}`, 'plus', () =>
             openTemplates(section, 'before'),
           );
-          addControl(controls, `Move ${label} up`, '↑', () => moveSection(section, -1));
-          const drag = addControl(controls, `Drag ${label} to reorder`, '⠿', () => undefined);
+          addControl(controls, `Move ${label} up`, 'chevron-up', () => moveSection(section, -1));
+          const drag = addControl(controls, `Drag ${label} to reorder`, 'drag', () => undefined);
           drag.classList.add('astro-ve-drag-handle');
           drag.draggable = true;
           drag.addEventListener('dragstart', (event) => {
@@ -2025,11 +2120,11 @@ export default defineToolbarApp({
               .querySelectorAll('[data-astro-ve-drag-over]')
               .forEach((node) => node.removeAttribute('data-astro-ve-drag-over'));
           });
-          addControl(controls, `Move ${label} down`, '↓', () => moveSection(section, 1));
-          addControl(controls, `Add section after ${label}`, '+↓', () =>
+          addControl(controls, `Move ${label} down`, 'chevron-down', () => moveSection(section, 1));
+          addControl(controls, `Add section after ${label}`, 'plus', () =>
             openTemplates(section, 'after'),
           );
-          addControl(controls, `Delete section ${label}`, '×', () => {
+          addControl(controls, `Delete section ${label}`, 'delete', () => {
             deleteTarget = section;
             confirmDialog.showModal();
             confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
@@ -2043,10 +2138,24 @@ export default defineToolbarApp({
             'important',
           );
           controls.style.setProperty(
-            'right',
-            `${regionRect.right - sectionRect.right + region.scrollLeft + 10}px`,
+            'left',
+            `${sectionRect.left - regionRect.left + region.scrollLeft + 10}px`,
             'important',
           );
+          const showControls = () => {
+            region
+              .querySelectorAll<HTMLElement>('.astro-ve-section-controls')
+              .forEach((toolbar) => (toolbar.dataset.visible = String(toolbar === controls)));
+          };
+          section.addEventListener('pointerenter', showControls, {
+            signal: sectionListenerController.signal,
+          });
+          section.addEventListener('focusin', showControls, {
+            signal: sectionListenerController.signal,
+          });
+          controls.addEventListener('pointerenter', showControls, {
+            signal: sectionListenerController.signal,
+          });
           section.addEventListener('dragover', onSectionDragOver, {
             signal: sectionListenerController.signal,
           });
@@ -2209,25 +2318,37 @@ export default defineToolbarApp({
       restoreHighlight();
       for (const tab of panel.querySelectorAll<HTMLButtonElement>('.mode-tab'))
         tab.setAttribute('aria-selected', String(tab.dataset.mode === mode));
-      if (mode === 'text')
-        instructions.textContent = 'Click visible text, or focus it and press Alt+Enter.';
-      if (mode === 'sections')
-        instructions.textContent =
-          'Drag the handle to reorder, or use the keyboard-friendly move/add/delete buttons.';
-      if (mode === 'seo')
-        instructions.textContent = 'Edit page metadata through its syntax-aware source adapter.';
-      if (mode === 'review')
+      if (mode === 'text') {
+        panelTitle.textContent = 'Edit content';
+        instructions.textContent = 'Hover over page content, then click to edit.';
+      }
+      if (mode === 'sections') {
+        panelTitle.textContent = 'Edit structure';
+        instructions.textContent = 'Select a section on the page, then drag, move, add or delete.';
+      }
+      if (mode === 'seo') {
+        panelTitle.textContent = 'Page settings';
+        instructions.textContent = 'Edit SEO and sharing details for this page.';
+      }
+      if (mode === 'review') {
+        panelTitle.textContent = 'Review changes';
         instructions.textContent = 'Review every queued source change before committing the batch.';
-      if (mode === 'setup')
+      }
+      if (mode === 'setup') {
+        panelTitle.textContent = 'Editor settings';
         instructions.textContent =
           'Set up text permissions and reorderable section regions without weakening source safety.';
+      }
       setupButton.setAttribute('aria-pressed', String(mode === 'setup'));
       setupButton.setAttribute(
         'aria-label',
         mode === 'setup' ? 'Back to editor' : 'Open Editor Setup',
       );
       setupButton.title = mode === 'setup' ? 'Back to editor' : 'Open Editor Setup';
-      setupButton.textContent = mode === 'setup' ? '← Back' : 'Settings';
+      setupButton.innerHTML =
+        mode === 'setup'
+          ? `<span aria-hidden="true">←</span><span class="utility-label">Back</span>`
+          : `${icon('settings')}<span class="utility-label">Settings</span>`;
       pickerLabel.textContent =
         mode === 'sections'
           ? 'Arrange sections'
@@ -2243,11 +2364,10 @@ export default defineToolbarApp({
             '[data-astro-edit-region], [data-astro-edit-sections]',
           ),
         ].some((region) => directSections(region).length > 0);
-        if (hasEditableRegion) setMinimized(true);
-        else {
-          setMinimized(false);
+        setMinimized(matchMedia('(max-width: 640px)').matches);
+        if (!hasEditableRegion) {
           showMessage(
-            'No section region is enabled on this page yet. Choose “Select section on page”, then hover and click the area you want to reorder.',
+            'No section area is enabled yet. Select an area on the page to start arranging it.',
             'warning',
           );
         }
@@ -2261,6 +2381,7 @@ export default defineToolbarApp({
       picker.dataset.open = String(active && value);
       minimizeButton.setAttribute('aria-label', value ? 'Expand editor' : 'Collapse editor');
       minimizeButton.title = value ? 'Expand editor' : 'Collapse editor';
+      updateSetupDock();
     }
 
     function activate(): void {

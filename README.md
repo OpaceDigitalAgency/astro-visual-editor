@@ -29,7 +29,7 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 
 | At a glance     | Behaviour                                                                      |
 | --------------- | ------------------------------------------------------------------------------ |
-| Editing surface | Astro's native development toolbar on the rendered page                        |
+| Editing surface | A Divi/Elementor-style inspector docked beside the rendered page               |
 | Content         | Discovered or mapped Astro/Markdown, JSON/JSONC and YAML values                |
 | Page structure  | Enable and reorder Astro children or complete JSON/YAML arrays safely          |
 | Changes         | One mixed text, SEO and section tray with undo, redo, save and guarded restore |
@@ -38,6 +38,8 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 ## What it does
 
 - Click rendered text and preview a replacement in place.
+- Hover familiar page content to see an **Edit · Heading**, **Edit · Paragraph**
+  or clear locked/unsupported state before clicking.
 - Edit title, description, keywords, canonical URL, Open Graph fields and
   robots directives in one SEO form.
 - Enable existing page regions, then add, delete or reorder supported sections.
@@ -58,9 +60,19 @@ The old editor documented drag-and-drop but only implemented up/down buttons.
 This package provides both genuine drag-and-drop and accessible button/keyboard
 alternatives.
 
-The workbench can be collapsed to a compact picker on desktop or mobile. Icon
-controls expose visible hover/focus tooltips and accessible names, and dialogs
-close through Cancel, Escape or a click on the backdrop.
+The visual builder uses a familiar purple inspector with icon-led **Content**,
+**Structure** and **Page** tabs. The page makes room for the inspector on
+desktop rather than hiding it over the content. Structure mode adds Divi-style
+blue outlines and a contextual toolbar to the selected page item, with add,
+move, drag and delete actions in one place. The inspector can be collapsed to a
+compact picker on desktop or mobile. Icon controls expose visible hover/focus
+tooltips and accessible names, and dialogs close through Cancel, Escape or a
+click on the backdrop.
+
+The familiar presentation does not weaken the source boundary: **Review
+changes** still exposes the exact mixed change ledger before anything is saved,
+and all existing Setup, undo, redo, history, safe retry and restore capabilities
+remain available.
 
 ## Source-write safety
 
@@ -131,11 +143,11 @@ toolbar and select **Astro Visual Editor**.
 
 Suggested review path:
 
-1. In **Text**, edit the hero heading and queue it without committing.
+1. In **Content**, edit the hero heading and queue it without committing.
 2. Undo and redo the queued preview, then open the **Changes** tray.
-3. In **Sections**, drag a card by its handle, use a move button, insert a
+3. In **Structure**, drag a card by its handle, use a move button, insert a
    template and undo the structural changes.
-4. In **SEO**, change a field and inspect its queued preview.
+4. In **Page**, change an SEO field and inspect its queued preview.
 5. Commit only when you intentionally want to modify `demo/src/pages/index.astro`;
    use **Restore previous save** immediately afterwards to test safe restoration.
 6. Narrow the viewport to exercise compact Pick mode and the Changes sheet.
@@ -153,7 +165,7 @@ writes are disabled by default when the dev server is exposed beyond loopback.
 
 Choose the settings control in the workbench to open the owner-only setup mode.
 On desktop the settings panel docks beside the page so the content remains visible.
-It exposes matching **Sections** and **Text** on-page selectors. Full searchable
+It exposes matching **Structure** and **Content** on-page selectors. Full searchable
 text and section inventories remain collapsed under **Manage all text** and
 **Manage sections** until needed. Section mappings
 map existing page containers to syntax-aware source structures for safe
@@ -184,14 +196,14 @@ An allow rule only makes an element selectable. It does not override explicit
 `data-astro-edit-ignore` exclusions, unsafe nested structure, missing source
 ownership or syntax-aware adapter validation.
 
-### Text
+### Content
 
 Click an eligible leaf text element. The dialog shows its expected source file,
 previews the new value and adds it to the ledger without writing source.
 
 Keyboard users can focus editable content and press `Alt+Enter`.
 
-### Sections
+### Structure
 
 An owner can choose **Select section on page** or **Choose from list**. After
 clicking page content, the editor shows every valid nesting level under that
@@ -241,7 +253,7 @@ Available controls:
 
 Three neutral templates ship by default: `hero`, `features` and `text`.
 
-### SEO
+### Page
 
 Mark the file that owns rendered metadata when it differs from the normal route
 mapping:

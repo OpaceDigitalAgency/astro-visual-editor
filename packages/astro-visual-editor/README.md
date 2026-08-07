@@ -145,11 +145,12 @@ visualEditor({
 
 ## Direct canvas locks
 
-Ordinary editing has no separate permission setup screen. When the editor
-opens, blue boundaries are editable, gold boundaries are owner-locked and red
-boundaries are source-protected. Hover an element or section and click its lock
-icon, or use the same Lock/Unlock action in the selected-item inspector. That
-single owner action is server-validated and persisted to
+Ordinary editing has no separate permission setup screen. Hierarchy colours
+identify groups, sections and content levels, while visible badges and
+lock/shield controls identify **Editable**, **Locked** and **Protected** states.
+Hover an element or section and click its lock icon, or use the same Lock/Unlock
+action in the selected-item inspector. That single owner action is
+server-validated and persisted to
 `astro-visual-editor.policy.json` with expected-hash conflict protection.
 
 Saved policy survives reloads and other checkouts because it is a normal
@@ -167,6 +168,10 @@ candidate supports contiguous Astro component/element children and complete
 JSON/JSONC or YAML array items. Structured candidates must match rendered child
 values in order. Source blocks and structured items are hash-checked before
 every reorder; ambiguous structure stays protected.
+
+Each mapped row or block region reorders only its own direct source-owned
+children. A successful structural save resets the local baseline; a later
+order-only source difference is rebased only when the same stable IDs remain.
 
 Projects can still declare a region directly:
 

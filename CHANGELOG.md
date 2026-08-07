@@ -57,6 +57,9 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Reset the structural source baseline after every successful save and safely
   rebase order-only drift, fixing repeated saves that previously reported
   `Section order changed before commit`.
+- Persisted the temporarily deferred failed item before **Save the rest**, so a
+  fast Astro HMR/navigation on Node 24 cannot lose it before the independent
+  save response returns.
 
 ### Security
 

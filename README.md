@@ -83,8 +83,8 @@ type. Its stable **Content / Design / Advanced** settings follow the familiar
 Divi/Elementor model: typing in Content previews and auto-queues the value,
 Design reports the
 actual rendered typography and spacing, and Advanced identifies its source
-file, structured field and page selector. Structure selection uses the same
-inspector contract alongside its on-canvas add, move, drag and delete toolbar.
+file, structured field and page selector. Section, row and block selection uses
+the same inspector contract alongside contextual move, drag and delete tools.
 Style values remain read-only when the owning CSS or Astro style source cannot
 be proven safely; the editor labels that boundary instead of offering a control
 that cannot persist.
@@ -170,29 +170,31 @@ toolbar and select **Astro Visual Editor**.
 
 Suggested review path:
 
-1. In **Content**, edit the hero heading and queue it without committing.
-2. Undo and redo the queued preview, then open the **Changes** tray.
-3. In **Structure**, drag a card by its handle, use a move button, insert a
-   template and undo the structural changes.
-4. In **Page**, change an SEO field and inspect its queued preview.
-5. Commit only when you intentionally want to modify `demo/src/pages/index.astro`;
-   use **Restore previous save** immediately afterwards to test safe restoration.
-6. Narrow the viewport to exercise compact Pick mode and the Changes sheet.
-7. Use **Complex sources** in the workbench to open `/fixtures/complex`. Queue
-   the shared JSON hero title and the Content Collection title, review the
-   two-file diff, then commit and restore it from History. The fixture proves
-   layout, component, JSON and Markdown-frontmatter ownership in one route.
+1. On the **Builder** canvas, edit the Hero heading and confirm the local
+   Changes count updates automatically without a Queue button.
+2. Undo and redo the preview, then open the **Changes** tray.
+3. Use persistent drag dots to reorder a section and a nested Hero block, then
+   test the equivalent move button and keyboard control.
+4. In **Page**, change an SEO field and confirm it joins the same unsaved set.
+5. Save only when you intentionally want to modify demo source; use **Restore
+   previous save** immediately afterwards to test safe restoration.
+6. Make a second structural change and save again to prove the source baseline
+   resets safely.
+7. Use **Complex sources** to edit independent JSON and Content Collection
+   values, inspect the multi-file diff, and test **Keep editing** or conditional
+   **Save the rest** if a source conflict is deliberately introduced.
+8. Narrow the viewport to exercise compact Pick mode and the Changes sheet.
 
 Port 4322 is only a documented demo choice; any free loopback port works. Source
 writes are disabled by default when the dev server is exposed beyond loopback.
 
-## Editor modes
+## Visual-builder workflow
 
 ### Direct canvas permissions
 
 There is no permission setup journey in ordinary editing. The visual editor
 automatically displays every discovered element and declared section, then
-labels it **Unlocked**, **Locked** or **Protected**. An owner clicks the lock
+labels it **Editable**, **Locked** or **Protected**. An owner clicks the lock
 icon on the element/section toolbar or the selected-item inspector; the server
 validates the exact policy diff and expected hash before persisting the change
 to `astro-visual-editor.policy.json`.
@@ -219,10 +221,11 @@ Keyboard users can focus editable content and press `Alt+Enter`.
 ### Builder sections
 
 Every declared or saved source-owned region is active immediately. Named group
-and section handles remain visible; hover, focus or selection expands settings,
-lock, move, drag and delete icons. Clicking the section opens its contextual
-inspector automatically. Add before and Add
-after are available in that inspector. Contiguous Astro component/element
+and section handles remain visible, and every source-owned nested row/block has
+its own persistent drag dots. Clicking the dots expands settings, lock, move,
+drag and delete icons for that exact hierarchy level. Clicking the section
+opens its contextual inspector automatically. Add before and Add after are
+available in that inspector. Contiguous Astro component/element
 children and complete JSON/JSONC or YAML arrays remain hash-checked before
 reordering, and unsupported structure is visibly protected rather than
 appearing movable.
@@ -302,6 +305,11 @@ selectors and complete before/after values remain available under
 - a bounded source check that keeps the queue intact and offers a retry if the
   development connection stops responding;
 - revert the latest successful receipt while its files remain unchanged.
+
+A refused save retains the entire draft and identifies the affected change in
+plain language. **Keep editing** returns to the unchanged queue. When exactly
+one failed item can be isolated and independent work remains, **Save the rest**
+saves that valid subset and returns the failed item to the tray.
 
 Structural rows use semantic summaries such as **Reordered 3 sections** or
 **Added 1 section**, followed by readable section names instead of internal
@@ -530,9 +538,9 @@ Astro integration (development command only)
 - Exact source values can be discovered across supported formats, but
   transformed output that cannot be reversed to one source target still
   requires owner confirmation or is refused.
-- Section Setup maps contiguous Astro children and complete JSON/JSONC or YAML
-  arrays. It does not infer Markdown heading groups or filtered, merged and
-  transformed subsets.
+- Declared or saved source-owned regions map contiguous Astro children, nested
+  direct rows/blocks and complete JSON/JSONC or YAML arrays. They do not infer
+  Markdown heading groups or filtered, merged and transformed subsets.
 - Existing sections cannot be moved across unrelated regions, and templates
   cannot be dropped onto arbitrary page locations.
 - It does not infer every import/data dependency or provide a full schema-aware

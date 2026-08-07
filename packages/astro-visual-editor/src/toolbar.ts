@@ -73,6 +73,7 @@ type EditorMode = 'text' | 'sections' | 'seo' | 'review' | 'setup';
 type MessageKind = 'error' | 'success' | 'warning';
 
 const SESSION_QUEUE = `${APP_ID}:queue:v2`;
+const SESSION_DEFERRED_FAILURES = `${APP_ID}:deferred-failures:v1`;
 const SESSION_CLIENT = `${APP_ID}:client-id`;
 const SESSION_PENDING = `${APP_ID}:pending`;
 const SESSION_RECEIPT = `${APP_ID}:last-receipt`;
@@ -358,6 +359,15 @@ function safeParseQueue(): EditorChange[] {
   }
 }
 
+function safeParseDeferredFailures(): EditorChange[] {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(SESSION_DEFERRED_FAILURES) ?? '[]');
+    return Array.isArray(value) ? (value as EditorChange[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 function safeParseConfig(): ClientEditorConfig | undefined {
   try {
     const value = JSON.parse(sessionStorage.getItem(SESSION_CONFIG) ?? 'null');
@@ -402,7 +412,9 @@ export default defineToolbarApp({
     let previewRequestId: string | undefined;
     let previewInFlight = false;
     let failedChangeId: string | undefined;
-    const deferredFailedChanges = new Map<string, EditorChange>();
+    const deferredFailedChanges = new Map<string, EditorChange>(
+      safeParseDeferredFailures().map((change) => [changeKey(change), change]),
+    );
     let minimized = matchMedia('(max-width: 640px)').matches;
     let editabilityPolicy = structuredClone(emptyEditabilityPolicy);
     let draftEditabilityPolicy = structuredClone(emptyEditabilityPolicy);
@@ -765,6 +777,17 @@ export default defineToolbarApp({
       const changes = serializableQueue();
       hasUnsavedChanges = changes.length > 0 || Boolean(pendingRequestId);
       sessionStorage.setItem(SESSION_QUEUE, JSON.stringify(changes));
+    }
+
+    function persistDeferredFailures(): void {
+      if (deferredFailedChanges.size === 0) {
+        sessionStorage.removeItem(SESSION_DEFERRED_FAILURES);
+        return;
+      }
+      sessionStorage.setItem(
+        SESSION_DEFERRED_FAILURES,
+        JSON.stringify([...deferredFailedChanges.values()]),
+      );
     }
 
     function showMessage(text: string, kind: MessageKind): void {
@@ -3080,6 +3103,7 @@ export default defineToolbarApp({
         sessionStorage.removeItem(SESSION_PENDING);
         for (const [key, change] of deferredFailedChanges) queue.set(key, change);
         deferredFailedChanges.clear();
+        persistDeferredFailures();
         history.record(serializableQueue());
         if (queue.size === 0) sessionStorage.removeItem(SESSION_QUEUE);
         lastReceiptId = response.receiptId;
@@ -3097,6 +3121,9 @@ export default defineToolbarApp({
       } else {
         pendingRequestId = undefined;
         sessionStorage.removeItem(SESSION_PENDING);
+        for (const [key, change] of deferredFailedChanges) queue.set(key, change);
+        deferredFailedChanges.clear();
+        persistDeferredFailures();
         showSaveFailure(response.error, response.failedChangeId);
       }
       renderQueue();
@@ -3291,6 +3318,7 @@ export default defineToolbarApp({
       const failedEntry = [...queue].find(([, change]) => change.id === failedChangeId);
       if (!failedEntry) return;
       deferredFailedChanges.set(failedEntry[0], failedEntry[1]);
+      persistDeferredFailures();
       queue.delete(failedEntry[0]);
       failedChangeId = undefined;
       saveRecovery.hidden = true;

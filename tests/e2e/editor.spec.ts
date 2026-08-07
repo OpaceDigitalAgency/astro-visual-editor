@@ -421,14 +421,26 @@ test('keeps every draft after a conflict and can save the independent changes', 
 
     await expect(current.workbench.getByText(/Nothing was saved/u)).toBeVisible();
     await expect(current.workbench.getByRole('button', { name: 'Keep editing' })).toBeVisible();
-    await current.workbench.getByRole('button', { name: 'Save the rest' }).click();
+    const replacement = page.waitForEvent('framenavigated');
+    const deferredDraft = await current.workbench
+      .getByRole('button', { name: 'Save the rest' })
+      .evaluate((button: HTMLButtonElement) => {
+        button.click();
+        const stored = sessionStorage.getItem('astro-visual-editor:deferred-failures:v1');
+        // Force replacement before the asynchronous save response can reach
+        // this toolbar, matching Astro's faster HMR ordering on Node 24 CI.
+        setTimeout(() => window.location.reload(), 0);
+        return stored;
+      });
+    expect(deferredDraft).not.toBeNull();
+    await replacement;
+    await page.waitForLoadState('domcontentloaded');
+    await waitForWorkbenchButtonEnabled(page, /changes tray, 1 queued change/u);
+    current = await enableEditor(page);
 
     await expect
       .poll(async () => readFile(complexJsonSource, 'utf8'))
       .toContain('Independent JSON title');
-    await expect(
-      current.workbench.getByText(/change that needs attention is still here/u),
-    ).toBeVisible();
     await expect(
       current.workbench.getByRole('button', { name: /changes tray, 1 queued change/u }),
     ).toBeVisible();

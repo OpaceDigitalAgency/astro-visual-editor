@@ -821,7 +821,7 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
   test.setTimeout(90_000);
   const originalSource = await readFile(demoSource, 'utf8');
   const context = await browser.newContext({
-    baseURL: 'http://localhost:4357',
+    baseURL: `http://localhost:${process.env.PW_PORT ?? 4357}`,
     viewport: { width: 1440, height: 980 },
   });
   const pageA = await context.newPage();
@@ -859,7 +859,7 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   browser,
 }) => {
   const context = await browser.newContext({
-    baseURL: 'http://localhost:4357',
+    baseURL: `http://localhost:${process.env.PW_PORT ?? 4357}`,
     viewport: { width: 390, height: 844 },
     hasTouch: true,
     isMobile: true,

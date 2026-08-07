@@ -513,6 +513,75 @@ test('adds a section and saves an auto-queued text edit inside it in one atomic 
   }
 });
 
+test('previews which side a dragged block will land on', async ({ page }) => {
+  // The drop highlight says which element a block lands in; without an edge
+  // indicator it does not say which side, so a drop that lands correctly is
+  // indistinguishable from one that did nothing. The bar is driven by the same
+  // midpoint test onSectionDrop uses, so preview and result cannot disagree.
+  // Assert the painted computed style: an earlier version of this highlight was
+  // applied but never rendered, because a higher-specificity rule outranked it.
+  test.setTimeout(60_000);
+  const simple = await enableEditor(page);
+  await simple.workbench.getByRole('button', { name: 'Complex sources' }).click();
+  await expect(page).toHaveURL(/\/fixtures\/complex$/);
+  await enableEditor(page);
+
+  const heading = page.locator('[data-section="hero-heading"]');
+  await expect(heading).toBeVisible();
+
+  const painted = await heading.evaluate((el: HTMLElement) => {
+    const read = (edge: string) => {
+      el.dataset.astroVeDragOver = 'true';
+      el.dataset.astroVeDropEdge = edge;
+      const style = getComputedStyle(el);
+      const seen = { outline: style.outline, shadow: style.boxShadow };
+      delete el.dataset.astroVeDragOver;
+      delete el.dataset.astroVeDropEdge;
+      return seen;
+    };
+    return { resting: getComputedStyle(el).boxShadow, before: read('before'), after: read('after') };
+  });
+
+  // The drop target must visibly change, in the accent colour, not the resting grey.
+  expect(painted.before.outline).toContain('233, 75, 138');
+  // The edge bar must be painted, on opposite sides for before vs after.
+  expect(painted.before.shadow).toContain('233, 75, 138');
+  expect(painted.after.shadow).toContain('233, 75, 138');
+  expect(painted.before.shadow).not.toEqual(painted.after.shadow);
+  expect(painted.resting).not.toContain('233, 75, 138');
+});
+
+test('clears drop feedback when a drag leaves and when it ends', async ({ page }) => {
+  // Stale feedback is worse than none: a bar left behind points at a target
+  // that is no longer live. dragleave and dragend must both clear both flags.
+  const simple = await enableEditor(page);
+  await simple.workbench.getByRole('button', { name: 'Complex sources' }).click();
+  await expect(page).toHaveURL(/\/fixtures\/complex$/);
+  await enableEditor(page);
+
+  const summary = page.locator('[data-section="hero-summary"]');
+  await summary.scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollBy(0, -260));
+  await summary.hover();
+  const handle = page
+    .locator('.astro-ve-section-controls[data-section-id="hero-summary"]')
+    .getByRole('button', { name: 'Drag Summary to reorder' });
+  await expect(handle).toBeVisible();
+
+  const hb = (await handle.boundingBox())!;
+  const heading = (await page.locator('[data-section="hero-heading"]').boundingBox())!;
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x + hb.width / 2, heading.y + heading.height * 0.25, { steps: 20 });
+  await page.mouse.up();
+
+  await expect
+    .poll(async () =>
+      page.locator('[data-astro-ve-drag-over], [data-astro-ve-drop-edge]').count(),
+    )
+    .toBe(0);
+});
+
 test('reorders nested hero blocks and saves two structural changes consecutively', async ({
   page,
 }) => {

@@ -2828,8 +2828,11 @@ export default defineToolbarApp({
               delete section.dataset.astroVeDragging;
               draggedSection = null;
               document
-                .querySelectorAll('[data-astro-ve-drag-over]')
-                .forEach((node) => node.removeAttribute('data-astro-ve-drag-over'));
+                .querySelectorAll('[data-astro-ve-drag-over], [data-astro-ve-drop-edge]')
+                .forEach((node) => {
+                  node.removeAttribute('data-astro-ve-drag-over');
+                  node.removeAttribute('data-astro-ve-drop-edge');
+                });
             });
             addControl(controls, `Move ${label} down`, 'chevron-down', () =>
               moveSection(section, 1),
@@ -2906,9 +2909,14 @@ export default defineToolbarApp({
           section.addEventListener('dragover', onSectionDragOver, {
             signal: sectionListenerController.signal,
           });
-          section.addEventListener('dragleave', () => delete section.dataset.astroVeDragOver, {
-            signal: sectionListenerController.signal,
-          });
+          section.addEventListener(
+            'dragleave',
+            () => {
+              delete section.dataset.astroVeDragOver;
+              delete section.dataset.astroVeDropEdge;
+            },
+            { signal: sectionListenerController.signal },
+          );
           section.addEventListener('drop', onSectionDrop, {
             signal: sectionListenerController.signal,
           });
@@ -2924,6 +2932,12 @@ export default defineToolbarApp({
         return;
       event.preventDefault();
       target.dataset.astroVeDragOver = 'true';
+      // The highlight says which element the drop lands in; this says which
+      // side of it. Uses the same midpoint test as onSectionDrop, so the
+      // preview cannot disagree with the result.
+      const rect = target.getBoundingClientRect();
+      target.dataset.astroVeDropEdge =
+        event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
       if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
     }
 

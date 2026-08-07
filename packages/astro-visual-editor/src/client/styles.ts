@@ -378,6 +378,10 @@ export const pageSectionStyles = String.raw`
   [data-astro-ve-drag-over="true"] { outline: 4px dashed #e94b8a !important; outline-offset: -5px; }
   /* Must outrank the block/section hover rules above (drops happen while hovered). */
   [data-astro-ve-section-active="true"][data-astro-ve-hierarchy][data-astro-ve-drag-over="true"] { outline: 4px dashed #e94b8a !important; outline-offset: -5px !important; }
+  /* The highlight above says which element the drop lands in; these say which
+     side of it, driven by the same midpoint test onSectionDrop uses. */
+  [data-astro-ve-drop-edge="before"] { box-shadow: inset 0 6px 0 0 #e94b8a !important; }
+  [data-astro-ve-drop-edge="after"] { box-shadow: inset 0 -6px 0 0 #e94b8a !important; }
   [data-astro-ve-dragging="true"] { opacity: .55 !important; }
   [data-astro-ve-ui] { box-sizing: border-box; }
   [data-astro-ve-inventory-status] { outline: none !important; }

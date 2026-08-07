@@ -35,6 +35,21 @@ async function enableEditor(page: import('@playwright/test').Page) {
   return { toolbar, workbench: toolbar.locator('.workbench') };
 }
 
+async function selectedTextInspector(toolbar: import('@playwright/test').Locator) {
+  const inspector = toolbar.locator('.selection-inspector');
+  await expect(inspector).toBeVisible();
+  return inspector;
+}
+
+async function queueSelectedText(
+  toolbar: import('@playwright/test').Locator,
+  value: string,
+): Promise<void> {
+  const inspector = await selectedTextInspector(toolbar);
+  await inspector.locator('textarea').fill(value);
+  await inspector.getByRole('button', { name: /Queue change|Update queued change/ }).click();
+}
+
 async function ensureDetailsOpen(details: import('@playwright/test').Locator): Promise<void> {
   if ((await details.getAttribute('open')) === null)
     await details.locator(':scope > summary').click();
@@ -190,9 +205,15 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(lead).toHaveAttribute('data-astro-ve-text-label', 'Edit · Paragraph');
   const originalLead = (await lead.textContent())!.trim();
   await lead.click();
-  const textDialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-  await textDialog.locator('textarea').fill('Browser workflow preview copy.');
-  await textDialog.getByRole('button', { name: 'Queue change' }).click();
+  const inspector = await selectedTextInspector(toolbar);
+  await expect(workbench.getByRole('heading', { name: 'Edit paragraph' })).toBeVisible();
+  await expect(inspector.getByRole('tab', { name: 'Content' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(inspector.getByRole('tab', { name: 'Design' })).toBeVisible();
+  await expect(inspector.getByRole('tab', { name: 'Advanced' })).toBeVisible();
+  await queueSelectedText(toolbar, 'Browser workflow preview copy.');
   await expect(lead).toHaveText('Browser workflow preview copy.');
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(lead).toHaveText(originalLead);
@@ -203,6 +224,14 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await workbench.getByRole('tab', { name: 'Structure' }).click();
   await expect(workbench).toBeVisible();
   await expect(picker).toBeHidden();
+  await page.locator('[data-section="preview"]').dispatchEvent('click');
+  const sectionInspector = toolbar.locator('.selection-inspector');
+  await expect(sectionInspector).toBeVisible();
+  await expect(workbench.getByRole('heading', { name: 'Edit section' })).toBeVisible();
+  await expect(sectionInspector.getByRole('tab', { name: 'Content' })).toBeVisible();
+  await expect(sectionInspector.getByRole('tab', { name: 'Design' })).toBeVisible();
+  await expect(sectionInspector.getByRole('tab', { name: 'Advanced' })).toBeVisible();
+  await sectionInspector.getByRole('button', { name: 'Done' }).click();
   const firstControlsBox = (await page
     .locator('.astro-ve-section-controls')
     .first()
@@ -285,17 +314,23 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     const { toolbar, workbench: complexWorkbench } = await enableEditor(page);
 
     await page.locator('[data-demo-json-title]').click();
-    let dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await expect(dialog).toContainText('src/data/complex-page.json → hero.title');
-    await expect(dialog).toContainText('Shared source: this edit will affect 2 routes.');
-    await dialog.locator('textarea').fill('A safely updated JSON title');
-    await dialog.getByRole('button', { name: 'Queue change' }).click();
+    let inspector = await selectedTextInspector(toolbar);
+    await inspector.getByRole('tab', { name: 'Advanced' }).click();
+    await expect(inspector.locator('.inspector-file')).toHaveText('src/data/complex-page.json');
+    await expect(inspector.locator('.inspector-source-path')).toHaveText('hero.title');
+    await inspector.getByRole('tab', { name: 'Content' }).click();
+    await expect(inspector).toContainText('Shared source: this edit will affect 2 routes.');
+    await queueSelectedText(toolbar, 'A safely updated JSON title');
 
     await page.locator('[data-demo-collection-title]').click();
-    dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await expect(dialog).toContainText('src/content/case-studies/harbour.md → frontmatter.title');
-    await dialog.locator('textarea').fill('Harbour launch plan, reviewed');
-    await dialog.getByRole('button', { name: 'Queue change' }).click();
+    inspector = await selectedTextInspector(toolbar);
+    await inspector.getByRole('tab', { name: 'Advanced' }).click();
+    await expect(inspector.locator('.inspector-file')).toHaveText(
+      'src/content/case-studies/harbour.md',
+    );
+    await expect(inspector.locator('.inspector-source-path')).toHaveText('frontmatter.title');
+    await inspector.getByRole('tab', { name: 'Content' }).click();
+    await queueSelectedText(toolbar, 'Harbour launch plan, reviewed');
 
     await complexWorkbench.getByRole('tab', { name: 'Page' }).click();
     const seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
@@ -380,11 +415,9 @@ test('targets each repeated JSON-backed evidence card independently', async ({ p
     await complexWorkbench.getByRole('tab', { name: 'Content' }).click();
 
     await values.nth(2).click();
-    let dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await expect(dialog).toContainText('src/data/complex-page.json → evidence.2.value');
-    await expect(dialog.locator('textarea')).toHaveValue('Direct JSON properties');
-    await dialog.locator('textarea').fill('Direct JSON properties, updated');
-    await dialog.getByRole('button', { name: 'Queue change' }).click();
+    let inspector = await selectedTextInspector(toolbar);
+    await expect(inspector.locator('textarea')).toHaveValue('Direct JSON properties');
+    await queueSelectedText(toolbar, 'Direct JSON properties, updated');
     await expect(values).toHaveText([
       'Shared navigation and footer',
       'Reusable hero and proof cards',
@@ -392,11 +425,9 @@ test('targets each repeated JSON-backed evidence card independently', async ({ p
     ]);
 
     await values.nth(1).click();
-    dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await expect(dialog).toContainText('src/data/complex-page.json → evidence.1.value');
-    await expect(dialog.locator('textarea')).toHaveValue('Reusable hero and proof cards');
-    await dialog.locator('textarea').fill('Reusable component proof, updated');
-    await dialog.getByRole('button', { name: 'Queue change' }).click();
+    inspector = await selectedTextInspector(toolbar);
+    await expect(inspector.locator('textarea')).toHaveValue('Reusable hero and proof cards');
+    await queueSelectedText(toolbar, 'Reusable component proof, updated');
     await expect(values).toHaveText([
       'Shared navigation and footer',
       'Reusable component proof, updated',
@@ -650,22 +681,29 @@ test('commits and restores literal text owned by the route, component and layout
     const { toolbar, workbench: complexWorkbench } = await enableEditor(page);
 
     await page.getByText('Content Collection', { exact: true }).click();
-    let dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await expect(dialog).toContainText('src/pages/fixtures/complex.astro');
-    await dialog.locator('textarea').fill('Collection source, reviewed');
-    await dialog.getByRole('button', { name: 'Queue change' }).click();
+    let inspector = await selectedTextInspector(toolbar);
+    await inspector.getByRole('tab', { name: 'Advanced' }).click();
+    await expect(inspector.locator('.inspector-file')).toHaveText(
+      'src/pages/fixtures/complex.astro',
+    );
+    await inspector.getByRole('tab', { name: 'Content' }).click();
+    await queueSelectedText(toolbar, 'Collection source, reviewed');
 
     await page.getByText('What this route proves', { exact: true }).click();
-    dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await expect(dialog).toContainText('src/components/EvidenceGrid.astro');
-    await dialog.locator('textarea').fill('What these components prove');
-    await dialog.getByRole('button', { name: 'Queue change' }).click();
+    inspector = await selectedTextInspector(toolbar);
+    await inspector.getByRole('tab', { name: 'Advanced' }).click();
+    await expect(inspector.locator('.inspector-file')).toHaveText(
+      'src/components/EvidenceGrid.astro',
+    );
+    await inspector.getByRole('tab', { name: 'Content' }).click();
+    await queueSelectedText(toolbar, 'What these components prove');
 
     await page.getByText('Recovery', { exact: true }).click();
-    dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await expect(dialog).toContainText('src/layouts/DemoLayout.astro');
-    await dialog.locator('textarea').fill('Recovery, verified');
-    await dialog.getByRole('button', { name: 'Queue change' }).click();
+    inspector = await selectedTextInspector(toolbar);
+    await inspector.getByRole('tab', { name: 'Advanced' }).click();
+    await expect(inspector.locator('.inspector-file')).toHaveText('src/layouts/DemoLayout.astro');
+    await inspector.getByRole('tab', { name: 'Content' }).click();
+    await queueSelectedText(toolbar, 'Recovery, verified');
 
     await complexWorkbench
       .getByRole('button', { name: 'Open changes tray, 3 queued changes' })
@@ -711,9 +749,7 @@ test('commits through HMR and restores from durable History', async ({ page }) =
     const lead = page.locator('[data-astro-edit-id="hero-lead"]');
     const originalText = (await lead.textContent())!.trim();
     await lead.click();
-    const dialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await dialog.locator('textarea').fill('Committed browser test copy.');
-    await dialog.getByRole('button', { name: 'Queue change' }).click();
+    await queueSelectedText(toolbar, 'Committed browser test copy.');
     await reviewAndCommit(toolbar, workbench);
     await expect(lead).toHaveText('Committed browser test copy.', { timeout: 15_000 });
 
@@ -744,14 +780,10 @@ test('isolates save responses and queues between two browser tabs', async ({ bro
     const editorB = await enableEditor(pageB);
 
     await pageA.locator('[data-demo-banner]').click();
-    const dialogA = editorA.toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await dialogA.locator('textarea').fill('Committed only from tab A');
-    await dialogA.getByRole('button', { name: 'Queue change' }).click();
+    await queueSelectedText(editorA.toolbar, 'Committed only from tab A');
 
     await pageB.locator('[data-astro-edit-id="hero-title"]').click();
-    const dialogB = editorB.toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await dialogB.locator('textarea').fill('Queued only in tab B');
-    await dialogB.getByRole('button', { name: 'Queue change' }).click();
+    await queueSelectedText(editorB.toolbar, 'Queued only in tab B');
     await waitForWorkbenchButtonEnabled(pageB, 'Open changes tray, 1 queued change');
 
     await reviewAndCommit(editorA.toolbar, editorA.workbench);
@@ -895,10 +927,10 @@ test('inventories page content and persists reviewed owner allow and deny policy
     ({ toolbar, workbench } = await enableEditor(page));
 
     await page.locator('[data-section="preview"] strong').click();
-    let textDialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await expect(textDialog).toBeVisible();
-    await expect(textDialog.locator('.dialog-file')).toHaveText('src/pages/index.astro');
-    await textDialog.getByRole('button', { name: 'Cancel' }).click();
+    let inspector = await selectedTextInspector(toolbar);
+    await inspector.getByRole('tab', { name: 'Advanced' }).click();
+    await expect(inspector.locator('.inspector-file')).toHaveText('src/pages/index.astro');
+    await inspector.getByRole('button', { name: 'Cancel element editing' }).click();
 
     await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
     await expect(workbench.locator('.message')).toBeHidden();
@@ -961,12 +993,13 @@ test('inventories page content and persists reviewed owner allow and deny policy
     ).toBeVisible();
     ({ toolbar, workbench } = await enableEditor(page));
     await page.getByText('This source needs owner confirmation.').click();
-    textDialog = toolbar.locator('dialog').filter({ hasText: 'Edit text' });
-    await expect(textDialog).toBeVisible();
-    await expect(textDialog.locator('.dialog-file')).toContainText(
-      'src/pages/fixtures/article.astro → astro:text:',
+    inspector = await selectedTextInspector(toolbar);
+    await inspector.getByRole('tab', { name: 'Advanced' }).click();
+    await expect(inspector.locator('.inspector-file')).toContainText(
+      'src/pages/fixtures/article.astro',
     );
-    await textDialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(inspector.locator('.inspector-source-path')).toContainText('astro:text:');
+    await inspector.getByRole('button', { name: 'Cancel element editing' }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
     await ensureDetailsOpen(workbench.locator('.manage-text'));

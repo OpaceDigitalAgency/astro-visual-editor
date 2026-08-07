@@ -41,6 +41,15 @@ The project follows [Semantic Versioning](https://semver.org/).
   Divi and Elementor: a persistent purple left inspector, icon-led **Content**,
   **Structure** and **Page** tabs, clear mode titles and one prominent **Review
   changes** action.
+- Made desktop selection open an object-named settings inspector rather than a
+  detached text modal. Heading, paragraph and section settings now retain the
+  selected canvas outline and use stable **Content / Design / Advanced** tabs.
+- Moved functional text replacement and queueing into the Content inspector,
+  exposed exact file/field/selector ownership under Advanced, and displayed
+  computed typography and spacing under Design without implying that an
+  unresolved CSS source can be written safely.
+- Added section settings to the same inspector, with source-safe add before,
+  add after and delete actions alongside the contextual canvas toolbar.
 - Added persistent page-facing content affordances that identify editable
   headings, paragraphs and other text before selection, while explaining
   locked, unresolved and unsupported content instead of ignoring the click.

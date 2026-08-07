@@ -69,6 +69,17 @@ compact picker on desktop or mobile. Icon controls expose visible hover/focus
 tooltips and accessible names, and dialogs close through Cancel, Escape or a
 click on the backdrop.
 
+Selecting desktop content now keeps the exact element outlined and changes the
+inspector title to **Edit heading**, **Edit paragraph** or the matching element
+type. Its stable **Content / Design / Advanced** settings follow the familiar
+Divi/Elementor model: Content edits and queues the value, Design reports the
+actual rendered typography and spacing, and Advanced identifies its source
+file, structured field and page selector. Structure selection uses the same
+inspector contract alongside its on-canvas add, move, drag and delete toolbar.
+Style values remain read-only when the owning CSS or Astro style source cannot
+be proven safely; the editor labels that boundary instead of offering a control
+that cannot persist.
+
 The familiar presentation does not weaken the source boundary: **Review
 changes** still exposes the exact mixed change ledger before anything is saved,
 and all existing Setup, undo, redo, history, safe retry and restore capabilities

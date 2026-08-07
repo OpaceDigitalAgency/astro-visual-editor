@@ -24,13 +24,13 @@ does not ship an editor client or write endpoint in production.
 
 Built by [Opace Astro developers](https://opace.agency/services/web-design/astro-development/).
 
-| Mode     | Included workflow                                                       |
-| -------- | ----------------------------------------------------------------------- |
-| Text     | Select rendered content, preview the replacement and queue it           |
-| Sections | Enable, map and reorder Astro children or JSON/YAML array items safely  |
-| SEO      | Edit title, description, keywords, canonical, Open Graph and robots     |
-| Changes  | Inspect mixed changes, undo/redo, save once and conflict-check restores |
-| Setup    | Inventory visible content and review project-owned allow/deny policy    |
+| Mode      | Included workflow                                                       |
+| --------- | ----------------------------------------------------------------------- |
+| Content   | Select rendered content, edit it in the inspector and queue it          |
+| Structure | Enable, map and reorder Astro children or JSON/YAML array items safely  |
+| Page      | Edit title, description, keywords, canonical, Open Graph and robots     |
+| Changes   | Inspect mixed changes, undo/redo, save once and conflict-check restores |
+| Setup     | Inventory visible content and review project-owned allow/deny policy    |
 
 ## Install
 
@@ -57,14 +57,22 @@ export default defineConfig({
 
 Run `astro dev`, open the Dev Toolbar and choose **Visual Editor**.
 
-## Included modes
+## Familiar visual-builder workflow
 
-- **Text:** click or focus (`Alt+Enter`) rendered text, preview and queue it.
-- **Sections:** add from templates, delete and reorder with drag, buttons or
+- **Content:** click or focus (`Alt+Enter`) rendered text. Desktop selection
+  stays outlined on the page and opens an element-named inspector with
+  **Content**, **Design** and **Advanced** tabs. Mobile retains a focused dialog.
+- **Structure:** select a section, open its contextual settings, add from
+  templates, delete and reorder with drag, buttons or
   keyboard controls.
-- **SEO:** title, description, keywords, canonical, Open Graph and robots.
+- **Page:** title, description, keywords, canonical, Open Graph and robots.
 - **Changes:** compact mixed-change tray with individual removal, undo/redo,
   discard, idempotent save and conflict-protected restore.
+
+The Content tab contains the source-safe editable value. Design reports the
+actual rendered typography and spacing, but does not pretend it can write an
+unresolved CSS/style owner. Advanced identifies the exact source file, field
+and page selector and links back to owner Setup when needed.
 
 The queue recovers through Astro HMR/navigation and stays isolated per browser
 tab. The workbench collapses to compact Pick mode on desktop or mobile. Icon

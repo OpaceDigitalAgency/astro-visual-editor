@@ -569,10 +569,13 @@ export async function applyAstroSections(
   const region = findRegion(ast, change.regionId);
   const sections = directSections(region);
   const current = sections.map((node) => ({ id: attribute(node, 'data-section')! }));
-  if (
-    current.map((item) => item.id).join('\0') !== change.before.map((item) => item.id).join('\0')
-  ) {
-    throw new Error(`Section order changed before commit in region "${change.regionId}".`);
+  const currentIds = current.map((item) => item.id);
+  const beforeIds = change.before.map((item) => item.id);
+  if ([...currentIds].sort().join('\0') !== [...beforeIds].sort().join('\0')) {
+    throw new Error(
+      `Sections were added or removed in region "${change.regionId}" before this save. ` +
+        'Your changes remain local; refresh the page before trying again.',
+    );
   }
   if (sections.length === 0)
     throw new Error('An editable section region must start with at least one section.');
@@ -603,7 +606,10 @@ export async function applyAstroSections(
         'Keep editable sections contiguous so reordering cannot discard content.',
     );
   }
-  const gap = between.match(/<\/section>([\s\r\n]+)<section/u)?.[1] ?? '\n';
+  const gap =
+    sections.length > 1
+      ? source.slice(nodeEndOffset(source, sections[0]!), sections[1]!.position!.start.offset)
+      : '\n';
   const range: SourceRange = {
     start: first.start.offset,
     end: last.end.offset,

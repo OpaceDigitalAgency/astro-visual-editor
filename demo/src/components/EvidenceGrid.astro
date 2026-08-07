@@ -12,8 +12,14 @@ const { items } = Astro.props;
 const source = 'src/data/complex-page.json';
 ---
 
-<section class="evidence" aria-labelledby="evidence-title">
-  <div>
+<section
+  class="evidence"
+  aria-labelledby="evidence-title"
+  data-astro-edit-region="complex-evidence-blocks"
+  data-astro-edit-file="src/components/EvidenceGrid.astro"
+  data-astro-edit-label="Evidence content"
+>
+  <div data-section="evidence-heading" data-astro-edit-label="Heading group">
     <p class="kicker" data-astro-edit-file="src/components/EvidenceGrid.astro">
       What this route proves
     </p>
@@ -21,7 +27,7 @@ const source = 'src/data/complex-page.json';
       One rendered page, several deliberate owners
     </h2>
   </div>
-  <div class="grid">
+  <div class="grid" data-section="evidence-cards" data-astro-edit-label="Evidence cards">
     {
       items.map((item, index) => (
         <article>

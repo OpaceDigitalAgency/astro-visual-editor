@@ -141,6 +141,7 @@ export interface PreviewResponse extends ClientMessage {
   success: boolean;
   diffs?: FileDiff[];
   error?: string;
+  failedChangeId?: string;
 }
 
 export interface SaveResponse extends ClientMessage {
@@ -150,6 +151,7 @@ export interface SaveResponse extends ClientMessage {
   changeCount?: number;
   receiptId?: string;
   error?: string;
+  failedChangeId?: string;
 }
 
 export interface ReceiptRequest extends ClientMessage {

@@ -23,6 +23,12 @@ The project follows [Semantic Versioning](https://semver.org/).
   Protected text badges that never rely on an icon or colour alone.
 - Added regression coverage for adding two identical section templates and
   editing each new paragraph independently in the same atomic save.
+- Added nested row/block regions to the complex fixture, including a movable
+  primary-action button, with a regression that saves two consecutive block
+  orders through Astro HMR.
+- Added plain-language save recovery that keeps the complete local draft and,
+  when one change can be identified safely, offers **Keep editing** or **Save
+  the rest** without discarding the failed change.
 
 ### Changed
 
@@ -34,9 +40,9 @@ The project follows [Semantic Versioning](https://semver.org/).
   matching contextual inspector automatically; Page remains separate.
 - Kept advanced policy, source-discovery and syntax-aware validation machinery
   internally, while removing Editor Setup from the ordinary editing surface.
-- Made every source-owned group and section visible and meaningfully named at
-  activation. Compact section identity/state handles persist while the full
-  action strip expands only for hover, focus or selection.
+- Made every source-owned group, row, section and block visible and meaningfully
+  named at activation. Drag dots persist; clicking them expands the matching
+  settings, lock, move and delete actions without covering text selection.
 - Reduced contextual toolbars to familiar compact icons and moved add-before
   and add-after into the section inspector, preserving those capabilities
   without allowing a toolbar to overlap an adjacent column.
@@ -48,6 +54,9 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Applied structural additions before dependent text edits and scoped Astro
   literal lookup to the owning section, fixing same-batch saves for text edited
   inside a newly added template.
+- Reset the structural source baseline after every successful save and safely
+  rebase order-only drift, fixing repeated saves that previously reported
+  `Section order changed before commit`.
 
 ### Security
 

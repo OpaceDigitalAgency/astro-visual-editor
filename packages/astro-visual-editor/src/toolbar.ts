@@ -401,6 +401,8 @@ export default defineToolbarApp({
     let savedHistory: HistoryEntry[] = [];
     let previewRequestId: string | undefined;
     let previewInFlight = false;
+    let failedChangeId: string | undefined;
+    const deferredFailedChanges = new Map<string, EditorChange>();
     let minimized = matchMedia('(max-width: 640px)').matches;
     let editabilityPolicy = structuredClone(emptyEditabilityPolicy);
     let draftEditabilityPolicy = structuredClone(emptyEditabilityPolicy);
@@ -510,6 +512,10 @@ export default defineToolbarApp({
         </div>
         <div class="ledger" aria-live="polite" aria-label="Queued changes"></div>
         <p class="message" role="status" aria-live="polite"></p>
+        <div class="save-recovery" hidden>
+          <button class="secondary keep-editing" type="button">Keep editing</button>
+          <button class="primary save-rest" type="button">Save the rest</button>
+        </div>
         <div class="history-actions">
           <button class="secondary redo" type="button" disabled>${icon('redo')}<span>Redo</span></button>
           <button class="secondary show-history" type="button">${icon('history')}<span>History</span></button>
@@ -626,6 +632,9 @@ export default defineToolbarApp({
 
     const ledger = panel.querySelector<HTMLElement>('.ledger')!;
     const message = panel.querySelector<HTMLElement>('.message')!;
+    const saveRecovery = panel.querySelector<HTMLElement>('.save-recovery')!;
+    const keepEditingButton = panel.querySelector<HTMLButtonElement>('.keep-editing')!;
+    const saveRestButton = panel.querySelector<HTMLButtonElement>('.save-rest')!;
     const status = panel.querySelector<HTMLElement>('.status')!;
     const statusCopy = panel.querySelector<HTMLElement>('.status-copy')!;
     const panelTitle = panel.querySelector<HTMLElement>('.panel-title')!;
@@ -764,9 +773,30 @@ export default defineToolbarApp({
       message.dataset.kind = kind;
     }
 
+    function friendlySaveError(error?: string): string {
+      const detail = error ?? '';
+      if (/added or removed|order changed|source changed/u.test(detail))
+        return 'This page changed after you started editing. Nothing was saved, and all of your changes are still here.';
+      if (/Original text was not found|Could not find|exact source match/u.test(detail))
+        return 'The original page text changed after you started editing it. Nothing was saved, and your edited version is still here.';
+      if (/non-section markup|not contiguous/u.test(detail))
+        return 'This group contains content that cannot be moved safely as one block. Nothing was saved, and all of your changes are still here.';
+      return 'We could not safely apply one of these changes. Nothing was saved, and all of your changes are still here.';
+    }
+
+    function showSaveFailure(error?: string, changeId?: string): void {
+      failedChangeId = changeId;
+      showMessage(friendlySaveError(error), 'error');
+      saveRecovery.hidden = !changeId;
+      saveRestButton.hidden = queue.size < 2;
+      keepEditingButton.focus();
+    }
+
     function clearMessage(): void {
       message.textContent = '';
       message.dataset.show = 'false';
+      saveRecovery.hidden = true;
+      failedChangeId = undefined;
     }
 
     function setConnection(text: string, state: 'ready' | 'warning' | 'error'): void {
@@ -2227,10 +2257,10 @@ export default defineToolbarApp({
       if (!active || mode === 'review' || mode === 'seo' || mode === 'setup' || textDialog.open)
         return;
       if (event.target instanceof Element && event.target.closest('[data-astro-ve-ui]')) return;
-      if (event.target instanceof Element && !event.target.closest('[data-astro-ve-ui]')) {
-        const section = event.target.closest<HTMLElement>('[data-astro-ve-section-active="true"]');
-        if (section) revealSectionControls(section);
-      }
+      if (event.target instanceof Element && !event.target.closest('[data-astro-ve-ui]'))
+        document
+          .querySelectorAll<HTMLElement>('.astro-ve-section-controls[data-visible="true"]')
+          .forEach((toolbar) => (toolbar.dataset.visible = 'false'));
       const candidate = textCandidate(event.target);
       if (candidate === hovered) return;
       restoreHighlight();
@@ -2489,14 +2519,16 @@ export default defineToolbarApp({
     function revealSectionControls(section: HTMLElement): void {
       const region = editableRegion(section);
       if (!region) return;
-      region
-        .querySelectorAll<HTMLElement>('.astro-ve-section-controls')
-        .forEach(
-          (toolbar) =>
-            (toolbar.dataset.visible = String(
-              toolbar.dataset.sectionId === section.dataset.section,
-            )),
-        );
+      document
+        .querySelectorAll<HTMLElement>('.astro-ve-section-controls[data-visible="true"]')
+        .forEach((toolbar) => (toolbar.dataset.visible = 'false'));
+      region.querySelectorAll<HTMLElement>('.astro-ve-section-controls').forEach((toolbar) => {
+        if (
+          toolbar.parentElement === region &&
+          toolbar.dataset.sectionId === section.dataset.section
+        )
+          toolbar.dataset.visible = 'true';
+      });
     }
 
     function setupSectionControls(): void {
@@ -2507,27 +2539,36 @@ export default defineToolbarApp({
         .querySelectorAll<HTMLElement>('[data-astro-ve-section-active]')
         .forEach((section) => {
           section.removeAttribute('data-astro-ve-section-active');
+          delete section.dataset.astroVeHierarchy;
           if (section.dataset.astroVeAddedTabindex === 'true') {
             section.removeAttribute('tabindex');
             delete section.dataset.astroVeAddedTabindex;
           }
         });
-      document
-        .querySelectorAll<HTMLElement>('[data-astro-ve-region-active]')
-        .forEach((region) => region.removeAttribute('data-astro-ve-region-active'));
+      document.querySelectorAll<HTMLElement>('[data-astro-ve-region-active]').forEach((region) => {
+        region.removeAttribute('data-astro-ve-region-active');
+        delete region.dataset.astroVeHierarchy;
+      });
       if (!active) return;
       for (const region of document.querySelectorAll<HTMLElement>(
         '[data-astro-edit-region], [data-astro-edit-sections]',
       )) {
         region.dataset.astroVeRegionActive = 'true';
         const groupLabel = regionLabel(region);
+        const nestedRegion =
+          region.matches('[data-section]') ||
+          Boolean(region.parentElement?.closest('[data-section]'));
+        region.dataset.astroVeHierarchy = nestedRegion ? 'row' : 'group';
+        const regionKind = nestedRegion ? 'ROW' : 'GROUP';
+        const itemKind = nestedRegion ? 'BLOCK' : 'SECTION';
         const regionControls = createElement('div', {
           class: 'astro-ve-region-controls',
           'data-astro-ve-ui': 'true',
+          'data-hierarchy-level': nestedRegion ? 'row' : 'group',
           role: 'note',
-          'aria-label': `Group: ${groupLabel}`,
+          'aria-label': `${regionKind}: ${groupLabel}`,
         });
-        regionControls.textContent = `GROUP · ${groupLabel}`;
+        regionControls.textContent = `${regionKind} · ${groupLabel}`;
         region.append(regionControls);
         const current = descriptors(region);
         if (!initialSections.has(regionKey(region)))
@@ -2539,6 +2580,7 @@ export default defineToolbarApp({
           const label = sectionControlLabel(section);
           sectionNodes.set(id, section);
           section.dataset.astroVeSectionActive = 'true';
+          section.dataset.astroVeHierarchy = nestedRegion ? 'block' : 'section';
           if (section.tabIndex < 0) {
             section.tabIndex = 0;
             section.dataset.astroVeAddedTabindex = 'true';
@@ -2551,11 +2593,12 @@ export default defineToolbarApp({
             'data-section-id': id,
             'data-visible': 'false',
             'data-protection': protection.state,
+            'data-hierarchy-level': nestedRegion ? 'block' : 'section',
             role: 'toolbar',
             'aria-label': `Controls for ${label}`,
           });
           const controlsLabel = createElement('span', { class: 'astro-ve-section-label' });
-          controlsLabel.textContent = `SECTION · ${label}`;
+          controlsLabel.textContent = `${itemKind} · ${label}`;
           controls.append(controlsLabel);
           const state = createElement('span', { class: 'astro-ve-control-state' });
           state.textContent =
@@ -2590,7 +2633,9 @@ export default defineToolbarApp({
           }
           if (protection.state === 'unlocked') {
             addControl(controls, `Move ${label} up`, 'chevron-up', () => moveSection(section, -1));
-            const drag = addControl(controls, `Drag ${label} to reorder`, 'drag', () => undefined);
+            const drag = addControl(controls, `Drag ${label} to reorder`, 'drag', () =>
+              revealSectionControls(section),
+            );
             drag.classList.add('astro-ve-drag-handle');
             drag.draggable = true;
             drag.addEventListener('dragstart', (event) => {
@@ -2623,17 +2668,22 @@ export default defineToolbarApp({
             `${sectionRect.top - regionRect.top + region.scrollTop + 10}px`,
             'important',
           );
-          controls.style.setProperty(
-            'left',
-            `${sectionRect.left - regionRect.left + region.scrollLeft + 10}px`,
-            'important',
-          );
+          if (nestedRegion) {
+            controls.style.setProperty(
+              'right',
+              `${regionRect.right - sectionRect.right + 10}px`,
+              'important',
+            );
+          } else {
+            controls.style.setProperty(
+              'left',
+              `${sectionRect.left - regionRect.left + region.scrollLeft + 10}px`,
+              'important',
+            );
+          }
           const showControls = () => {
             revealSectionControls(section);
           };
-          section.addEventListener('pointerenter', showControls, {
-            signal: sectionListenerController.signal,
-          });
           section.addEventListener(
             'click',
             (event) => {
@@ -2645,12 +2695,13 @@ export default defineToolbarApp({
             },
             { signal: sectionListenerController.signal },
           );
-          section.addEventListener('focusin', showControls, {
-            signal: sectionListenerController.signal,
-          });
-          controls.addEventListener('pointerenter', showControls, {
-            signal: sectionListenerController.signal,
-          });
+          section.addEventListener(
+            'focusin',
+            (event) => {
+              if (event.target === section) showControls();
+            },
+            { signal: sectionListenerController.signal },
+          );
           section.addEventListener('dragover', onSectionDragOver, {
             signal: sectionListenerController.signal,
           });
@@ -2926,14 +2977,16 @@ export default defineToolbarApp({
         .querySelectorAll<HTMLElement>('[data-astro-ve-section-active]')
         .forEach((section) => {
           section.removeAttribute('data-astro-ve-section-active');
+          delete section.dataset.astroVeHierarchy;
           if (section.dataset.astroVeAddedTabindex === 'true') {
             section.removeAttribute('tabindex');
             delete section.dataset.astroVeAddedTabindex;
           }
         });
-      document
-        .querySelectorAll<HTMLElement>('[data-astro-ve-region-active]')
-        .forEach((region) => region.removeAttribute('data-astro-ve-region-active'));
+      document.querySelectorAll<HTMLElement>('[data-astro-ve-region-active]').forEach((region) => {
+        region.removeAttribute('data-astro-ve-region-active');
+        delete region.dataset.astroVeHierarchy;
+      });
       for (const dialog of [
         textDialog,
         seoDialog,
@@ -3022,20 +3075,29 @@ export default defineToolbarApp({
       window.clearInterval(receiptPollId);
       if (response.success) {
         queue.clear();
-        history.record([]);
+        initialSections.clear();
         pendingRequestId = undefined;
         sessionStorage.removeItem(SESSION_PENDING);
-        sessionStorage.removeItem(SESSION_QUEUE);
+        for (const [key, change] of deferredFailedChanges) queue.set(key, change);
+        deferredFailedChanges.clear();
+        history.record(serializableQueue());
+        if (queue.size === 0) sessionStorage.removeItem(SESSION_QUEUE);
         lastReceiptId = response.receiptId;
         if (lastReceiptId) sessionStorage.setItem(SESSION_RECEIPT, lastReceiptId);
-        showMessage(
-          `Written ${response.changeCount ?? 0} change${response.changeCount === 1 ? '' : 's'} to source.`,
-          'success',
-        );
+        if (queue.size > 0)
+          showMessage(
+            `Saved ${response.changeCount ?? 0} other change${response.changeCount === 1 ? '' : 's'}. The change that needs attention is still here.`,
+            'warning',
+          );
+        else
+          showMessage(
+            `Written ${response.changeCount ?? 0} change${response.changeCount === 1 ? '' : 's'} to source.`,
+            'success',
+          );
       } else {
         pendingRequestId = undefined;
         sessionStorage.removeItem(SESSION_PENDING);
-        showMessage(response.error ?? 'The source update was rejected.', 'error');
+        showSaveFailure(response.error, response.failedChangeId);
       }
       renderQueue();
     }
@@ -3220,6 +3282,21 @@ export default defineToolbarApp({
         sendSave(requestId);
       });
     commitButton.addEventListener('click', requestPreview);
+    keepEditingButton.addEventListener('click', () => {
+      clearMessage();
+      renderQueue();
+    });
+    saveRestButton.addEventListener('click', () => {
+      if (!failedChangeId || queue.size < 2) return;
+      const failedEntry = [...queue].find(([, change]) => change.id === failedChangeId);
+      if (!failedEntry) return;
+      deferredFailedChanges.set(failedEntry[0], failedEntry[1]);
+      queue.delete(failedEntry[0]);
+      failedChangeId = undefined;
+      saveRecovery.hidden = true;
+      sendSave();
+      renderQueue();
+    });
     revertButton.addEventListener('click', requestRevert);
     reloadPolicyButton.addEventListener('click', () => {
       setupBusy = true;
@@ -3323,7 +3400,7 @@ export default defineToolbarApp({
       previewInFlight = false;
       if (!response.success || !response.diffs) {
         previewRequestId = undefined;
-        showMessage(response.error ?? 'The file preview was rejected.', 'error');
+        showSaveFailure(response.error, response.failedChangeId);
       } else {
         renderFileDiffPanel(fileDiffList, response.diffs);
         diffDialog.showModal();

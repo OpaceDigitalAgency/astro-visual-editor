@@ -68,12 +68,15 @@ Run `astro dev`, open the Dev Toolbar and choose **Visual Editor**.
   focused dialog.
 - **Builder sections:** blue named groups and teal named section handles are
   active immediately. Persistent badges say **Editable**, **Locked** or
-  **Protected**. Hover, focus or selection expands settings, lock/unlock, drag,
-  move and delete where the validated source region supports them. Add from
-  templates in the inspector.
+  **Protected**. Source-owned rows and blocks have their own neutral handles and
+  persistent drag dots; click the dots to expose settings, lock/unlock, move
+  and delete where the validated source region supports them. Add from templates
+  in the inspector.
 - **Page:** title, description, keywords, canonical, Open Graph and robots.
 - **Changes:** compact mixed-change tray with individual removal, undo/redo,
-  discard, idempotent save and conflict-protected restore.
+  discard, idempotent save and conflict-protected restore. A rejected save keeps
+  every local draft, explains the issue without raw selectors and can save the
+  independently valid changes while retaining the failed item for correction.
 
 The Content tab contains the source-safe editable value. Locked content shows a
 clear state card instead of an editable-looking disabled field. Design reports the

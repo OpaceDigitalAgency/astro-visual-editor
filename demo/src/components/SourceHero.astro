@@ -10,9 +10,17 @@ const { eyebrow, title, summary, action } = Astro.props;
 const source = 'src/data/complex-page.json';
 ---
 
-<section class="hero" aria-labelledby="complex-title">
+<section
+  class="hero"
+  aria-labelledby="complex-title"
+  data-astro-edit-region="complex-hero-blocks"
+  data-astro-edit-file="src/components/SourceHero.astro"
+  data-astro-edit-label="Hero content"
+>
   <p
     class="eyebrow"
+    data-section="hero-eyebrow"
+    data-astro-edit-label="Eyebrow"
     data-astro-edit-file={source}
     data-astro-edit-path="hero.eyebrow"
     data-astro-edit-origin="a direct JSON import"
@@ -21,6 +29,8 @@ const source = 'src/data/complex-page.json';
   </p>
   <h1
     id="complex-title"
+    data-section="hero-heading"
+    data-astro-edit-label="Heading"
     data-demo-json-title
     data-astro-edit-file={source}
     data-astro-edit-path="hero.title"
@@ -31,6 +41,8 @@ const source = 'src/data/complex-page.json';
   </h1>
   <p
     class="summary"
+    data-section="hero-summary"
+    data-astro-edit-label="Summary"
     data-astro-edit-file={source}
     data-astro-edit-path="hero.summary"
     data-astro-edit-origin="a direct JSON import"
@@ -39,10 +51,14 @@ const source = 'src/data/complex-page.json';
   </p>
   <button
     type="button"
+    data-section="hero-action"
+    data-astro-edit-label="Primary action"
     data-astro-edit-file={source}
     data-astro-edit-path="hero.action"
-    data-astro-edit-origin="a direct JSON import">{action}</button
+    data-astro-edit-origin="a direct JSON import"
   >
+    <span>{action}</span>
+  </button>
 </section>
 
 <style>

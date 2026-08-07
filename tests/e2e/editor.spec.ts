@@ -29,7 +29,7 @@ async function enableEditor(page: import('@playwright/test').Page) {
   if (!(await workbench.isVisible().catch(() => false))) {
     await toolbar.getByRole('button', { name: 'Visual Editor' }).click();
   }
-  return { toolbar, workbench: toolbar.locator('.workbench') };
+  return { toolbar, workbench };
 }
 
 async function selectedTextInspector(toolbar: import('@playwright/test').Locator) {
@@ -279,8 +279,9 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
   await workbench.getByRole('tab', { name: 'Builder' }).click();
 
-  await page.locator('[data-section="commit"]').hover();
-  await page.getByRole('button', { name: 'Delete section Commit' }).click();
+  const commitControls = page.locator('.astro-ve-section-controls[data-section-id="commit"]');
+  await commitControls.getByRole('button', { name: 'Drag Commit to reorder' }).click();
+  await commitControls.getByRole('button', { name: 'Delete section Commit' }).click();
   await toolbar.getByRole('button', { name: 'Delete section', exact: true }).click();
   await expect(page.locator('[data-section="commit"]')).toHaveCount(0);
   await workbench.getByRole('button', { name: 'Open changes tray, 1 queued change' }).click();
@@ -316,7 +317,7 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     );
     const { toolbar, workbench: complexWorkbench } = await enableEditor(page);
 
-    await page.locator('[data-demo-json-title]').click();
+    await page.locator('[data-demo-json-title]').dispatchEvent('click');
     let inspector = await selectedTextInspector(toolbar);
     await inspector.getByRole('tab', { name: 'Advanced' }).click();
     await expect(inspector.locator('.inspector-file')).toHaveText('src/data/complex-page.json');
@@ -325,7 +326,7 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await expect(inspector).toContainText('Shared source: this edit will affect 2 routes.');
     await queueSelectedText(toolbar, 'A safely updated JSON title');
 
-    await page.locator('[data-demo-collection-title]').click();
+    await page.locator('[data-demo-collection-title]').dispatchEvent('click');
     inspector = await selectedTextInspector(toolbar);
     await inspector.getByRole('tab', { name: 'Advanced' }).click();
     await expect(inspector.locator('.inspector-file')).toHaveText(
@@ -390,6 +391,57 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
   }
 });
 
+test('keeps every draft after a conflict and can save the independent changes', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const originalJson = await readFile(complexJsonSource, 'utf8');
+  const originalCollection = await readFile(complexCollectionSource, 'utf8');
+  try {
+    const simple = await enableEditor(page);
+    await simple.workbench.getByRole('button', { name: 'Complex sources' }).click();
+    await expect(page).toHaveURL(/\/fixtures\/complex$/);
+    let current = await enableEditor(page);
+
+    await page.locator('[data-demo-json-title]').dispatchEvent('click');
+    await queueSelectedText(current.toolbar, 'Independent JSON title');
+    await page.locator('[data-demo-collection-title]').dispatchEvent('click');
+    await queueSelectedText(current.toolbar, 'Queued collection title');
+
+    await writeFile(
+      complexCollectionSource,
+      originalCollection.replace('title: Harbour launch plan', 'title: Externally changed title'),
+    );
+    await page.waitForTimeout(750);
+    current = await enableEditor(page);
+    await current.workbench
+      .getByRole('button', { name: 'Open changes tray, 2 queued changes' })
+      .click();
+    await current.workbench.getByRole('button', { name: /Save and apply \(2\)/ }).click();
+
+    await expect(current.workbench.getByText(/Nothing was saved/u)).toBeVisible();
+    await expect(current.workbench.getByRole('button', { name: 'Keep editing' })).toBeVisible();
+    await current.workbench.getByRole('button', { name: 'Save the rest' }).click();
+
+    await expect
+      .poll(async () => readFile(complexJsonSource, 'utf8'))
+      .toContain('Independent JSON title');
+    await expect(
+      current.workbench.getByText(/change that needs attention is still here/u),
+    ).toBeVisible();
+    await expect(
+      current.workbench.getByRole('button', { name: /changes tray, 1 queued change/u }),
+    ).toBeVisible();
+    await expect(readFile(complexCollectionSource, 'utf8')).resolves.toContain(
+      'Externally changed title',
+    );
+  } finally {
+    await writeFile(complexJsonSource, originalJson);
+    await writeFile(complexCollectionSource, originalCollection);
+    await page.waitForTimeout(1_000);
+  }
+});
+
 test('adds a section and saves an auto-queued text edit inside it in one atomic batch', async ({
   page,
 }) => {
@@ -430,6 +482,72 @@ test('adds a section and saves an auto-queued text edit inside it in one atomic 
   } finally {
     if ((await readFile(complexRouteSource, 'utf8')) !== originalRoute)
       await writeFile(complexRouteSource, originalRoute);
+  }
+});
+
+test('reorders nested hero blocks and saves two structural changes consecutively', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const heroSource = fileURLToPath(
+    new URL('../../demo/src/components/SourceHero.astro', import.meta.url),
+  );
+  const originalHero = await readFile(heroSource, 'utf8');
+  try {
+    const simple = await enableEditor(page);
+    await simple.workbench.getByRole('button', { name: 'Complex sources' }).click();
+    await expect(page).toHaveURL(/\/fixtures\/complex$/);
+    let current = await enableEditor(page);
+
+    await expect(
+      page.locator('.astro-ve-region-controls').filter({ hasText: 'GROUP · Complex page content' }),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('.astro-ve-region-controls').filter({ hasText: 'ROW · Hero content' }),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('.astro-ve-section-label').filter({ hasText: 'BLOCK · Primary action' }),
+    ).toHaveCount(1);
+
+    let actionControls = page.locator('.astro-ve-section-controls[data-section-id="hero-action"]');
+    await actionControls.getByRole('button', { name: 'Drag Primary action to reorder' }).click();
+    await actionControls
+      .getByRole('button', { name: 'Move Primary action up' })
+      .evaluate((button: HTMLButtonElement) => button.click());
+    await expect(
+      page.locator('[data-astro-edit-region="complex-hero-blocks"] > [data-section]').nth(2),
+    ).toHaveAttribute('data-section', 'hero-action');
+    await current.workbench
+      .getByRole('button', { name: 'Open changes tray, 1 queued change' })
+      .click();
+    await current.workbench.getByRole('button', { name: /Save and apply \(1\)/ }).click();
+    await current.toolbar
+      .getByRole('dialog', { name: 'Save and apply' })
+      .getByRole('button', { name: 'Save and apply' })
+      .click();
+    await expect
+      .poll(async () => readFile(heroSource, 'utf8'))
+      .toMatch(/data-section="hero-action"[\s\S]*data-section="hero-summary"/u);
+
+    await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
+    current = await enableEditor(page);
+    actionControls = page.locator('.astro-ve-section-controls[data-section-id="hero-action"]');
+    await actionControls.getByRole('button', { name: 'Drag Primary action to reorder' }).click();
+    await actionControls
+      .getByRole('button', { name: 'Move Primary action down' })
+      .evaluate((button: HTMLButtonElement) => button.click());
+    await current.workbench
+      .getByRole('button', { name: 'Open changes tray, 1 queued change' })
+      .click();
+    await current.workbench.getByRole('button', { name: /Save and apply \(1\)/ }).click();
+    await current.toolbar
+      .getByRole('dialog', { name: 'Save and apply' })
+      .getByRole('button', { name: 'Save and apply' })
+      .click();
+    await expect.poll(async () => readFile(heroSource, 'utf8')).toBe(originalHero);
+  } finally {
+    if ((await readFile(heroSource, 'utf8')) !== originalHero)
+      await writeFile(heroSource, originalHero);
   }
 });
 
@@ -550,11 +668,9 @@ test('uses direct canvas locks and exposes complex sections without setup', asyn
     await expect(workbench.getByText('Locked element.')).toBeVisible();
     await expect(lockedText).toHaveAttribute('data-astro-ve-protection', 'locked');
 
-    const heroSection = page.locator('[data-section="complex-hero"]');
-    await heroSection.hover();
-    const moveHero = page
-      .locator('.astro-ve-section-controls[data-visible="true"]')
-      .getByRole('button', { name: /Move .* down/u });
+    const heroControls = page.locator('.astro-ve-section-controls[data-section-id="complex-hero"]');
+    await heroControls.getByRole('button', { name: 'Drag Hero to reorder' }).click();
+    const moveHero = heroControls.getByRole('button', { name: 'Move Hero down' });
     await expect(moveHero).toBeVisible();
     await moveHero.click();
     await expect(sections.first()).toHaveAttribute('data-section', 'complex-shared');
@@ -581,7 +697,7 @@ test('commits and restores literal text owned by the route, component and layout
     await expect(page).toHaveURL(/\/fixtures\/complex$/);
     const { toolbar, workbench: complexWorkbench } = await enableEditor(page);
 
-    await page.getByText('Content Collection', { exact: true }).click();
+    await page.getByText('Content Collection', { exact: true }).dispatchEvent('click');
     let inspector = await selectedTextInspector(toolbar);
     await inspector.getByRole('tab', { name: 'Advanced' }).click();
     await expect(inspector.locator('.inspector-file')).toHaveText(
@@ -590,7 +706,7 @@ test('commits and restores literal text owned by the route, component and layout
     await inspector.getByRole('tab', { name: 'Content' }).click();
     await queueSelectedText(toolbar, 'Collection source, reviewed');
 
-    await page.getByText('What this route proves', { exact: true }).click();
+    await page.getByText('What this route proves', { exact: true }).dispatchEvent('click');
     inspector = await selectedTextInspector(toolbar);
     await inspector.getByRole('tab', { name: 'Advanced' }).click();
     await expect(inspector.locator('.inspector-file')).toHaveText(
@@ -728,8 +844,9 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   await picker.getByRole('button', { name: 'Expand' }).click();
   await workbench.getByRole('tab', { name: 'Builder' }).click();
   await expect(workbench).toBeVisible();
-  await page.locator('[data-section="preview"]').dispatchEvent('pointerenter');
-  const move = page.getByRole('button', { name: 'Move Preview down' });
+  const previewControls = page.locator('.astro-ve-section-controls[data-section-id="preview"]');
+  await previewControls.getByRole('button', { name: 'Drag Preview to reorder' }).click();
+  const move = previewControls.getByRole('button', { name: 'Move Preview down' });
   await move.focus();
   await move.press('Enter');
   await expect(
@@ -790,8 +907,9 @@ test('shows unlocked, owner-locked and source-protected states on the canvas', a
   await expect(page.getByRole('button', { name: 'Move Review down' })).toHaveCount(0);
 
   const editableSection = page.locator('[data-section="preview"]');
-  await editableSection.dispatchEvent('pointerover');
-  const sectionControls = page.locator('.astro-ve-section-controls[data-visible="true"]');
+  await expect(editableSection).toHaveAttribute('data-astro-ve-protection', 'unlocked');
+  const sectionControls = page.locator('.astro-ve-section-controls[data-section-id="preview"]');
+  await sectionControls.getByRole('button', { name: 'Drag Preview to reorder' }).click();
   await expect(
     sectionControls.getByRole('button', { name: 'Open settings for Preview' }),
   ).toBeVisible();

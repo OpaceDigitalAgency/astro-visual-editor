@@ -44,6 +44,16 @@ interface PreparedBatch {
   outputs: Map<string, string>;
 }
 
+class ChangePreparationError extends Error {
+  constructor(
+    message: string,
+    readonly changeId: string,
+  ) {
+    super(message);
+    this.name = 'ChangePreparationError';
+  }
+}
+
 function requestKey(clientId: string, requestId: string): string {
   return `${clientId}\0${requestId}`;
 }
@@ -310,6 +320,7 @@ export class TransactionManager {
         requestId: request.requestId,
         success: false,
         error: error instanceof Error ? error.message : 'Unknown preview error.',
+        ...(error instanceof ChangePreparationError ? { failedChangeId: error.changeId } : {}),
       };
     }
   }
@@ -351,6 +362,7 @@ export class TransactionManager {
           requestId: request.requestId,
           success: false,
           error: error instanceof Error ? error.message : 'Unknown save error.',
+          ...(error instanceof ChangePreparationError ? { failedChangeId: error.changeId } : {}),
         };
         await this.storeReceipt(key, response, new Map(), new Map());
         return response;
@@ -418,7 +430,14 @@ export class TransactionManager {
         return snapshot.source.indexOf(b.oldText) - snapshot.source.indexOf(a.oldText);
       });
       for (const change of sorted) {
-        next = await applyChangeWithAdapter(next, snapshot.extension, change, this.options);
+        try {
+          next = await applyChangeWithAdapter(next, snapshot.extension, change, this.options);
+        } catch (error) {
+          throw new ChangePreparationError(
+            error instanceof Error ? error.message : 'This change could not be prepared safely.',
+            change.id,
+          );
+        }
       }
       outputs.set(snapshot.fullPath, next);
     }

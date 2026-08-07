@@ -67,6 +67,41 @@ describe('TransactionManager', () => {
     expect(response.error).toContain('more than 1');
   });
 
+  it('identifies the failed change without writing any part of the batch', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ave-transaction-'));
+    const src = join(root, 'src');
+    await mkdir(join(src, 'pages'), { recursive: true });
+    const page = join(src, 'pages', 'index.astro');
+    const original = '<h1>Old heading</h1><p>Stable copy</p>';
+    await writeFile(page, original);
+    const manager = new TransactionManager(root, src, normalizeOptions());
+    const response = await manager.preview({
+      clientId: 'tab',
+      requestId: 'failed-change',
+      changes: [
+        {
+          kind: 'text',
+          id: 'valid-change',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          oldText: 'Old heading',
+          newText: 'New heading',
+        },
+        {
+          kind: 'text',
+          id: 'failed-change',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          oldText: 'Missing copy',
+          newText: 'Edited copy',
+        },
+      ],
+    });
+    expect(response.success).toBe(false);
+    expect(response.failedChangeId).toBe('failed-change');
+    expect(await readFile(page, 'utf8')).toBe(original);
+  });
+
   it('restores a checksummed receipt after restart and ignores tampered history', async () => {
     const root = await mkdtemp(join(tmpdir(), 'ave-transaction-'));
     const src = join(root, 'src');

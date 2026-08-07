@@ -69,8 +69,9 @@ desktop rather than hiding it over the content. Enabling the editor adds
 an immediately readable hierarchy: blue named groups, teal named sections and
 neutral content elements. Persistent handles name every section and state
 badges say **Editable**, **Locked** or **Protected** without relying on colour.
-Hovering or selecting expands a Divi-style contextual toolbar; source-owned
-sections expose settings, move, drag, lock and delete. Add before
+Source-owned rows and blocks expose persistent drag dots; clicking the dots
+expands a Divi-style contextual toolbar with settings, move, lock and delete.
+Add before
 and Add after remain in the section inspector. The inspector can be collapsed to a
 compact picker on desktop or mobile. Icon controls expose visible hover/focus
 tooltips and accessible names, and dialogs close through Cancel, Escape or a
@@ -93,6 +94,12 @@ changes** can expose the mixed change ledger, while **Save and apply** always
 performs the exact source-diff safety check before anything is written,
 and the existing policy engine, undo, redo, history, safe retry and restore
 capabilities remain available.
+
+If validation refuses a batch, the editor keeps the complete local draft and
+uses plain-language recovery copy. When the server can identify one failing
+change, **Keep editing** leaves the batch untouched and **Save the rest** writes
+only the independently valid changes, then returns the failed item to the local
+change tray so it is not lost.
 
 ## Source-write safety
 

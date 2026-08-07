@@ -27,9 +27,13 @@ const dataSource = 'src/data/complex-page.json';
       class="complex-builder-section"
       data-section="complex-shared"
       data-astro-edit-label="Release note"
+      data-astro-edit-region="complex-release-blocks"
+      data-astro-edit-file="src/pages/fixtures/complex.astro"
     >
       <p
         class="shared-note"
+        data-section="release-note-copy"
+        data-astro-edit-label="Notice"
         data-astro-edit-file={dataSource}
         data-astro-edit-path="shared.notice"
         data-astro-edit-origin="a direct JSON import"
@@ -49,11 +53,17 @@ const dataSource = 'src/data/complex-page.json';
       class="collection complex-builder-section"
       data-section="complex-collection"
       data-astro-edit-label="Content collection"
+      data-astro-edit-region="complex-collection-blocks"
+      data-astro-edit-file="src/pages/fixtures/complex.astro"
       aria-labelledby="collection-title"
     >
-      <p class="kicker">Content Collection</p>
+      <p class="kicker" data-section="collection-kicker" data-astro-edit-label="Kicker">
+        Content Collection
+      </p>
       <h2
         id="collection-title"
+        data-section="collection-heading"
+        data-astro-edit-label="Heading"
         data-demo-collection-title
         data-astro-edit-file={collectionSource}
         data-astro-edit-path="frontmatter.title"
@@ -62,6 +72,8 @@ const dataSource = 'src/data/complex-page.json';
         {caseStudy.data.title}
       </h2>
       <p
+        data-section="collection-summary"
+        data-astro-edit-label="Summary"
         data-astro-edit-file={collectionSource}
         data-astro-edit-path="frontmatter.summary"
         data-astro-edit-origin="a Content Collection field"
@@ -70,6 +82,8 @@ const dataSource = 'src/data/complex-page.json';
       </p>
       <p
         class="client"
+        data-section="collection-client"
+        data-astro-edit-label="Client"
         data-astro-edit-file={collectionSource}
         data-astro-edit-path="frontmatter.client"
         data-astro-edit-origin="a Content Collection field"

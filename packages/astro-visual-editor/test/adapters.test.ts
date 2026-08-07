@@ -269,6 +269,38 @@ describe('source adapters', () => {
     expect(result).toContain('Section heading');
   });
 
+  it('rebases an intended section order when only the source order drifted', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(
+      page,
+      `<main data-astro-edit-region="home">
+  <section data-section="features"><h2>Features</h2></section>
+  <section data-section="hero"><h1>Hero</h1></section>
+</main>`,
+    );
+    await applyChangeBatch(
+      root,
+      src,
+      [
+        {
+          kind: 'sections',
+          id: 'stale-order-only',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          regionId: 'home',
+          before: [{ id: 'hero' }, { id: 'features' }],
+          after: [{ id: 'hero' }, { id: 'features' }],
+        },
+      ],
+      normalizeOptions(),
+    );
+    const result = await readFile(page, 'utf8');
+    expect(result.indexOf('data-section="hero"')).toBeLessThan(
+      result.indexOf('data-section="features"'),
+    );
+  });
+
   it('preserves multiline Astro closing brackets when mapped elements are reordered', async () => {
     const { root, src } = await project();
     const page = join(src, 'pages', 'index.astro');

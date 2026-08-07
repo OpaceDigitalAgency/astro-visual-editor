@@ -193,17 +193,20 @@ Keyboard users can focus editable content and press `Alt+Enter`.
 
 ### Sections
 
-An owner can choose **Select section on page** or **Choose from list**, then
-select an existing container by its visible label. The editor automatically
-uses a unique structural source match and stores a project policy mapping
-without adding editor attributes to the site's components. The candidate
+An owner can choose **Select section on page** or **Choose from list**. After
+clicking page content, the editor shows every valid nesting level under that
+point: the smallest reorderable area, its parent areas and the whole page.
+Each level can be enabled independently, so a page's major sections and the
+cards, headings, text or buttons inside them can all be maintained. The editor
+automatically uses a unique structural source match and stores a project policy
+mapping without adding editor attributes to the site's components. The candidate
 supports contiguous Astro component/element children and complete JSON/JSONC
-or YAML arrays, with every complete item hash-checked before reordering.
+or YAML arrays. Structured arrays must also match the visible values in order,
+and every complete item is hash-checked before reordering.
 
-Each enabled container moves only its direct items. To move content inside a
-major block—for example its heading, paragraph, button or cards—select that
-inner block separately in Setup. Parent and inner regions can then be reordered
-in the same reviewed multi-file save while each remains tied to its own source.
+Each enabled container moves only its direct items. Parent and inner regions
+can be reordered in the same reviewed multi-file save while each remains tied
+to its own source.
 
 Projects can also declare a source-owned region directly and give every section
 a stable ID:

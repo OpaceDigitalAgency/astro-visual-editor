@@ -111,6 +111,15 @@ function valueSourceKey(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 20);
 }
 
+function primitiveValues(value: unknown): string[] {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+    return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(primitiveValues);
+  if (typeof value === 'object' && value !== null)
+    return Object.values(value).flatMap(primitiveValues);
+  return [];
+}
+
 function structuredItemId(value: unknown, sourceKey: string): string {
   let hint = 'item';
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
@@ -178,6 +187,7 @@ function structuredRegionCandidates(
         confidence,
         containerTag: 'data',
         itemTags: [],
+        itemValues: items.map(primitiveValues),
         reason: `${itemCount} ordered items in the structured array ${path}. Every complete item is hash-checked before reordering.`,
         items: mapped,
       },

@@ -31,6 +31,9 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Added nested region coverage that enables a component's direct text and
   button children independently, reorders them alongside a parent-page move,
   saves both files atomically and restores both sources.
+- Added a hierarchical on-page region chooser that exposes the smallest area,
+  parent areas and whole page from one click, including rendered cards backed
+  by JSON or YAML arrays.
 
 ### Changed
 
@@ -45,10 +48,10 @@ The project follows [Semantic Versioning](https://semver.org/).
   to the currently hovered or selected item.
 - Renamed ambiguous source-control language to owner-facing save, discard and
   restore actions while preserving exact diffs and collapsed technical detail.
-- Made each queued-change receipt lead with the affected page and a concise
-  visible change, including meaningful section labels and changed text fragments;
-  exact source paths, selectors and complete before/after values remain under
-  collapsed technical details.
+- Made each queued-change receipt lead with the affected page, a concise
+  owner-readable description and visible before/after content. Exact source
+  paths, selectors, hashes and complete structural order remain under collapsed
+  technical details.
 - Kept syntax-aware adapters and confirmed project mappings as the final
   authority. Ambiguous, transformed or non-reversible data flow is refused
   rather than guessed or globally replaced.
@@ -72,9 +75,12 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- Made delegated Astro page titles update a unique literal `title` prop on the
-  route when a layout owns the rendered `<head>`, while refusing computed,
-  non-title or ambiguous prop matches.
+- Made delegated Astro SEO fields update unique literal route props when a
+  layout owns the rendered `<head>`, while refusing missing, computed or
+  ambiguous prop matches.
+- Matched structured-array section candidates against the ordered rendered
+  values before enabling card reordering, preventing unrelated equal-length
+  arrays from being selected.
 - Stopped section setup from silently accepting an unrelated source structure
   merely because its container had the same number of children.
 - Added composed-page regressions for delete and Undo, guarded section-source

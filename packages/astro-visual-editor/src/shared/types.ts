@@ -255,6 +255,7 @@ export interface SectionRegionCandidate {
   confidence: 'exact' | 'likely';
   containerTag?: string;
   itemTags?: string[];
+  itemValues?: string[][];
   reason: string;
   items: SectionRegionItem[];
 }

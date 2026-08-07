@@ -10,7 +10,10 @@ const collectionSource = 'src/content/case-studies/harbour.md';
 const dataSource = 'src/data/complex-page.json';
 ---
 
-<DemoLayout title="Complex source fixture">
+<DemoLayout
+  title="Complex source fixture"
+  description="Test source-aware editing across Astro layouts, components and structured content."
+>
   <SourceHero {...content.hero} />
   <p
     class="shared-note"

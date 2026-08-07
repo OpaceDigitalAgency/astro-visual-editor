@@ -156,13 +156,16 @@ able to change it; network-exposed development servers cannot manage policy.
 ## Persistent section regions
 
 In Editor Setup, an owner can choose **Select section on page** or **Choose from
-list**; the same visual setup is available in Sections mode. The owner selects
-an existing rendered container by its visible label, and the editor silently
-uses a unique structural source match.
+list**; the same visual setup is available in Sections mode. Clicking page
+content reveals every valid nesting level under that point, from the smallest
+reorderable area through its parents to the whole page. Each level can be
+enabled independently, and the editor silently uses a unique structural source
+match.
 The mapping is stored in the project policy; site components do not need editor
 attributes. The candidate supports contiguous Astro component/element children
-and complete JSON/JSONC or YAML array items. Source blocks and structured items
-are hash-checked before every reorder, and ambiguous candidates require owner
+and complete JSON/JSONC or YAML array items. Structured candidates must match
+the rendered child values in order. Source blocks and structured items are
+hash-checked before every reorder, and ambiguous candidates require owner
 selection.
 
 Projects can still declare a region directly:

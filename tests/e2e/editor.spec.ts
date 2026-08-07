@@ -216,7 +216,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await expect(sectionChange.locator('.change-page')).toContainText('Simple demo');
   await expect(sectionChange.locator('.change-summary')).toHaveText('Reordered 3 sections');
   await expect(sectionChange.locator('.change-description')).toHaveText(
-    'New order: 02 / REVIEW → 01 / PREVIEW → 03 / COMMIT',
+    'Moved “02 / REVIEW” from position 2 to 1',
   );
   await expect(sectionChange.locator('.change-technical')).not.toHaveAttribute('open', '');
   await sectionChange.locator('.change-technical > summary').click();
@@ -290,6 +290,9 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     const seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
     await expect(seoDialog).toContainText('src/pages/fixtures/complex.astro');
     await seoDialog.locator('[name="title"]').fill('Complex fixture, reviewed');
+    await seoDialog
+      .locator('[name="description"]')
+      .fill('A reviewed description owned by the composed route.');
     await seoDialog.getByRole('button', { name: 'Queue SEO change' }).click();
     await complexWorkbench
       .getByRole('button', { name: 'Open changes tray, 3 queued changes' })
@@ -313,6 +316,9 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await expect
       .poll(async () => readFile(complexRouteSource, 'utf8'))
       .toContain('title="Complex fixture, reviewed"');
+    await expect
+      .poll(async () => readFile(complexRouteSource, 'utf8'))
+      .toContain('description="A reviewed description owned by the composed route."');
 
     await restoreFromHistory(page);
     await expect.poll(async () => readFile(complexJsonSource, 'utf8')).toBe(originalJson);
@@ -394,7 +400,15 @@ test('targets each repeated JSON-backed evidence card independently', async ({ p
     const firstChange = complexWorkbench.locator('.change').first();
     await expect(firstChange.locator('.change-page')).toContainText('Complex sources');
     await expect(firstChange.locator('.change-summary')).toHaveText('Changed visible text');
-    await expect(firstChange.locator('.change-description')).toHaveText('Added “, updated”');
+    await expect(firstChange.locator('.change-description')).toHaveText(
+      'Added “, updated” after “Direct JSON properties”',
+    );
+    await expect(firstChange.locator('.visible-diff')).toContainText('Before');
+    await expect(firstChange.locator('.visible-diff')).toContainText('Direct JSON properties');
+    await expect(firstChange.locator('.visible-diff')).toContainText('After');
+    await expect(firstChange.locator('.visible-diff')).toContainText(
+      'Direct JSON properties, updated',
+    );
     await expect(firstChange.locator('.change-technical')).not.toHaveAttribute('open', '');
     await complexWorkbench.getByRole('button', { name: 'Discard changes', exact: true }).click();
     await expect(values).toHaveText([
@@ -412,6 +426,7 @@ test('enables and persists complex sections without source annotations', async (
   const originalPolicy = await readFile(editabilityPolicySource, 'utf8');
   const originalRoute = await readFile(complexRouteSource, 'utf8');
   const originalHero = await readFile(complexHeroSource, 'utf8');
+  const originalJson = await readFile(complexJsonSource, 'utf8');
   try {
     await writeFile(
       editabilityPolicySource,
@@ -433,10 +448,7 @@ test('enables and persists complex sections without source annotations', async (
       name: 'One rendered page, several deliberate owners',
     });
     await evidenceHeading.hover();
-    await expect(page.locator('section.evidence')).toHaveAttribute(
-      'data-astro-ve-setup-pick',
-      'true',
-    );
+    await expect(page.locator('[data-astro-ve-setup-pick="true"]')).toHaveCount(1);
     await expect(toolbar.locator('.setup-picker-label')).toContainText(
       'One rendered page, several deliberate owners',
     );
@@ -444,23 +456,11 @@ test('enables and persists complex sections without source annotations', async (
     await expect(workbench).toBeVisible();
 
     await workbench.getByRole('button', { name: 'Choose from list' }).click();
-    let regionDialog = toolbar.locator('dialog').filter({ hasText: 'Choose sections to reorder' });
-    await regionDialog.getByRole('button', { name: 'Choose Grid' }).click();
-    const sourceSafety = toolbar
-      .locator('dialog')
-      .filter({ hasText: 'Which source owns this section?' });
-    await expect(sourceSafety).toBeVisible();
-    await sourceSafety.getByRole('button', { name: 'Cancel safely' }).click();
-    await expect(workbench).toBeVisible();
-
-    await workbench.getByRole('button', { name: 'Choose from list' }).click();
-    regionDialog = toolbar.locator('dialog').filter({ hasText: 'Choose sections to reorder' });
+    let regionDialog = toolbar.locator('dialog').filter({ hasText: 'Choose an area to reorder' });
     await regionDialog.getByRole('button', { name: 'Choose Main page content' }).click();
 
-    const policyReview = toolbar
-      .locator('dialog')
-      .filter({ hasText: 'Save these editor choices?' });
-    await expect(policyReview).toContainText('astro:children:component:DemoLayout:0');
+    let policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor choices?' });
+    await expect(policyReview).toBeVisible();
     await expect(policyReview.locator('.policy-technical')).not.toHaveAttribute('open', '');
     await policyReview.getByRole('button', { name: 'Save settings' }).click();
 
@@ -483,17 +483,67 @@ test('enables and persists complex sections without source annotations', async (
       .getByRole('button', { name: 'Select on page' })
       .click();
     await page.getByRole('button', { name: 'Review the source map' }).click();
+    regionDialog = toolbar.locator('dialog').filter({
+      hasText: 'How much do you want to reorder?',
+    });
+    await expect(regionDialog.getByText('Whole page', { exact: true })).toBeVisible();
+    await regionDialog
+      .locator('.friendly-region')
+      .filter({ hasText: 'Smallest area' })
+      .getByRole('button', { name: /Choose/ })
+      .click();
     await expect(policyReview).toContainText('src/components/SourceHero.astro');
     await expect(policyReview).toContainText('astro:children:element:section:0');
     await policyReview.getByRole('button', { name: 'Save settings' }).click();
+    await expect
+      .poll(async () => readFile(editabilityPolicySource, 'utf8'))
+      .toContain('src/components/SourceHero.astro');
+    await page.waitForTimeout(1_000);
+
+    ({ toolbar, workbench } = await enableEditor(page));
+    await workbench.getByRole('button', { name: 'Open Editor Setup' }).click();
+    await workbench
+      .locator('.section-setup')
+      .getByRole('button', { name: 'Select on page' })
+      .click();
+    await page.locator('[data-astro-edit-path="evidence.0.value"]').click();
+    regionDialog = toolbar.locator('dialog').filter({
+      hasText: 'How much do you want to reorder?',
+    });
+    await expect(regionDialog.getByText('Smallest area', { exact: true })).toBeVisible();
+    await expect(regionDialog.getByText(/Parent area/u).first()).toBeVisible();
+    await expect(regionDialog.getByText('Whole page', { exact: true })).toBeVisible();
+    await regionDialog
+      .locator('.friendly-region')
+      .filter({ hasText: 'Grid' })
+      .getByRole('button', { name: /Choose/ })
+      .click();
+    policyReview = toolbar.locator('dialog').filter({ hasText: 'Save these editor choices?' });
+    await expect(policyReview).toContainText('src/data/complex-page.json');
+    await expect(policyReview).toContainText('json:array:evidence');
+    await policyReview.getByRole('button', { name: 'Save settings' }).click();
 
     const savedPolicy = JSON.parse(await readFile(editabilityPolicySource, 'utf8')) as {
-      regions: Array<{ selector: string; filePath: string }>;
+      regions: Array<{ selector: string; filePath: string; sourcePath: string }>;
     };
     expect(savedPolicy.regions).toContainEqual(
       expect.objectContaining({
         selector: 'main > section.hero',
         filePath: 'src/components/SourceHero.astro',
+      }),
+    );
+    expect(savedPolicy.regions).toContainEqual(
+      expect.objectContaining({
+        selector: 'main',
+        filePath: 'src/pages/fixtures/complex.astro',
+        sourcePath: 'astro:children:component:DemoLayout:0',
+      }),
+    );
+    expect(savedPolicy.regions).toContainEqual(
+      expect.objectContaining({
+        selector: 'main > section.evidence > div.grid',
+        filePath: 'src/data/complex-page.json',
+        sourcePath: 'json:array:evidence',
       }),
     );
     expect(
@@ -537,14 +587,19 @@ test('enables and persists complex sections without source annotations', async (
     await expect(page.locator('section.hero > :not([data-astro-ve-ui])').nth(2)).toHaveText(
       'Review the source map',
     );
-    await expect(workbench.locator('.change-summary')).toHaveCount(2);
-    await workbench.getByRole('button', { name: 'Open changes tray, 2 queued changes' }).click();
-    await workbench.getByRole('button', { name: /Review and save \(2\)/ }).click();
+    const moveLayoutCard = page.getByRole('button', { name: 'Move Card: Layout down' });
+    await expect(moveLayoutCard).toBeVisible();
+    await moveLayoutCard.click();
+    await expect(page.locator('section.evidence .grid article').first()).toContainText('Component');
+    await expect(workbench.locator('.change-summary')).toHaveCount(3);
+    await workbench.getByRole('button', { name: 'Open changes tray, 3 queued changes' }).click();
+    await workbench.getByRole('button', { name: /Review and save \(3\)/ }).click();
     await expect(workbench.locator('.message')).toBeHidden();
     const review = toolbar.locator('dialog').filter({ hasText: 'Review and save' });
     await expect(review).toBeVisible();
     await expect(review).toContainText('src/pages/fixtures/complex.astro');
     await expect(review).toContainText('src/components/SourceHero.astro');
+    await expect(review).toContainText('src/data/complex-page.json');
     await review.getByRole('button', { name: 'Save changes' }).dispatchEvent('click');
     await expect
       .poll(async () => readFile(complexRouteSource, 'utf8'))
@@ -552,14 +607,20 @@ test('enables and persists complex sections without source annotations', async (
     await expect
       .poll(async () => readFile(complexHeroSource, 'utf8'))
       .toMatch(/<\/h1>[\s\S]*?<button[\s\S]*?<p[\s\S]*?class="summary"/u);
+    await expect
+      .poll(async () => readFile(complexJsonSource, 'utf8'))
+      .toMatch(/"label": "Component"[\s\S]*?"label": "Layout"/u);
     await restoreFromHistory(page);
     await expect.poll(async () => readFile(complexRouteSource, 'utf8')).toBe(originalRoute);
     await expect.poll(async () => readFile(complexHeroSource, 'utf8')).toBe(originalHero);
+    await expect.poll(async () => readFile(complexJsonSource, 'utf8')).toBe(originalJson);
   } finally {
     if ((await readFile(complexRouteSource, 'utf8')) !== originalRoute)
       await writeFile(complexRouteSource, originalRoute);
     if ((await readFile(complexHeroSource, 'utf8')) !== originalHero)
       await writeFile(complexHeroSource, originalHero);
+    if ((await readFile(complexJsonSource, 'utf8')) !== originalJson)
+      await writeFile(complexJsonSource, originalJson);
     await writeFile(editabilityPolicySource, originalPolicy);
   }
 });

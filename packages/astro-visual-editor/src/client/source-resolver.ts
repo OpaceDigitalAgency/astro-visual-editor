@@ -9,6 +9,7 @@ export interface SourceResolution {
   filePath: string;
   sourcePath?: string;
   proven: boolean;
+  kind: 'annotation' | 'selector' | 'policy' | 'route' | 'fallback';
   reason: string;
   sharedRouteCount?: number;
 }
@@ -43,6 +44,7 @@ export function sourceResolutionFor(
       filePath: explicit,
       sourcePath,
       proven: true,
+      kind: 'annotation',
       reason: annotatedReason(element),
       sharedRouteCount: sharedRouteCount(element),
     };
@@ -54,6 +56,7 @@ export function sourceResolutionFor(
           filePath,
           sourcePath,
           proven: true,
+          kind: 'selector',
           reason: `Confirmed by selector mapping “${selector}”.`,
         };
       }
@@ -62,14 +65,6 @@ export function sourceResolutionFor(
     }
   }
   const path = window.location.pathname;
-  const mapped = config.fileMappings[path] ?? config.fileMappings[path.replace(/\/$/u, '')];
-  if (mapped)
-    return {
-      filePath: mapped,
-      sourcePath,
-      proven: true,
-      reason: 'Confirmed by the page route mapping.',
-    };
   const policyRule = policy?.rules.find((rule) => {
     if (rule.route !== path || rule.effect !== 'allow' || !rule.filePath) return false;
     try {
@@ -83,13 +78,24 @@ export function sourceResolutionFor(
       filePath: policyRule.filePath,
       sourcePath: policyRule.sourcePath ?? sourcePath,
       proven: true,
+      kind: 'policy',
       reason: 'Confirmed by the saved editability policy.',
     };
   }
+  const mapped = config.fileMappings[path] ?? config.fileMappings[path.replace(/\/$/u, '')];
+  if (mapped)
+    return {
+      filePath: mapped,
+      sourcePath,
+      proven: true,
+      kind: 'route',
+      reason: 'Confirmed by the page route mapping.',
+    };
   return {
     filePath: routeFallback(path),
     sourcePath,
     proven: false,
+    kind: 'fallback',
     reason: 'Only a route-based source candidate is available.',
   };
 }

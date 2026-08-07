@@ -70,6 +70,11 @@ export const toolbarStyles = String.raw`
   .file { overflow: hidden; color: #b8d0e2; font: 600 11px/1.4 ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
   .change-summary { color: #f7f5f2; font-size: 13px; font-weight: 780; }
   .change-description { margin: 5px 0 0; color: #c9d0d6; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+  .visible-diff { display: grid; gap: 6px; margin-top: 8px; padding: 8px; background: #181f26; border: 1px solid #35424d; border-radius: 8px; }
+  .visible-diff > div { display: grid; grid-template-columns: 42px minmax(0,1fr); gap: 7px; align-items: start; }
+  .visible-diff strong { color: #91a0ac; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
+  .visible-diff span { color: #edf2f5; font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+  .visible-diff > div:first-child span { color: #adb7bf; text-decoration: line-through; }
   .diff { display: grid; gap: 3px; margin-top: 6px; font-size: 11px; overflow-wrap: anywhere; }
   .old, .new { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .old { color: #959da5; text-decoration: line-through; } .new { color: #f7f5f2; }
@@ -163,6 +168,7 @@ export const toolbarStyles = String.raw`
   .friendly-region-list { display: grid; gap: 8px; max-height: min(52vh,480px); margin-top: 14px; overflow: auto; }
   .friendly-region { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 12px; background: #1c2023; border: 1px solid #3a4147; border-radius: 10px; }
   .friendly-region strong, .friendly-region span { display: block; }
+  .friendly-region .region-scope { width: fit-content; margin-bottom: 4px; padding: 2px 6px; color: #b8d0e2; background: #25313b; border-radius: 999px; font-size: 8px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
   .friendly-region span { margin-top: 4px; color: #b5bbc1; font-size: 10px; }
   .friendly-region button { min-height: 42px; padding: 7px 11px; }
   .setup-page-picker { position: fixed; z-index: 2147483647; left: 50%; bottom: 24px; display: none; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 10px; width: min(620px,calc(100vw - 24px)); padding: 10px; color: #fff; background: rgba(31,40,50,.98); border: 1px solid #8fb3cf; border-radius: 14px; box-shadow: 0 18px 60px rgba(0,0,0,.6); transform: translateX(-50%); pointer-events: none; font: 12px/1.35 Inter,system-ui,sans-serif; }

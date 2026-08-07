@@ -281,18 +281,40 @@ function seoMarkup(field: SeoField, value: string): string {
   }
 }
 
-function literalAttributeRange(
+const delegatedSeoProps: Record<SeoField, string> = {
+  title: 'title',
+  description: 'description',
+  keywords: 'keywords',
+  canonical: 'canonical',
+  ogTitle: 'ogTitle',
+  ogDescription: 'ogDescription',
+  robots: 'robots',
+};
+
+const delegatedSeoLabels: Record<SeoField, string> = {
+  title: 'page title',
+  description: 'search description',
+  keywords: 'keywords',
+  canonical: 'canonical URL',
+  ogTitle: 'social sharing title',
+  ogDescription: 'social sharing description',
+  robots: 'search visibility',
+};
+
+function literalSeoPropRange(
   source: string,
   ast: AstroNode,
+  field: SeoField,
   value: string,
   replacement: string,
   filePath: string,
 ): SourceRange {
+  const propName = delegatedSeoProps[field];
   const matches: SourceRange[] = [];
   walk(ast, (node) => {
     if (!node.position || !['component', 'custom-element'].includes(node.type)) return;
     for (const item of node.attributes ?? []) {
-      if (item.name !== 'title' || item.kind !== 'quoted' || item.value !== value) continue;
+      if (item.name !== propName || item.kind !== 'quoted' || item.value !== value) continue;
       const opening = source.slice(node.position.start.offset, nodeEndOffset(source, node));
       for (const quote of ['"', "'"]) {
         const literal = `${item.name}=${quote}${value}${quote}`;
@@ -305,7 +327,7 @@ function literalAttributeRange(
             start,
             end: start + value.length,
             replacement: escapeHtmlAttribute(replacement),
-            label: `SEO title prop in ${filePath}`,
+            label: `SEO ${delegatedSeoLabels[field]} prop in ${filePath}`,
           });
           cursor = found + literal.length;
         }
@@ -313,9 +335,13 @@ function literalAttributeRange(
     }
   });
   if (matches.length === 0)
-    throw new Error(`No literal Astro prop contains the rendered title in ${filePath}.`);
+    throw new Error(
+      `This page delegates its SEO, but ${delegatedSeoLabels[field]} is not a literal “${propName}” prop in ${filePath}.`,
+    );
   if (matches.length > 1)
-    throw new Error(`More than one literal Astro prop contains the rendered title in ${filePath}.`);
+    throw new Error(
+      `More than one literal “${propName}” prop matches ${delegatedSeoLabels[field]} in ${filePath}.`,
+    );
   return matches[0]!;
 }
 
@@ -336,22 +362,21 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
     (field) => change.after[field] !== change.before[field],
   );
   if (!head?.position?.end) {
-    if (changedFields.length === 1 && changedFields[0] === 'title') {
-      const output = applyRanges(source, [
-        literalAttributeRange(
+    const output = applyRanges(
+      source,
+      changedFields.map((field) =>
+        literalSeoPropRange(
           source,
           ast,
-          change.before.title,
-          change.after.title,
+          field,
+          change.before[field],
+          change.after[field],
           change.filePath,
         ),
-      ]);
-      await parseAstro(output);
-      return output;
-    }
-    throw new Error(
-      `No literal <head> element or unique rendered title prop was found in ${change.filePath}.`,
+      ),
     );
+    await validateAstro(output, change.filePath);
+    return output;
   }
 
   const ranges: SourceRange[] = [];

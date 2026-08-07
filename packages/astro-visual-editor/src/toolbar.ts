@@ -187,6 +187,13 @@ function quoted(value: string, maximum = 90): string {
   return `“${compact || 'empty'}”`;
 }
 
+function visibleValue(value: string, maximum = 260): string {
+  const clean = value.replace(/\s+/gu, ' ').trim() || 'Empty';
+  if (clean.length <= maximum) return clean;
+  const edge = Math.floor((maximum - 3) / 2);
+  return `${clean.slice(0, edge).trimEnd()} … ${clean.slice(-edge).trimStart()}`;
+}
+
 function changedTextDescription(before: string, after: string): string {
   let prefix = 0;
   while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix])
@@ -200,8 +207,13 @@ function changedTextDescription(before: string, after: string): string {
     suffix += 1;
   const removed = before.slice(prefix, before.length - suffix);
   const added = after.slice(prefix, after.length - suffix);
-  if (!removed && added) return `Added ${quoted(added)}`;
-  if (removed && !added) return `Removed ${quoted(removed)}`;
+  const nearby = before.slice(Math.max(0, prefix - 42), prefix).trim();
+  if (!removed && added)
+    return nearby ? `Added ${quoted(added)} after ${quoted(nearby)}` : `Added ${quoted(added)}`;
+  if (removed && !added)
+    return nearby
+      ? `Removed ${quoted(removed)} after ${quoted(nearby)}`
+      : `Removed ${quoted(removed)}`;
   if (removed || added) return `Changed ${quoted(removed)} to ${quoted(added)}`;
   return `Changed visible text to ${quoted(after)}`;
 }
@@ -274,7 +286,14 @@ function summary(change: EditorChange): ChangeSummary {
       : addedLabels.length && !removedLabels.length
         ? `Added ${addedLabels.map((label) => quoted(label)).join(', ')}`
         : !addedLabels.length && !removedLabels.length
-          ? `New order: ${afterLabels.join(' → ')}`
+          ? (() => {
+              const changedIndex = afterIds.findIndex((id, index) => id !== beforeIds[index]);
+              const movedId = changedIndex >= 0 ? afterIds[changedIndex] : undefined;
+              const previousIndex = movedId ? beforeIds.indexOf(movedId) : -1;
+              return movedId && previousIndex >= 0
+                ? `Moved ${quoted(descriptorLabel(change.after[changedIndex]!))} from position ${previousIndex + 1} to ${changedIndex + 1}`
+                : `Changed the order of ${afterLabels.length} items`;
+            })()
           : `Now: ${afterLabels.join(' → ')}`;
   return {
     title,
@@ -465,7 +484,7 @@ export default defineToolbarApp({
       'aria-labelledby': 'ave-region-title',
       'aria-describedby': 'ave-region-help',
     });
-    regionDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Page sections</p><h2 id="ave-region-title">Choose sections to reorder</h2><p id="ave-region-help" class="field-help">Choose a named page area below, or select it directly on the page. Source verification runs automatically.</p><div class="region-candidate-list friendly-region-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary pick-region-on-page" type="button">Select section on page</button></div></form>`;
+    regionDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Page sections</p><h2 id="ave-region-title">Choose an area to reorder</h2><p id="ave-region-help" class="field-help">Select on the page, then choose whether you mean the smallest item, a parent area or the whole page.</p><div class="region-candidate-list friendly-region-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary pick-region-on-page" type="button">Select on page</button></div></form>`;
 
     const regionSourceDialog = createElement('dialog', {
       'aria-labelledby': 'ave-region-source-title',
@@ -552,6 +571,8 @@ export default defineToolbarApp({
       previewRequestId = undefined;
     });
     enableLightDismiss(policyDialog);
+    enableLightDismiss(regionDialog, clearSetupPickerHighlight);
+    enableLightDismiss(regionSourceDialog, clearSetupPickerHighlight);
     enableLightDismiss(permissionDialog, () => {
       if (mode === 'setup') renderInventory();
     });
@@ -720,6 +741,19 @@ export default defineToolbarApp({
       );
     }
 
+    function matchingSectionRegions(target: EventTarget | null): HTMLElement[] {
+      if (!(target instanceof Element)) return [];
+      return setupPickerCandidates
+        .filter((candidate) => candidate === target || candidate.contains(target))
+        .sort((left, right) => {
+          const leftArea = left.getBoundingClientRect().width * left.getBoundingClientRect().height;
+          const rightArea =
+            right.getBoundingClientRect().width * right.getBoundingClientRect().height;
+          if (leftArea !== rightArea) return leftArea - rightArea;
+          return right.querySelectorAll('*').length - left.querySelectorAll('*').length;
+        });
+    }
+
     function compactLabel(value: string, maximum = 72): string {
       const clean = value.replace(/\s+/gu, ' ').trim();
       return clean.length > maximum ? `${clean.slice(0, maximum - 1).trimEnd()}…` : clean;
@@ -783,26 +817,13 @@ export default defineToolbarApp({
       setupPickerTitle.textContent = kind === 'section' ? 'Select a page section' : 'Select text';
       setupPickerLabel.textContent =
         kind === 'section'
-          ? 'Choose the container whose direct items you want to move. Select inside a major block to enable its text, buttons or cards separately.'
+          ? 'Click any page content. You will then choose the exact size of the area to reorder.'
           : 'Hover to highlight text, then click it.';
       setupPagePicker.dataset.open = 'true';
     }
 
     function setupPickerCandidate(target: EventTarget | null): HTMLElement | undefined {
-      if (!(target instanceof Element)) return undefined;
-      const matches = setupPickerCandidates.filter(
-        (candidate) => candidate === target || candidate.contains(target),
-      );
-      if (!matches.length) return undefined;
-      return matches.sort((left, right) => {
-        const leftSemantic = /^(MAIN|ARTICLE|SECTION)$/u.test(left.tagName) ? 0 : 1;
-        const rightSemantic = /^(MAIN|ARTICLE|SECTION)$/u.test(right.tagName) ? 0 : 1;
-        if (leftSemantic !== rightSemantic) return leftSemantic - rightSemantic;
-        const leftArea = left.getBoundingClientRect().width * left.getBoundingClientRect().height;
-        const rightArea =
-          right.getBoundingClientRect().width * right.getBoundingClientRect().height;
-        return leftArea - rightArea;
-      })[0];
+      return matchingSectionRegions(target)[0];
     }
 
     function openPermissionChoice(item: InventoryItem): void {
@@ -838,35 +859,85 @@ export default defineToolbarApp({
         ?.focus();
     }
 
+    function regionScopeName(region: HTMLElement, index: number, total: number): string {
+      if (region.tagName === 'MAIN') return 'Whole page';
+      if (index === 0) return 'Smallest area';
+      if (index === total - 1) return 'Largest area';
+      return `Parent area ${index}`;
+    }
+
+    function appendRegionChoice(list: HTMLElement, region: HTMLElement, scope?: string): void {
+      const childCount = [...region.children].filter(
+        (child) => child instanceof HTMLElement,
+      ).length;
+      const row = createElement('article', { class: 'friendly-region' });
+      const copy = createElement('div');
+      if (scope) {
+        const level = createElement('span', { class: 'region-scope' });
+        level.textContent = scope;
+        copy.append(level);
+      }
+      const title = createElement('strong');
+      title.textContent = regionLabel(region);
+      const description = createElement('span');
+      description.textContent = `Move its ${childCount} direct item${childCount === 1 ? '' : 's'}`;
+      copy.append(title, description);
+      const choose = createElement('button', { class: 'primary', type: 'button' });
+      choose.textContent = 'Choose';
+      choose.setAttribute(
+        'aria-label',
+        `Choose ${scope ? `${scope}: ` : ''}${regionLabel(region)}`,
+      );
+      const highlight = () => {
+        clearSetupPickerHighlight();
+        setupPickerTarget = region;
+        region.dataset.astroVeSetupPick = 'true';
+      };
+      row.addEventListener('pointerenter', highlight);
+      choose.addEventListener('focus', highlight);
+      choose.addEventListener('click', () => beginSectionDiscovery(region));
+      row.append(copy, choose);
+      list.append(row);
+    }
+
+    function openRegionScopeChoice(regions: HTMLElement[]): void {
+      const list = regionDialog.querySelector<HTMLElement>('.region-candidate-list')!;
+      const title = regionDialog.querySelector<HTMLElement>('#ave-region-title')!;
+      const help = regionDialog.querySelector<HTMLElement>('#ave-region-help')!;
+      const pick = regionDialog.querySelector<HTMLButtonElement>('.pick-region-on-page')!;
+      list.replaceChildren();
+      title.textContent = 'How much do you want to reorder?';
+      help.textContent =
+        'Choose the exact level. You can enable the whole page, a parent section, or smaller content inside it independently.';
+      pick.hidden = true;
+      regions.forEach((region, index) =>
+        appendRegionChoice(list, region, regionScopeName(region, index, regions.length)),
+      );
+      if (regions[0]) {
+        setupPickerTarget = regions[0];
+        regions[0].dataset.astroVeSetupPick = 'true';
+      }
+      regionDialog.showModal();
+    }
+
     function openRegionSetup(): void {
       const list = regionDialog.querySelector<HTMLElement>('.region-candidate-list')!;
+      const title = regionDialog.querySelector<HTMLElement>('#ave-region-title')!;
+      const help = regionDialog.querySelector<HTMLElement>('#ave-region-help')!;
+      const pick = regionDialog.querySelector<HTMLButtonElement>('.pick-region-on-page')!;
       list.replaceChildren();
+      title.textContent = 'Choose an area to reorder';
+      help.textContent =
+        'Choose a named area below, or select on the page and then pick its exact nesting level.';
+      pick.hidden = false;
       const regions = sectionRegionElements();
-      regions.forEach((region) => {
-        const childCount = [...region.children].filter(
-          (child) => child instanceof HTMLElement,
-        ).length;
-        const row = createElement('article', { class: 'friendly-region' });
-        const copy = createElement('div');
-        const title = createElement('strong');
-        title.textContent = regionLabel(region);
-        const description = createElement('span');
-        description.textContent = `Moves its ${childCount} direct item${childCount === 1 ? '' : 's'} independently`;
-        copy.append(title, description);
-        const choose = createElement('button', { class: 'primary', type: 'button' });
-        choose.textContent = 'Choose';
-        choose.setAttribute('aria-label', `Choose ${regionLabel(region)}`);
-        choose.addEventListener('click', () => beginSectionDiscovery(region));
-        row.append(copy, choose);
-        list.append(row);
-      });
+      regions.forEach((region) => appendRegionChoice(list, region));
       if (!regions.length) {
         const empty = createElement('div', { class: 'empty' });
         empty.textContent = 'No visible container with two or more direct items was found.';
         list.append(empty);
       }
-      regionDialog.querySelector<HTMLButtonElement>('.pick-region-on-page')!.disabled =
-        regions.length === 0;
+      pick.disabled = regions.length === 0;
       regionDialog.showModal();
     }
 
@@ -877,6 +948,78 @@ export default defineToolbarApp({
       );
     }
 
+    function trustedSectionResolution(
+      region: HTMLElement,
+      resolution: ReturnType<typeof sourceResolutionFor>,
+    ): boolean {
+      if (!resolution.proven || nestedInsideGeneratedRegion(region)) return false;
+      return resolution.kind !== 'route' || region.tagName === 'MAIN';
+    }
+
+    function candidateMatchesRenderedStructure(
+      candidate: SectionRegionCandidate,
+      region: HTMLElement,
+    ): boolean {
+      const renderedTags = [...region.children]
+        .filter((child): child is HTMLElement => child instanceof HTMLElement)
+        .map((child) => child.tagName.toLowerCase());
+      return (
+        candidate.containerTag === region.tagName.toLowerCase() &&
+        candidate.itemTags?.length === renderedTags.length &&
+        candidate.itemTags.every((tag, index) => tag === renderedTags[index])
+      );
+    }
+
+    function candidateMatchesRenderedData(
+      candidate: SectionRegionCandidate,
+      region: HTMLElement,
+    ): boolean {
+      if (candidate.containerTag !== 'data') return false;
+      const renderedItems = [...region.children].filter(
+        (child): child is HTMLElement => child instanceof HTMLElement,
+      );
+      if (
+        candidate.items.length !== renderedItems.length ||
+        candidate.itemValues?.length !== renderedItems.length
+      )
+        return false;
+      return candidate.itemValues.every((sourceValues, index) => {
+        const child = renderedItems[index]!;
+        const leafValues = [...child.querySelectorAll<HTMLElement>('*')]
+          .filter((element) => element.children.length === 0)
+          .map((element) => element.textContent?.replace(/\s+/gu, ' ').trim())
+          .filter((value): value is string => Boolean(value));
+        const visibleValues = leafValues.length
+          ? leafValues
+          : [child.textContent?.replace(/\s+/gu, ' ').trim() ?? ''];
+        return visibleValues.every((value) => sourceValues.includes(value));
+      });
+    }
+
+    function candidateMatchesRenderedRegion(
+      candidate: SectionRegionCandidate,
+      region: HTMLElement,
+    ): boolean {
+      return (
+        candidateMatchesRenderedStructure(candidate, region) ||
+        candidateMatchesRenderedData(candidate, region)
+      );
+    }
+
+    function renderedStructureSimilarity(
+      candidate: SectionRegionCandidate,
+      region: HTMLElement,
+    ): number {
+      const renderedTags = [...region.children]
+        .filter((child): child is HTMLElement => child instanceof HTMLElement)
+        .map((child) => child.tagName.toLowerCase());
+      let score = candidate.containerTag === region.tagName.toLowerCase() ? 4 : 0;
+      candidate.itemTags?.forEach((tag, index) => {
+        if (tag === renderedTags[index]) score += 2;
+      });
+      return score;
+    }
+
     function beginSectionDiscovery(region: HTMLElement): void {
       const children = [...region.children].filter((child) => child instanceof HTMLElement);
       sectionDiscoveryElement = region;
@@ -884,9 +1027,9 @@ export default defineToolbarApp({
       setupBusy = true;
       if (regionDialog.open) regionDialog.close('discover');
       const resolution = sourceResolutionFor(region, config, draftEditabilityPolicy);
-      const nestedGeneratedRegion = nestedInsideGeneratedRegion(region);
-      const hintedFilePath =
-        resolution.proven && !nestedGeneratedRegion ? resolution.filePath : undefined;
+      const hintedFilePath = trustedSectionResolution(region, resolution)
+        ? resolution.filePath
+        : undefined;
       server.send(SECTION_DISCOVERY_EVENT, {
         clientId,
         requestId: sectionDiscoveryRequestId,
@@ -909,18 +1052,12 @@ export default defineToolbarApp({
         draftEditabilityPolicy,
       );
       if (
-        resolution.proven &&
-        !nestedInsideGeneratedRegion(sectionDiscoveryElement) &&
+        trustedSectionResolution(sectionDiscoveryElement, resolution) &&
         resolution.filePath === candidate.filePath
       )
-        score += 6;
-      if (candidate.containerTag === sectionDiscoveryElement.tagName.toLowerCase()) score += 4;
-      const renderedTags = [...sectionDiscoveryElement.children]
-        .filter((child): child is HTMLElement => child instanceof HTMLElement)
-        .map((child) => child.tagName.toLowerCase());
-      candidate.itemTags?.forEach((tag, index) => {
-        if (tag === renderedTags[index]) score += 2;
-      });
+        score += 8;
+      score += renderedStructureSimilarity(candidate, sectionDiscoveryElement);
+      score += candidateMatchesRenderedRegion(candidate, sectionDiscoveryElement) ? 24 : -12;
       return score;
     }
 
@@ -971,33 +1108,23 @@ export default defineToolbarApp({
       const resolution = sectionDiscoveryElement
         ? sourceResolutionFor(sectionDiscoveryElement, config, draftEditabilityPolicy)
         : undefined;
-      const renderedTags = sectionDiscoveryElement
-        ? [...sectionDiscoveryElement.children]
-            .filter((child): child is HTMLElement => child instanceof HTMLElement)
-            .map((child) => child.tagName.toLowerCase())
-        : [];
       const isSafeAutomaticMatch = (candidate: SectionRegionCandidate): boolean => {
+        if (!sectionDiscoveryElement) return false;
+        if (candidateMatchesRenderedRegion(candidate, sectionDiscoveryElement)) return true;
         if (
-          resolution?.proven &&
-          !nestedInsideGeneratedRegion(sectionDiscoveryElement!) &&
+          resolution &&
+          trustedSectionResolution(sectionDiscoveryElement, resolution) &&
           resolution.filePath === candidate.filePath
         )
           return true;
-        return (
-          candidate.containerTag === sectionDiscoveryElement?.tagName.toLowerCase() &&
-          candidate.itemTags?.length === renderedTags.length &&
-          candidate.itemTags.every((tag, index) => tag === renderedTags[index])
-        );
+        return false;
       };
-      if (
-        ranked[0] &&
-        isSafeAutomaticMatch(ranked[0].candidate) &&
-        (ranked.length === 1 || ranked[0].score > ranked[1]!.score)
-      ) {
-        saveSectionCandidate(ranked[0].candidate);
+      const viable = ranked.filter(({ candidate }) => isSafeAutomaticMatch(candidate));
+      if (viable[0] && (viable.length === 1 || viable[0].score > viable[1]!.score)) {
+        saveSectionCandidate(viable[0].candidate);
         return;
       }
-      ranked.forEach(({ candidate }, index) => {
+      viable.forEach(({ candidate }, index) => {
         const label = createElement('label', { class: 'source-candidate' });
         const input = createElement('input', {
           type: 'radio',
@@ -1020,13 +1147,13 @@ export default defineToolbarApp({
         label.append(input, copy);
         list.append(label);
       });
-      if (!candidates.length) {
+      if (!viable.length) {
         const empty = createElement('div', { class: 'empty' });
         empty.textContent = 'No matching contiguous Astro source structure was found.';
         list.append(empty);
       }
       regionSourceDialog.querySelector<HTMLButtonElement>('.confirm-region-source')!.disabled =
-        candidates.length === 0;
+        viable.length === 0;
       regionSourceDialog.showModal();
     }
 
@@ -1334,6 +1461,22 @@ export default defineToolbarApp({
           summaryLine.textContent = values.title;
           const description = createElement('p', { class: 'change-description' });
           description.textContent = values.description;
+          const visibleDiff = createElement('div', { class: 'visible-diff' });
+          if (change.kind !== 'sections') {
+            const beforeValue = createElement('div');
+            const beforeLabel = createElement('strong');
+            beforeLabel.textContent = 'Before';
+            const beforeCopy = createElement('span');
+            beforeCopy.textContent = visibleValue(values.before);
+            beforeValue.append(beforeLabel, beforeCopy);
+            const afterValue = createElement('div');
+            const afterLabel = createElement('strong');
+            afterLabel.textContent = 'After';
+            const afterCopy = createElement('span');
+            afterCopy.textContent = visibleValue(values.after);
+            afterValue.append(afterLabel, afterCopy);
+            visibleDiff.append(beforeValue, afterValue);
+          }
           const sourceLocator = createElement('div', { class: 'file' });
           const sourcePath = change.kind === 'seo' ? undefined : change.sourcePath;
           sourceLocator.textContent = sourcePath
@@ -1350,7 +1493,9 @@ export default defineToolbarApp({
           newText.textContent = `After: ${values.after}`;
           diff.append(oldText, newText);
           technical.append(technicalSummary, file, sourceLocator, diff);
-          copy.append(page, type, summaryLine, description, technical);
+          copy.append(page, type, summaryLine, description);
+          if (visibleDiff.childElementCount) copy.append(visibleDiff);
+          copy.append(technical);
           const removeLabel = `Undo ${change.kind} change in ${change.filePath}`;
           const remove = createElement('button', {
             class: 'icon-button',
@@ -1598,7 +1743,7 @@ export default defineToolbarApp({
           candidate.dataset.astroVeSetupPick = 'true';
           setupPickerLabel.textContent =
             setupPickerKind === 'section'
-              ? `${regionLabel(candidate)} · ${candidate.children.length} items`
+              ? `${regionLabel(candidate)} · smallest of ${matchingSectionRegions(event.target).length} available levels`
               : compactLabel(candidate.textContent ?? 'Selected text');
         } else {
           setupPickerLabel.textContent = 'Move over page content to highlight it.';
@@ -1623,13 +1768,15 @@ export default defineToolbarApp({
         const candidate = setupPickerCandidate(event.target);
         if (!candidate) return;
         const kind = setupPickerKind;
+        const regionMatches = kind === 'section' ? matchingSectionRegions(event.target) : [];
         event.preventDefault();
         event.stopPropagation();
         stopSetupPagePicker(false);
         panel.dataset.open = String(active);
         updateSetupDock();
         if (kind === 'section') {
-          beginSectionDiscovery(candidate);
+          if (regionMatches.length > 1) openRegionScopeChoice(regionMatches);
+          else beginSectionDiscovery(candidate);
         } else {
           const item = inventory.find((entry) => entry.element === candidate);
           if (item) openPermissionChoice(item);

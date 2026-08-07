@@ -1,14 +1,27 @@
-import type { EditabilityEffect, EditabilityRuleScope } from '../shared/types.js';
+import type {
+  EditabilityEffect,
+  EditabilityRuleScope,
+  SectionRegionRule,
+} from '../shared/types.js';
 import type { InventoryItem, InventoryStatus } from './editability.js';
 
 interface EditabilityPanelOptions {
   policyFile: string;
+  route: string;
+  sectionRegions: SectionRegionRule[];
   canManage: boolean;
   pendingChanges: number;
   filter: InventoryStatus | 'all';
+  inventoryOpen: boolean;
+  sectionsOpen: boolean;
   onReview(): void;
   onFilter(filter: InventoryStatus | 'all'): void;
   onLocate(item: InventoryItem, row: HTMLElement): void;
+  onDiscoverSource(item: InventoryItem): void;
+  onAddSectionRegion(): void;
+  onPickSectionRegion(): void;
+  onPickText(): void;
+  onRemoveSectionRegion(region: SectionRegionRule): void;
   onSetRule(
     item: InventoryItem,
     effect: EditabilityEffect,
@@ -33,6 +46,21 @@ function statusLabel(status: InventoryStatus): string {
   if (status === 'excluded') return 'Blocked';
   if (status === 'unresolved') return 'Unresolved';
   return 'Unsafe';
+}
+
+function readableRegionLabel(selector: string): string {
+  const named = selector.match(/(?:\.|#|\[data-[^=]+=["']?)([a-z0-9_-]+)/i)?.[1];
+  const words = (
+    named ??
+    selector
+      .split(/[ >:[.]/)
+      .filter(Boolean)
+      .at(-1) ??
+    'page'
+  )
+    .replaceAll(/[-_]+/g, ' ')
+    .trim();
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)} section`;
 }
 
 function renderSourceForm(
@@ -90,6 +118,10 @@ function renderInventoryRow(
   const source = element('div', { class: 'inventory-source' });
   source.textContent = `${item.sourceFile}${item.sourcePath ? ` → ${item.sourcePath}` : ''}`;
   source.title = item.sourceReason;
+  const technical = element('details', { class: 'technical-details' });
+  const technicalSummary = element('summary');
+  technicalSummary.textContent = 'Technical details';
+  technical.append(technicalSummary, source);
   const controls = element('div', { class: 'inventory-controls' });
   const locate = element('button', { class: 'secondary', type: 'button' });
   locate.textContent = 'Show on page';
@@ -122,9 +154,17 @@ function renderInventoryRow(
       controls.append(group);
     }
   }
-  row.append(top, copy, reason, source, controls);
+  row.append(top, copy, reason, technical, controls);
   if (item.status === 'unresolved' && options.canManage) {
-    row.append(renderSourceForm(item, index, options.onSetRule));
+    const discover = element('button', { class: 'primary discover-source', type: 'button' });
+    discover.textContent = 'Find source and allow editing';
+    discover.addEventListener('click', () => options.onDiscoverSource(item));
+    row.append(discover);
+    const manual = element('details', { class: 'technical-details' });
+    const manualSummary = element('summary');
+    manualSummary.textContent = 'Enter source manually';
+    manual.append(manualSummary, renderSourceForm(item, index, options.onSetRule));
+    row.append(manual);
   }
   return row;
 }
@@ -139,48 +179,94 @@ export function renderEditabilityPanel(
     (totals, item) => ({ ...totals, [item.status]: totals[item.status] + 1 }),
     { editable: 0, excluded: 0, unresolved: 0, unsafe: 0 },
   );
-  const guide = element('ol', {
-    class: 'setup-guide',
-    'aria-label': 'Editability setup steps',
-  });
-  for (const [step, title, copy] of [
-    ['1', 'Choose', 'Allow or block content'],
-    ['2', 'Review', 'Check the project setting'],
-    ['3', 'Save', 'Return ready to edit'],
-  ] as const) {
-    const item = element('li', {
-      'data-state':
-        options.pendingChanges > 0
-          ? step === '1'
-            ? 'complete'
-            : step === '2'
-              ? 'active'
-              : 'waiting'
-          : step === '1'
-            ? 'active'
-            : 'waiting',
-    });
-    const number = element('span', { class: 'setup-guide-number', 'aria-hidden': 'true' });
-    number.textContent = step;
-    const words = element('span');
-    const strong = element('strong');
-    strong.textContent = title;
-    const small = element('small');
-    small.textContent = copy;
-    words.append(strong, small);
-    item.append(number, words);
-    guide.append(item);
-  }
   const header = element('div', { class: 'inventory-header' });
   const heading = element('div');
   const title = element('h3');
-  title.textContent = 'Editability Setup';
-  const policyFile = element('p', { class: 'inventory-policy-file' });
+  title.textContent = 'Editing permissions';
+  const help = element('p');
+  help.textContent = 'Choose what the site owner can maintain on this page.';
+  const technical = element('details', { class: 'technical-details setup-technical' });
+  const technicalSummary = element('summary');
+  technicalSummary.textContent = 'Advanced';
+  const policyFile = element('code');
   policyFile.textContent = options.policyFile;
-  heading.append(title, policyFile);
-  const count = element('span', { class: 'inventory-total' });
-  count.textContent = `${inventory.length} visible items`;
-  header.append(heading, count);
+  technical.append(technicalSummary, policyFile);
+  heading.append(title, help);
+  header.append(heading, technical);
+  const sectionSetup = element('section', {
+    class: 'section-setup',
+    'aria-labelledby': 'ave-section-setup-title',
+  });
+  const sectionHeader = element('div', { class: 'section-setup-header' });
+  const sectionHeading = element('div');
+  const sectionTitle = element('h4', { id: 'ave-section-setup-title' });
+  sectionTitle.textContent = 'Sections';
+  const sectionHelp = element('p');
+  sectionHelp.textContent = 'Select a page area whose sections may be reordered.';
+  sectionHeading.append(sectionTitle, sectionHelp);
+  const sectionCount = element('span', { class: 'inventory-total' });
+  sectionCount.textContent = `${options.sectionRegions.length} enabled`;
+  sectionHeader.append(sectionHeading, sectionCount);
+  sectionSetup.append(sectionHeader);
+  const manageSections = element('details', { class: 'manage-list manage-sections' });
+  manageSections.open = options.sectionsOpen;
+  const manageSectionsSummary = element('summary');
+  manageSectionsSummary.textContent = `Manage sections (${options.sectionRegions.length})`;
+  manageSections.append(manageSectionsSummary);
+  if (options.sectionRegions.length) {
+    const regionList = element('div', { class: 'section-region-list' });
+    for (const region of options.sectionRegions) {
+      const row = element('article', { class: 'section-region-item' });
+      const copy = element('div');
+      const selector = element('strong');
+      selector.textContent = readableRegionLabel(region.selector);
+      const source = element('code');
+      source.textContent = `${region.filePath} → ${region.sourcePath}`;
+      const technical = element('details', { class: 'technical-details' });
+      const summary = element('summary');
+      summary.textContent = 'Technical details';
+      technical.append(summary, source);
+      copy.append(selector, technical);
+      const remove = element('button', { class: 'secondary', type: 'button' });
+      remove.textContent = 'Remove';
+      remove.setAttribute('aria-label', `Remove section region ${region.selector}`);
+      remove.addEventListener('click', () => options.onRemoveSectionRegion(region));
+      row.append(copy, remove);
+      regionList.append(row);
+    }
+    manageSections.append(regionList);
+  } else {
+    const empty = element('p', { class: 'section-setup-empty' });
+    empty.textContent = `No section region is enabled for ${options.route}.`;
+    manageSections.append(empty);
+  }
+  sectionSetup.append(manageSections);
+  if (options.canManage) {
+    const regionActions = element('div', { class: 'setup-picker-actions' });
+    const pickRegion = element('button', {
+      class: 'secondary add-section-region',
+      type: 'button',
+    });
+    pickRegion.textContent = 'Select on page';
+    pickRegion.addEventListener('click', options.onPickSectionRegion);
+    const addRegion = element('button', { class: 'secondary', type: 'button' });
+    addRegion.textContent = 'Choose from list';
+    addRegion.addEventListener('click', options.onAddSectionRegion);
+    regionActions.append(pickRegion, addRegion);
+    sectionSetup.append(regionActions);
+  }
+  const textHeading = element('div', { class: 'text-settings-heading' });
+  const textTitle = element('h4');
+  textTitle.textContent = 'Text';
+  const textHelp = element('p');
+  textHelp.textContent = 'Select text on the page to allow or block editing.';
+  textHeading.append(textTitle, textHelp);
+  if (options.canManage) {
+    const pickText = element('button', { class: 'secondary pick-text-on-page', type: 'button' });
+    pickText.textContent = 'Select on page';
+    pickText.addEventListener('click', options.onPickText);
+    textHeading.append(pickText);
+  }
   const pending = element('div', {
     class: 'pending-policy',
     role: 'status',
@@ -191,13 +277,26 @@ export function renderEditabilityPanel(
     const pendingTitle = element('strong');
     pendingTitle.textContent = 'Not saved yet';
     const pendingText = element('span');
-    pendingText.textContent = `${options.pendingChanges} permission change${options.pendingChanges === 1 ? '' : 's'} will only work after you review and save.`;
+    pendingText.textContent = `${options.pendingChanges} editor setting${options.pendingChanges === 1 ? '' : 's'} will only work after you review and save.`;
     pendingCopy.append(pendingTitle, pendingText);
     const review = element('button', { class: 'primary', type: 'button' });
     review.textContent = 'Review and save now';
     review.addEventListener('click', options.onReview);
     pending.append(pendingCopy, review);
   }
+  const manageText = element('details', { class: 'manage-list manage-text' });
+  manageText.open = options.inventoryOpen;
+  const manageTextSummary = element('summary');
+  manageTextSummary.textContent = `Manage all text (${inventory.length})`;
+  manageText.append(manageTextSummary);
+  const searchLabel = element('label', { for: 'ave-inventory-search', class: 'search-label' });
+  searchLabel.textContent = 'Search visible text';
+  const search = element('input', {
+    id: 'ave-inventory-search',
+    class: 'inventory-search',
+    type: 'search',
+    placeholder: 'Search by words on the page',
+  });
   const filters = element('div', {
     class: 'inventory-filters',
     role: 'group',
@@ -229,7 +328,14 @@ export function renderEditabilityPanel(
     empty.textContent = 'No visible content matches this filter.';
     list.append(empty);
   }
-  container.append(guide, header);
+  search.addEventListener('input', () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    for (const row of list.querySelectorAll<HTMLElement>('.inventory-item')) {
+      row.hidden = query.length > 0 && !row.textContent?.toLocaleLowerCase().includes(query);
+    }
+  });
+  manageText.append(searchLabel, search, filters, list);
+  container.append(header, sectionSetup);
   if (options.pendingChanges > 0) container.append(pending);
-  container.append(filters, list);
+  container.append(textHeading, manageText);
 }

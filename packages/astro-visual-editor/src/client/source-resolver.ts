@@ -9,7 +9,26 @@ export interface SourceResolution {
   filePath: string;
   sourcePath?: string;
   proven: boolean;
+  kind: 'annotation' | 'selector' | 'policy' | 'route' | 'fallback';
   reason: string;
+  sharedRouteCount?: number;
+}
+
+function sharedRouteCount(element: HTMLElement): number | undefined {
+  const routes = element
+    .closest<HTMLElement>('[data-astro-edit-shared-routes]')
+    ?.dataset.astroEditSharedRoutes?.split(',')
+    .map((route) => route.trim())
+    .filter(Boolean);
+  return routes && routes.length > 1 ? new Set(routes).size : undefined;
+}
+
+function annotatedReason(element: HTMLElement): string {
+  const origin = element.closest<HTMLElement>('[data-astro-edit-origin]')?.dataset.astroEditOrigin;
+  const shared = sharedRouteCount(element);
+  const originCopy = origin ? ` Confirmed as ${origin.replaceAll('-', ' ')}.` : '';
+  const sharedCopy = shared ? ` This value is shared by ${shared} routes.` : '';
+  return `Confirmed by a source annotation.${originCopy}${sharedCopy}`;
 }
 
 export function sourceResolutionFor(
@@ -17,14 +36,17 @@ export function sourceResolutionFor(
   config: ClientEditorConfig,
   policy?: EditabilityPolicy,
 ): SourceResolution {
-  const explicit = element.closest<HTMLElement>('[data-astro-edit-file]')?.dataset.astroEditFile;
-  const sourcePath = element.closest<HTMLElement>('[data-astro-edit-path]')?.dataset.astroEditPath;
+  const annotatedOwner = element.closest<HTMLElement>('[data-astro-edit-file]');
+  const explicit = annotatedOwner?.dataset.astroEditFile;
+  const sourcePath = annotatedOwner?.dataset.astroEditPath;
   if (explicit) {
     return {
       filePath: explicit,
       sourcePath,
       proven: true,
-      reason: 'Confirmed by a source annotation.',
+      kind: 'annotation',
+      reason: annotatedReason(element),
+      sharedRouteCount: sharedRouteCount(element),
     };
   }
   for (const [selector, filePath] of Object.entries(config.selectorMappings)) {
@@ -34,6 +56,7 @@ export function sourceResolutionFor(
           filePath,
           sourcePath,
           proven: true,
+          kind: 'selector',
           reason: `Confirmed by selector mapping “${selector}”.`,
         };
       }
@@ -42,14 +65,6 @@ export function sourceResolutionFor(
     }
   }
   const path = window.location.pathname;
-  const mapped = config.fileMappings[path] ?? config.fileMappings[path.replace(/\/$/u, '')];
-  if (mapped)
-    return {
-      filePath: mapped,
-      sourcePath,
-      proven: true,
-      reason: 'Confirmed by the page route mapping.',
-    };
   const policyRule = policy?.rules.find((rule) => {
     if (rule.route !== path || rule.effect !== 'allow' || !rule.filePath) return false;
     try {
@@ -63,13 +78,24 @@ export function sourceResolutionFor(
       filePath: policyRule.filePath,
       sourcePath: policyRule.sourcePath ?? sourcePath,
       proven: true,
+      kind: 'policy',
       reason: 'Confirmed by the saved editability policy.',
     };
   }
+  const mapped = config.fileMappings[path] ?? config.fileMappings[path.replace(/\/$/u, '')];
+  if (mapped)
+    return {
+      filePath: mapped,
+      sourcePath,
+      proven: true,
+      kind: 'route',
+      reason: 'Confirmed by the page route mapping.',
+    };
   return {
     filePath: routeFallback(path),
     sourcePath,
     proven: false,
+    kind: 'fallback',
     reason: 'Only a route-based source candidate is available.',
   };
 }
@@ -86,15 +112,43 @@ export function selectorFor(element: HTMLElement): string {
   if (element.id) return `#${CSS.escape(element.id)}`;
   const editableId = element.dataset.astroEditId;
   if (editableId) return `[data-astro-edit-id="${CSS.escape(editableId)}"]`;
-  const sectionId = element.closest<HTMLElement>('[data-section]')?.dataset.section;
+  const generatedRegion = element.dataset.astroVeGeneratedRegion === 'true';
+  const explicitFile = generatedRegion ? undefined : element.dataset.astroEditFile?.trim();
+  const explicitPath = generatedRegion ? undefined : element.dataset.astroEditPath?.trim();
+  if (explicitFile && explicitPath) {
+    return `[data-astro-edit-file="${CSS.escape(explicitFile)}"][data-astro-edit-path="${CSS.escape(explicitPath)}"]`;
+  }
+  const sectionOwner = element.closest<HTMLElement>('[data-section]');
+  const sectionId =
+    sectionOwner?.dataset.astroVeGeneratedSection === 'true'
+      ? undefined
+      : sectionOwner?.dataset.section;
   const parts: string[] = [];
   let current: HTMLElement | null = element;
   while (current && parts.length < 5 && current !== document.body) {
     let part = current.tagName.toLowerCase();
-    if (current.dataset.section) part += `[data-section="${CSS.escape(current.dataset.section)}"]`;
+    const generatedSection = current.dataset.astroVeGeneratedSection === 'true';
+    if (current.dataset.section && !generatedSection)
+      part += `[data-section="${CSS.escape(current.dataset.section)}"]`;
     else if (current.classList.length > 0) part += `.${CSS.escape(current.classList[0] ?? '')}`;
+    if ((!current.dataset.section || generatedSection) && current.parentElement) {
+      let matchingSiblings: Element[] = [];
+      try {
+        matchingSiblings = [...current.parentElement.children].filter((sibling) =>
+          sibling.matches(part),
+        );
+      } catch {
+        matchingSiblings = [];
+      }
+      if (matchingSiblings.length > 1) {
+        const sameTag = [...current.parentElement.children].filter(
+          (sibling) => sibling.tagName === current!.tagName,
+        );
+        part += `:nth-of-type(${sameTag.indexOf(current) + 1})`;
+      }
+    }
     parts.unshift(part);
-    if (current.dataset.section) break;
+    if (current.dataset.section && !generatedSection) break;
     current = current.parentElement;
   }
   const selector = parts.join(' > ');

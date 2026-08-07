@@ -8,6 +8,8 @@ import type {
   EditabilityPolicyResponse,
   FileDiff,
 } from '../shared/types.js';
+import { resolveAstroRegionItems, resolveStructuredRegionItems } from './source-discovery.js';
+import { readSourceSnapshot } from './source-files.js';
 
 const emptyPolicy: EditabilityPolicy = { version: 1, rules: [] };
 
@@ -92,6 +94,7 @@ export class EditabilityPolicyManager {
   constructor(
     private readonly projectRoot: string,
     private readonly options: NormalizedOptions,
+    private readonly sourceRoot = resolve(projectRoot, 'src'),
   ) {
     this.policyPath = resolve(projectRoot, options.editabilityPolicyFile);
     if (!within(projectRoot, this.policyPath)) {
@@ -145,6 +148,67 @@ export class EditabilityPolicyManager {
       ids.add(rule.id);
       targets.set(target, rule.id);
     }
+    const regionIds = new Set<string>();
+    const regionTargets = new Set<string>();
+    for (const region of policy.regions ?? []) {
+      if (!/^[a-z0-9][a-z0-9-]{0,199}$/u.test(region.id) || regionIds.has(region.id)) {
+        throw new Error(`Section region id is invalid or duplicated: ${region.id}`);
+      }
+      if (!region.route.startsWith('/') || region.route.length > 4_096) {
+        throw new Error(`Section region ${region.id} has an invalid route.`);
+      }
+      if (
+        !region.selector.trim() ||
+        region.selector.length > 2_000 ||
+        /[\0\r\n]/u.test(region.selector)
+      ) {
+        throw new Error(`Section region ${region.id} has an invalid selector.`);
+      }
+      if (
+        region.filePath.startsWith('/') ||
+        region.filePath.split(/[\\/]/u).includes('..') ||
+        !['.astro', '.json', '.jsonc', '.yaml', '.yml'].includes(extname(region.filePath))
+      ) {
+        throw new Error(`Section region ${region.id} must use a safe supported source file.`);
+      }
+      if (
+        !/^astro:children:[a-z-]+:[A-Za-z0-9_.:-]+:\d+$/u.test(region.sourcePath) &&
+        !/^(json|yaml):array:[A-Za-z0-9_.[\]-]+$/u.test(region.sourcePath)
+      ) {
+        throw new Error(`Section region ${region.id} has an invalid source mapping.`);
+      }
+      const extension = extname(region.filePath);
+      if (
+        (region.sourcePath.startsWith('astro:') && extension !== '.astro') ||
+        (region.sourcePath.startsWith('json:') && !['.json', '.jsonc'].includes(extension)) ||
+        (region.sourcePath.startsWith('yaml:') && !['.yaml', '.yml'].includes(extension))
+      ) {
+        throw new Error(`Section region ${region.id} source mapping does not match its file type.`);
+      }
+      if (region.items.length < 2 || region.items.length > 100) {
+        throw new Error(`Section region ${region.id} must contain between 2 and 100 items.`);
+      }
+      const itemIds = new Set<string>();
+      const sourceKeys = new Set<string>();
+      for (const item of region.items) {
+        if (
+          !/^[A-Za-z][A-Za-z0-9_-]{0,199}$/u.test(item.id) ||
+          itemIds.has(item.id) ||
+          !/^[a-f0-9]{20}$/u.test(item.sourceKey) ||
+          sourceKeys.has(item.sourceKey)
+        ) {
+          throw new Error(`Section region ${region.id} contains invalid or duplicate items.`);
+        }
+        itemIds.add(item.id);
+        sourceKeys.add(item.sourceKey);
+      }
+      const target = `${region.route}\0${region.selector}`;
+      if (regionTargets.has(target)) {
+        throw new Error(`Multiple section regions target ${region.selector} on ${region.route}.`);
+      }
+      regionIds.add(region.id);
+      regionTargets.add(target);
+    }
     return structuredClone(policy);
   }
 
@@ -182,7 +246,19 @@ export class EditabilityPolicyManager {
     } catch {
       throw new Error(`${this.options.editabilityPolicyFile} is not valid JSON.`);
     }
-    return { policy: this.validate(parsed), source, policyHash: hash(source) };
+    const policy = this.validate(parsed);
+    for (const region of policy.regions ?? []) {
+      const snapshot = await readSourceSnapshot(
+        this.projectRoot,
+        this.sourceRoot,
+        region.filePath,
+        this.options,
+      );
+      region.items = region.sourcePath.startsWith('astro:children:')
+        ? await resolveAstroRegionItems(snapshot.source, region.sourcePath)
+        : resolveStructuredRegionItems(snapshot.source, snapshot.extension, region.sourcePath);
+    }
+    return { policy, source, policyHash: hash(source) };
   }
 
   async load(

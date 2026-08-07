@@ -36,6 +36,10 @@ import {
   REVERT_RESULT_EVENT,
   SAVE_EVENT,
   SAVE_RESULT_EVENT,
+  SOURCE_DISCOVERY_EVENT,
+  SOURCE_DISCOVERY_RESULT_EVENT,
+  SECTION_DISCOVERY_EVENT,
+  SECTION_DISCOVERY_RESULT_EVENT,
 } from './shared/events.js';
 import type {
   ClientEditorConfig,
@@ -56,6 +60,11 @@ import type {
   SeoField,
   SeoValues,
   SaveResponse,
+  SourceCandidate,
+  SourceDiscoveryResponse,
+  SectionDiscoveryResponse,
+  SectionRegionCandidate,
+  SectionRegionRule,
   TextEditorChange,
 } from './shared/types.js';
 
@@ -82,6 +91,7 @@ const defaultConfig: ClientEditorConfig = {
   fileMappings: {},
   selectorMappings: {},
   sectionTemplates: [],
+  demoPages: [],
   maxChanges: 100,
   maxTextLength: 10_000,
   requestTimeoutMs: 15_000,
@@ -164,17 +174,92 @@ function setSeoPreview(values: SeoValues): void {
   }
 }
 
-function summary(change: EditorChange): { title: string; oldText: string; newText: string } {
+interface ChangeSummary {
+  title: string;
+  description: string;
+  before: string;
+  after: string;
+}
+
+function quoted(value: string, maximum = 90): string {
+  const clean = value.replace(/\s+/gu, ' ').trim();
+  const compact = clean.length > maximum ? `${clean.slice(0, maximum - 1).trimEnd()}…` : clean;
+  return `“${compact || 'empty'}”`;
+}
+
+function visibleValue(value: string, maximum = 260): string {
+  const clean = value.replace(/\s+/gu, ' ').trim() || 'Empty';
+  if (clean.length <= maximum) return clean;
+  const edge = Math.floor((maximum - 3) / 2);
+  return `${clean.slice(0, edge).trimEnd()} … ${clean.slice(-edge).trimStart()}`;
+}
+
+function changedTextDescription(before: string, after: string): string {
+  let prefix = 0;
+  while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix])
+    prefix += 1;
+  let suffix = 0;
+  while (
+    suffix < before.length - prefix &&
+    suffix < after.length - prefix &&
+    before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+  )
+    suffix += 1;
+  const removed = before.slice(prefix, before.length - suffix);
+  const added = after.slice(prefix, after.length - suffix);
+  const nearby = before.slice(Math.max(0, prefix - 42), prefix).trim();
+  if (!removed && added)
+    return nearby ? `Added ${quoted(added)} after ${quoted(nearby)}` : `Added ${quoted(added)}`;
+  if (removed && !added)
+    return nearby
+      ? `Removed ${quoted(removed)} after ${quoted(nearby)}`
+      : `Removed ${quoted(removed)}`;
+  if (removed || added) return `Changed ${quoted(removed)} to ${quoted(added)}`;
+  return `Changed visible text to ${quoted(after)}`;
+}
+
+const seoLabels: Record<SeoField, string> = {
+  title: 'page title',
+  description: 'search description',
+  keywords: 'keywords',
+  canonical: 'canonical URL',
+  ogTitle: 'social sharing title',
+  ogDescription: 'social sharing description',
+  robots: 'search visibility',
+};
+
+function descriptorLabel(descriptor: SectionDescriptor): string {
+  if (descriptor.label?.trim()) return descriptor.label.trim();
+  return descriptor.id
+    .replace(/-[a-f0-9]{8,}$/u, '')
+    .replace(/[-_]+/gu, ' ')
+    .replace(/^\w/u, (letter) => letter.toUpperCase());
+}
+
+function summary(change: EditorChange): ChangeSummary {
   if (change.kind === 'text')
-    return { title: 'Text replacement', oldText: change.oldText, newText: change.newText };
+    return {
+      title: 'Changed visible text',
+      description: changedTextDescription(change.oldText, change.newText),
+      before: change.oldText,
+      after: change.newText,
+    };
   if (change.kind === 'seo') {
     const changed = (Object.keys(change.after) as SeoField[]).filter(
       (field) => change.after[field] !== change.before[field],
     );
+    const first = changed[0];
     return {
-      title: `Changed ${changed.length} SEO field${changed.length === 1 ? '' : 's'}`,
-      oldText: 'Existing rendered metadata',
-      newText: changed.join(', '),
+      title:
+        changed.length === 1 && first
+          ? `Updated ${seoLabels[first]}`
+          : `Updated ${changed.length} page settings`,
+      description:
+        changed.length === 1 && first
+          ? `${quoted(change.before[first])} to ${quoted(change.after[first])}`
+          : changed.map((field) => seoLabels[field]).join(', '),
+      before: changed.map((field) => `${seoLabels[field]}: ${change.before[field]}`).join('\n'),
+      after: changed.map((field) => `${seoLabels[field]}: ${change.after[field]}`).join('\n'),
     };
   }
   const beforeIds = change.before.map((item) => item.id);
@@ -183,16 +268,38 @@ function summary(change: EditorChange): { title: string; oldText: string; newTex
   const removed = beforeIds.filter((id) => !afterIds.includes(id));
   const title =
     added.length && !removed.length
-      ? `Added ${added.length} section${added.length === 1 ? '' : 's'} in ${change.regionId}`
+      ? `Added ${added.length} section${added.length === 1 ? '' : 's'}`
       : removed.length && !added.length
-        ? `Removed ${removed.length} section${removed.length === 1 ? '' : 's'} from ${change.regionId}`
+        ? `Deleted ${removed.length} section${removed.length === 1 ? '' : 's'}`
         : !added.length && !removed.length
-          ? `Reordered ${afterIds.length} sections in ${change.regionId}`
-          : `Changed section structure in ${change.regionId}`;
+          ? `Reordered ${afterIds.length} sections`
+          : 'Changed page sections';
+  const beforeLabels = change.before.map(descriptorLabel);
+  const afterLabels = change.after.map(descriptorLabel);
+  const removedLabels = change.before
+    .filter((item) => removed.includes(item.id))
+    .map(descriptorLabel);
+  const addedLabels = change.after.filter((item) => added.includes(item.id)).map(descriptorLabel);
+  const description =
+    removedLabels.length && !addedLabels.length
+      ? `Deleted ${removedLabels.map((label) => quoted(label)).join(', ')}`
+      : addedLabels.length && !removedLabels.length
+        ? `Added ${addedLabels.map((label) => quoted(label)).join(', ')}`
+        : !addedLabels.length && !removedLabels.length
+          ? (() => {
+              const changedIndex = afterIds.findIndex((id, index) => id !== beforeIds[index]);
+              const movedId = changedIndex >= 0 ? afterIds[changedIndex] : undefined;
+              const previousIndex = movedId ? beforeIds.indexOf(movedId) : -1;
+              return movedId && previousIndex >= 0
+                ? `Moved ${quoted(descriptorLabel(change.after[changedIndex]!))} from position ${previousIndex + 1} to ${changedIndex + 1}`
+                : `Changed the order of ${afterLabels.length} items`;
+            })()
+          : `Now: ${afterLabels.join(' → ')}`;
   return {
     title,
-    oldText: beforeIds.join(' → ') || 'Empty region',
-    newText: afterIds.join(' → ') || 'Empty region',
+    description,
+    before: beforeLabels.join(' → ') || 'Empty region',
+    after: afterLabels.join(' → ') || 'Empty region',
   };
 }
 
@@ -230,6 +337,7 @@ export default defineToolbarApp({
     let configConfirmed = false;
     let active = false;
     let mode: EditorMode = 'text';
+    let lastEditingMode: Exclude<EditorMode, 'review' | 'setup'> = 'text';
     let hovered: HTMLElement | null = null;
     let editing: HTMLElement | null = null;
     let draggedSection: HTMLElement | null = null;
@@ -237,6 +345,7 @@ export default defineToolbarApp({
     let deleteTarget: HTMLElement | null = null;
     let saveInFlight = false;
     let timeoutId: number | undefined;
+    let previewTimeoutId: number | undefined;
     let receiptPollId: number | undefined;
     let pendingRequestId = sessionStorage.getItem(SESSION_PENDING) ?? undefined;
     let lastReceiptId = sessionStorage.getItem(SESSION_RECEIPT) ?? undefined;
@@ -251,7 +360,18 @@ export default defineToolbarApp({
     let editabilityPreviewId: string | undefined;
     let inventory: InventoryItem[] = [];
     let inventoryFilter: InventoryStatus | 'all' = 'all';
+    let inventoryManagerOpen = false;
+    let sectionManagerOpen = false;
     let setupBusy = false;
+    let sourceDiscoveryRequestId: string | undefined;
+    let sourceDiscoveryItem: InventoryItem | undefined;
+    let sourceCandidates: SourceCandidate[] = [];
+    let sectionDiscoveryRequestId: string | undefined;
+    let sectionDiscoveryElement: HTMLElement | undefined;
+    let sectionCandidates: SectionRegionCandidate[] = [];
+    let setupPickerKind: 'text' | 'section' | undefined;
+    let setupPickerTarget: HTMLElement | undefined;
+    let setupPickerCandidates: HTMLElement[] = [];
 
     const style = createElement('style');
     style.textContent = toolbarStyles;
@@ -263,44 +383,58 @@ export default defineToolbarApp({
     });
     panel.innerHTML = `
       <header class="masthead">
-        <div><p class="eyebrow">Local source workbench</p><h2>Visual Editor</h2>
+        <div><p class="eyebrow">Visual Editor</p><h2>Edit this page</h2>
           <p class="status" data-state="warning"><span class="status-dot" aria-hidden="true"></span><span class="status-copy">Connecting to Astro…</span></p>
         </div>
-        <div class="masthead-actions"><button class="icon-button setup-toggle" type="button" aria-label="Open Editability Setup" title="Open Editability Setup" hidden>⚙</button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button></div>
+        <div class="masthead-actions"><button class="utility-button setup-toggle" type="button" aria-label="Open Editor Setup" title="Open Editor Setup" hidden>Settings</button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">−</button></div>
       </header>
+      <aside class="demo-context" hidden><span>Demo page</span><nav class="demo-surfaces" aria-label="Demo test pages"></nav></aside>
       <div class="mode-tabs" role="tablist" aria-label="Editing mode">
         <button class="mode-tab" role="tab" data-mode="text" aria-selected="true">Text</button>
         <button class="mode-tab" role="tab" data-mode="sections" aria-selected="false">Sections</button>
         <button class="mode-tab" role="tab" data-mode="seo" aria-selected="false">SEO</button>
-        <button class="mode-tab" role="tab" data-mode="review" aria-selected="false">Review</button>
       </div>
-      <div class="instructions">Click visible text, or focus it and press Alt+Enter.</div>
-      <div class="ledger" aria-live="polite" aria-label="Queued changes"></div>
-      <p class="message" role="status" aria-live="polite"></p>
-      <div class="history-actions">
-        <button class="secondary undo" type="button" disabled>Undo</button>
-        <button class="secondary redo" type="button" disabled>Redo</button>
-        <button class="secondary show-history" type="button">History</button>
-      </div>
+      <div class="instructions"><span class="instructions-copy">Click visible text, or focus it and press Alt+Enter.</span></div>
+      <section class="changes-tray" aria-label="Changes tray">
+        <div class="changes-header">
+          <button class="changes-toggle" type="button" aria-expanded="false"><span>Changes</span><span class="change-count">0</span></button>
+          <button class="secondary undo" type="button" disabled>Undo</button>
+        </div>
+        <div class="ledger" aria-live="polite" aria-label="Queued changes"></div>
+        <p class="message" role="status" aria-live="polite"></p>
+        <div class="history-actions">
+          <button class="secondary redo" type="button" disabled>Redo</button>
+          <button class="secondary show-history" type="button">History</button>
+        </div>
+        <footer class="actions">
+          <button class="primary commit" type="button" disabled>Review and save</button>
+          <button class="secondary clear" type="button">Discard changes</button>
+          <button class="secondary revert" type="button" disabled>Restore previous save</button>
+        </footer>
+      </section>
       <div class="setup-actions">
         <button class="secondary leave-setup" type="button">← Back to editor</button>
         <button class="primary review-policy" type="button" disabled>Review and save</button>
         <button class="secondary reload-policy" type="button" hidden>Discard unsaved changes</button>
-      </div>
-      <footer class="actions">
-        <button class="primary commit" type="button" disabled>Review file changes</button>
-        <button class="secondary clear" type="button">Clear</button>
-        <button class="secondary revert" type="button" disabled>Revert last commit</button>
-      </footer>`;
+      </div>`;
 
     const picker = createElement('div', { class: 'picker', 'data-open': 'false' });
     picker.innerHTML = `<span class="picker-label">Tap content to edit</span><button class="secondary picker-review" type="button" title="Expand editor and review queued changes">Review 0</button><button class="icon-button picker-close" type="button" aria-label="Disable Visual Editor" title="Disable Visual Editor">×</button>`;
+
+    const setupPagePicker = createElement('div', {
+      class: 'setup-page-picker',
+      'data-open': 'false',
+      'data-astro-ve-ui': 'true',
+      role: 'status',
+      'aria-live': 'polite',
+    });
+    setupPagePicker.innerHTML = `<div><strong class="setup-picker-title">Select on page</strong><span class="setup-picker-help">Move over the page, then click the item you want.</span></div><span class="setup-picker-label">Nothing selected yet</span><button class="secondary cancel-setup-picker" type="button">Cancel</button>`;
 
     const textDialog = createElement('dialog', {
       'aria-labelledby': 'ave-text-title',
       'aria-describedby': 'ave-text-file',
     });
-    textDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Preview before writing</p><h2 id="ave-text-title">Edit text</h2><p id="ave-text-file" class="dialog-file"></p><label for="ave-text-value">Replacement text</label><textarea id="ave-text-value" required></textarea><p class="field-help">The owning adapter validates syntax before any source file is written.</p><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary queue-text" type="button">Queue change</button></div></form>`;
+    textDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Preview before writing</p><h2 id="ave-text-title">Edit text</h2><p id="ave-text-file" class="dialog-file"></p><p class="source-warning" hidden></p><label for="ave-text-value">Replacement text</label><textarea id="ave-text-value" required></textarea><p class="field-help">The owning adapter validates syntax before any source file is written.</p><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary queue-text" type="button">Queue change</button></div></form>`;
 
     const seoDialog = createElement('dialog', {
       'aria-labelledby': 'ave-seo-title',
@@ -332,18 +466,43 @@ export default defineToolbarApp({
       'aria-labelledby': 'ave-diff-title',
       'aria-describedby': 'ave-diff-help',
     });
-    diffDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Final safety check</p><h2 id="ave-diff-title">Review file changes</h2><p id="ave-diff-help" class="field-help">These are the exact source lines that will be written. Nothing is saved until you confirm.</p><div class="file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-diff" type="button">Cancel</button><button class="primary confirm-commit" type="button">Commit these changes</button></div></div>`;
+    diffDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Final safety check</p><h2 id="ave-diff-title">Review and save</h2><p id="ave-diff-help" class="field-help">These are the exact source lines that will be written. Nothing is saved until you confirm.</p><div class="file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-diff" type="button">Cancel</button><button class="primary confirm-commit" type="button">Save changes</button></div></div>`;
 
     const policyDialog = createElement('dialog', {
       'aria-labelledby': 'ave-policy-title',
       'aria-describedby': 'ave-policy-help',
     });
-    policyDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Step 2 of 3 · Review</p><h2 id="ave-policy-title">Save this permission change?</h2><p id="ave-policy-help" class="field-help">You chose what can be edited. Check the exact project setting below, then save it to make the permission active. Nothing changes until you save.</p><div class="policy-diff-list file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-policy" type="button">Back to setup</button><button class="primary confirm-policy" type="button">Save and return to editor</button></div></div>`;
+    policyDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Ready to enable</p><h2 id="ave-policy-title">Save these editor choices?</h2><p id="ave-policy-help" class="field-help">This saves which text and sections can be maintained on this page. It does not change the page content.</p><details class="technical-details policy-technical"><summary>Review technical project change</summary><div class="policy-diff-list file-diff-list"></div></details><div class="dialog-actions"><button class="secondary cancel-policy" type="button">Keep editing</button><button class="primary confirm-policy" type="button">Save settings</button></div></div>`;
+
+    const sourceDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-source-title',
+      'aria-describedby': 'ave-source-help',
+    });
+    sourceDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">One safety check</p><h2 id="ave-source-title">Which source owns this text?</h2><p id="ave-source-help" class="field-help">More than one exact source match exists, so the editor will not guess. Choose only if you recognise the owner.</p><div class="source-candidate-list"></div><div class="dialog-actions"><button class="secondary cancel-source" value="cancel" type="submit">Cancel safely</button><button class="primary confirm-source" type="button">Use selected source</button></div></form>`;
+
+    const regionDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-region-title',
+      'aria-describedby': 'ave-region-help',
+    });
+    regionDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Page sections</p><h2 id="ave-region-title">Choose an area to reorder</h2><p id="ave-region-help" class="field-help">Select on the page, then choose whether you mean the smallest item, a parent area or the whole page.</p><div class="region-candidate-list friendly-region-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary pick-region-on-page" type="button">Select on page</button></div></form>`;
+
+    const regionSourceDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-region-source-title',
+      'aria-describedby': 'ave-region-source-help',
+    });
+    regionSourceDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">One safety check</p><h2 id="ave-region-source-title">Which source owns this section?</h2><p id="ave-region-source-help" class="field-help">The page selection is complete, but more than one source structure could produce it. Choose only if you recognise the owner; otherwise cancel safely.</p><div class="region-source-candidate-list source-candidate-list"></div><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel safely</button><button class="primary confirm-region-source" type="button">Use selected source</button></div></form>`;
+
+    const permissionDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-permission-title',
+      'aria-describedby': 'ave-permission-help',
+    });
+    permissionDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Text editing</p><h2 id="ave-permission-title">Choose what can be edited</h2><p id="ave-permission-help" class="field-help permission-copy"></p><details class="technical-details"><summary>Technical details</summary><p class="dialog-file permission-source"></p></details><div class="dialog-actions permission-actions"><button class="secondary cancel-permission" type="button">Cancel</button></div></div>`;
 
     canvas.append(
       style,
       panel,
       picker,
+      setupPagePicker,
       textDialog,
       seoDialog,
       templateDialog,
@@ -351,13 +510,21 @@ export default defineToolbarApp({
       historyDialog,
       diffDialog,
       policyDialog,
+      sourceDialog,
+      regionDialog,
+      regionSourceDialog,
+      permissionDialog,
     );
 
     const ledger = panel.querySelector<HTMLElement>('.ledger')!;
     const message = panel.querySelector<HTMLElement>('.message')!;
     const status = panel.querySelector<HTMLElement>('.status')!;
     const statusCopy = panel.querySelector<HTMLElement>('.status-copy')!;
-    const instructions = panel.querySelector<HTMLElement>('.instructions')!;
+    const instructions = panel.querySelector<HTMLElement>('.instructions-copy')!;
+    const demoSurfaces = panel.querySelector<HTMLElement>('.demo-surfaces')!;
+    const demoContext = panel.querySelector<HTMLElement>('.demo-context')!;
+    const changesToggle = panel.querySelector<HTMLButtonElement>('.changes-toggle')!;
+    const changeCount = panel.querySelector<HTMLElement>('.change-count')!;
     const commitButton = panel.querySelector<HTMLButtonElement>('.commit')!;
     const clearButton = panel.querySelector<HTMLButtonElement>('.clear')!;
     const revertButton = panel.querySelector<HTMLButtonElement>('.revert')!;
@@ -368,6 +535,7 @@ export default defineToolbarApp({
     const fileDiffList = diffDialog.querySelector<HTMLElement>('.file-diff-list')!;
     const textarea = textDialog.querySelector<HTMLTextAreaElement>('textarea')!;
     const textFile = textDialog.querySelector<HTMLElement>('.dialog-file')!;
+    const sourceWarning = textDialog.querySelector<HTMLElement>('.source-warning')!;
     const pickerLabel = picker.querySelector<HTMLElement>('.picker-label')!;
     const pickerReview = picker.querySelector<HTMLButtonElement>('.picker-review')!;
     const templateGrid = templateDialog.querySelector<HTMLElement>('.template-grid')!;
@@ -377,6 +545,11 @@ export default defineToolbarApp({
     const reloadPolicyButton = panel.querySelector<HTMLButtonElement>('.reload-policy')!;
     const reviewPolicyButton = panel.querySelector<HTMLButtonElement>('.review-policy')!;
     const policyDiffList = policyDialog.querySelector<HTMLElement>('.policy-diff-list')!;
+    const setupPickerTitle = setupPagePicker.querySelector<HTMLElement>('.setup-picker-title')!;
+    const setupPickerLabel = setupPagePicker.querySelector<HTMLElement>('.setup-picker-label')!;
+    const permissionCopy = permissionDialog.querySelector<HTMLElement>('.permission-copy')!;
+    const permissionSource = permissionDialog.querySelector<HTMLElement>('.permission-source')!;
+    const permissionActions = permissionDialog.querySelector<HTMLElement>('.permission-actions')!;
 
     function enableLightDismiss(dialog: HTMLDialogElement, onClose?: () => void): void {
       dialog.addEventListener('click', (event) => {
@@ -398,6 +571,11 @@ export default defineToolbarApp({
       previewRequestId = undefined;
     });
     enableLightDismiss(policyDialog);
+    enableLightDismiss(regionDialog, clearSetupPickerHighlight);
+    enableLightDismiss(regionSourceDialog, clearSetupPickerHighlight);
+    enableLightDismiss(permissionDialog, () => {
+      if (mode === 'setup') renderInventory();
+    });
 
     function renderHistory(): void {
       renderHistoryPanel(historyList, savedHistory, (entry) => {
@@ -407,6 +585,36 @@ export default defineToolbarApp({
         historyDialog.close();
         requestRevert();
       });
+    }
+
+    function renderDemoSurfaces(): void {
+      demoSurfaces.replaceChildren();
+      demoContext.hidden = config.demoPages.length < 2;
+      for (const page of config.demoPages) {
+        const button = createElement('button', {
+          class: 'demo-surface',
+          type: 'button',
+          title: page.description,
+          'aria-current': page.path === window.location.pathname ? 'page' : 'false',
+        });
+        button.textContent = page.label;
+        button.addEventListener('click', () => {
+          if (page.path === window.location.pathname) return;
+          if (
+            queue.size > 0 &&
+            !window.confirm('Switch demo pages and discard this local preview?')
+          )
+            return;
+          window.location.assign(page.path);
+        });
+        demoSurfaces.append(button);
+      }
+    }
+
+    function pageDisplay(route: string): { name: string; path: string } {
+      const demo = config.demoPages.find((page) => page.path === route);
+      if (demo) return { name: demo.label, path: route };
+      return { name: route === '/' ? 'Home page' : 'Page', path: route };
     }
 
     function serializableQueue(): EditorChange[] {
@@ -440,17 +648,522 @@ export default defineToolbarApp({
     }
 
     function policyChangeCount(): number {
-      const saved = new Map(
-        editabilityPolicy.rules.map((rule) => [`${rule.route}\n${rule.selector}`, rule]),
-      );
-      const draft = new Map(
-        draftEditabilityPolicy.rules.map((rule) => [`${rule.route}\n${rule.selector}`, rule]),
-      );
+      const saved = new Map<string, unknown>([
+        ...editabilityPolicy.rules.map(
+          (rule) => [`rule\n${rule.route}\n${rule.selector}`, rule] as const,
+        ),
+        ...(editabilityPolicy.regions ?? []).map(
+          (region) => [`region\n${region.route}\n${region.selector}`, region] as const,
+        ),
+      ]);
+      const draft = new Map<string, unknown>([
+        ...draftEditabilityPolicy.rules.map(
+          (rule) => [`rule\n${rule.route}\n${rule.selector}`, rule] as const,
+        ),
+        ...(draftEditabilityPolicy.regions ?? []).map(
+          (region) => [`region\n${region.route}\n${region.selector}`, region] as const,
+        ),
+      ]);
       return new Set([...saved.keys(), ...draft.keys()]).size
         ? [...new Set([...saved.keys(), ...draft.keys()])].filter(
             (key) => JSON.stringify(saved.get(key)) !== JSON.stringify(draft.get(key)),
           ).length
         : 0;
+    }
+
+    function clearGeneratedSectionMappings(): void {
+      document
+        .querySelectorAll<HTMLElement>('[data-astro-ve-generated-region="true"]')
+        .forEach((region) => {
+          delete region.dataset.astroVeGeneratedRegion;
+          delete region.dataset.astroEditRegion;
+          delete region.dataset.astroEditFile;
+          delete region.dataset.astroEditPath;
+          for (const child of [...region.children]) {
+            if (!(child instanceof HTMLElement) || child.dataset.astroVeGeneratedSection !== 'true')
+              continue;
+            delete child.dataset.astroVeGeneratedSection;
+            delete child.dataset.section;
+            delete child.dataset.astroEditSourceKey;
+          }
+        });
+    }
+
+    function applySectionRegionPolicy(policy: EditabilityPolicy): void {
+      clearGeneratedSectionMappings();
+      initialSections.clear();
+      const claimedRegions = new Set<HTMLElement>();
+      for (const regionRule of policy.regions ?? []) {
+        if (regionRule.route !== window.location.pathname) continue;
+        let matches: NodeListOf<HTMLElement>;
+        try {
+          matches = document.querySelectorAll<HTMLElement>(regionRule.selector);
+        } catch {
+          continue;
+        }
+        if (matches.length !== 1) continue;
+        const region = matches[0]!;
+        if (claimedRegions.has(region)) continue;
+        const children = [...region.children].filter(
+          (child): child is HTMLElement => child instanceof HTMLElement,
+        );
+        if (children.length !== regionRule.items.length) continue;
+        region.dataset.astroVeGeneratedRegion = 'true';
+        region.dataset.astroEditRegion = regionRule.id;
+        region.dataset.astroEditFile = regionRule.filePath;
+        region.dataset.astroEditPath = regionRule.sourcePath;
+        children.forEach((child, index) => {
+          const item = regionRule.items[index]!;
+          child.dataset.astroVeGeneratedSection = 'true';
+          child.dataset.section = item.id;
+          child.dataset.astroEditSourceKey = item.sourceKey;
+        });
+        claimedRegions.add(region);
+      }
+    }
+
+    function sectionRegionElements(): HTMLElement[] {
+      const seen = new Set<string>();
+      return [...document.querySelectorAll<HTMLElement>('main, article, section, div')].filter(
+        (element) => {
+          if (element.closest('astro-dev-toolbar') || element.closest('[data-astro-ve-ui]'))
+            return false;
+          const children = [...element.children].filter(
+            (child): child is HTMLElement =>
+              child instanceof HTMLElement && child.getClientRects().length > 0,
+          );
+          if (children.length < 2 || children.length > 100) return false;
+          const selector = selectorFor(element);
+          if (!selector || seen.has(selector)) return false;
+          seen.add(selector);
+          return true;
+        },
+      );
+    }
+
+    function matchingSectionRegions(target: EventTarget | null): HTMLElement[] {
+      if (!(target instanceof Element)) return [];
+      return setupPickerCandidates
+        .filter((candidate) => candidate === target || candidate.contains(target))
+        .sort((left, right) => {
+          const leftArea = left.getBoundingClientRect().width * left.getBoundingClientRect().height;
+          const rightArea =
+            right.getBoundingClientRect().width * right.getBoundingClientRect().height;
+          if (leftArea !== rightArea) return leftArea - rightArea;
+          return right.querySelectorAll('*').length - left.querySelectorAll('*').length;
+        });
+    }
+
+    function compactLabel(value: string, maximum = 72): string {
+      const clean = value.replace(/\s+/gu, ' ').trim();
+      return clean.length > maximum ? `${clean.slice(0, maximum - 1).trimEnd()}…` : clean;
+    }
+
+    function regionLabel(region: HTMLElement): string {
+      const labelledBy = region.getAttribute('aria-labelledby');
+      const labelledText = labelledBy
+        ? document.getElementById(labelledBy)?.textContent?.trim()
+        : undefined;
+      const directHeading = [...region.children].find(
+        (child): child is HTMLElement =>
+          child instanceof HTMLElement && /^H[1-4]$/u.test(child.tagName),
+      );
+      const explicit =
+        region.getAttribute('aria-label') ??
+        labelledText ??
+        directHeading?.textContent?.trim() ??
+        region.dataset.section;
+      if (explicit) return compactLabel(explicit);
+      if (region.tagName === 'MAIN') return 'Main page content';
+      const heading = region.querySelector<HTMLElement>('h1, h2, h3, h4');
+      if (heading?.textContent?.trim()) return compactLabel(heading.textContent);
+      if (region.tagName === 'ARTICLE') return 'Article or content card';
+      const identity = region.id || [...region.classList].find((name) => name.length > 2);
+      if (identity)
+        return compactLabel(
+          identity.replace(/[-_]+/gu, ' ').replace(/\b\w/gu, (letter) => letter.toUpperCase()),
+        );
+      return `${region.tagName.toLowerCase()} content area`;
+    }
+
+    function clearSetupPickerHighlight(): void {
+      setupPickerTarget?.removeAttribute('data-astro-ve-setup-pick');
+      setupPickerTarget = undefined;
+    }
+
+    function stopSetupPagePicker(restoreSetup = true): void {
+      clearSetupPickerHighlight();
+      setupPickerKind = undefined;
+      setupPickerCandidates = [];
+      setupPagePicker.dataset.open = 'false';
+      if (restoreSetup) {
+        panel.dataset.open = String(active);
+        updateSetupDock();
+        if (mode === 'setup') renderInventory();
+      }
+    }
+
+    function startSetupPagePicker(kind: 'text' | 'section'): void {
+      if (regionDialog.open) regionDialog.close('pick-on-page');
+      setupPickerKind = kind;
+      setupPickerCandidates =
+        kind === 'section'
+          ? sectionRegionElements()
+          : inventory.map((item) => item.element).filter((element) => element.isConnected);
+      clearInventoryMarkers();
+      document.documentElement.dataset.astroVeSetupDocked = 'false';
+      panel.dataset.open = 'false';
+      picker.dataset.open = 'false';
+      setupPickerTitle.textContent = kind === 'section' ? 'Select a page section' : 'Select text';
+      setupPickerLabel.textContent =
+        kind === 'section'
+          ? 'Click any page content. You will then choose the exact size of the area to reorder.'
+          : 'Hover to highlight text, then click it.';
+      setupPagePicker.dataset.open = 'true';
+    }
+
+    function setupPickerCandidate(target: EventTarget | null): HTMLElement | undefined {
+      return matchingSectionRegions(target)[0];
+    }
+
+    function openPermissionChoice(item: InventoryItem): void {
+      permissionCopy.textContent = `“${compactLabel(item.text)}” is currently ${item.status}.`;
+      permissionSource.textContent = `${item.sourceFile}${item.sourcePath ? ` → ${item.sourcePath}` : ''}`;
+      permissionActions.querySelectorAll('.permission-choice').forEach((button) => button.remove());
+      const action = createElement('button', {
+        class: `permission-choice ${item.status === 'editable' ? 'danger' : 'primary'}`,
+        type: 'button',
+      });
+      if (item.status === 'editable') {
+        action.textContent = 'Block editing this text';
+        action.addEventListener('click', () => {
+          permissionDialog.close('choose');
+          setDraftRule(item, 'deny', 'element');
+        });
+        permissionActions.append(action);
+      } else if (item.canAllow) {
+        action.textContent =
+          item.status === 'unresolved'
+            ? 'Find source and allow editing'
+            : 'Allow editing this text';
+        action.addEventListener('click', () => {
+          permissionDialog.close('choose');
+          if (item.status === 'unresolved') requestSourceDiscovery(item);
+          else setDraftRule(item, 'allow', 'element');
+        });
+        permissionActions.append(action);
+      }
+      permissionDialog.showModal();
+      permissionDialog
+        .querySelector<HTMLButtonElement>('.permission-choice, .cancel-permission')
+        ?.focus();
+    }
+
+    function regionScopeName(region: HTMLElement, index: number, total: number): string {
+      if (region.tagName === 'MAIN') return 'Whole page';
+      if (index === 0) return 'Smallest area';
+      if (index === total - 1) return 'Largest area';
+      return `Parent area ${index}`;
+    }
+
+    function appendRegionChoice(list: HTMLElement, region: HTMLElement, scope?: string): void {
+      const childCount = [...region.children].filter(
+        (child) => child instanceof HTMLElement,
+      ).length;
+      const row = createElement('article', { class: 'friendly-region' });
+      const copy = createElement('div');
+      if (scope) {
+        const level = createElement('span', { class: 'region-scope' });
+        level.textContent = scope;
+        copy.append(level);
+      }
+      const title = createElement('strong');
+      title.textContent = regionLabel(region);
+      const description = createElement('span');
+      description.textContent = `Move its ${childCount} direct item${childCount === 1 ? '' : 's'}`;
+      copy.append(title, description);
+      const choose = createElement('button', { class: 'primary', type: 'button' });
+      choose.textContent = 'Choose';
+      choose.setAttribute(
+        'aria-label',
+        `Choose ${scope ? `${scope}: ` : ''}${regionLabel(region)}`,
+      );
+      const highlight = () => {
+        clearSetupPickerHighlight();
+        setupPickerTarget = region;
+        region.dataset.astroVeSetupPick = 'true';
+      };
+      row.addEventListener('pointerenter', highlight);
+      choose.addEventListener('focus', highlight);
+      choose.addEventListener('click', () => beginSectionDiscovery(region));
+      row.append(copy, choose);
+      list.append(row);
+    }
+
+    function openRegionScopeChoice(regions: HTMLElement[]): void {
+      const list = regionDialog.querySelector<HTMLElement>('.region-candidate-list')!;
+      const title = regionDialog.querySelector<HTMLElement>('#ave-region-title')!;
+      const help = regionDialog.querySelector<HTMLElement>('#ave-region-help')!;
+      const pick = regionDialog.querySelector<HTMLButtonElement>('.pick-region-on-page')!;
+      list.replaceChildren();
+      title.textContent = 'How much do you want to reorder?';
+      help.textContent =
+        'Choose the exact level. You can enable the whole page, a parent section, or smaller content inside it independently.';
+      pick.hidden = true;
+      regions.forEach((region, index) =>
+        appendRegionChoice(list, region, regionScopeName(region, index, regions.length)),
+      );
+      if (regions[0]) {
+        setupPickerTarget = regions[0];
+        regions[0].dataset.astroVeSetupPick = 'true';
+      }
+      regionDialog.showModal();
+    }
+
+    function openRegionSetup(): void {
+      const list = regionDialog.querySelector<HTMLElement>('.region-candidate-list')!;
+      const title = regionDialog.querySelector<HTMLElement>('#ave-region-title')!;
+      const help = regionDialog.querySelector<HTMLElement>('#ave-region-help')!;
+      const pick = regionDialog.querySelector<HTMLButtonElement>('.pick-region-on-page')!;
+      list.replaceChildren();
+      title.textContent = 'Choose an area to reorder';
+      help.textContent =
+        'Choose a named area below, or select on the page and then pick its exact nesting level.';
+      pick.hidden = false;
+      const regions = sectionRegionElements();
+      regions.forEach((region) => appendRegionChoice(list, region));
+      if (!regions.length) {
+        const empty = createElement('div', { class: 'empty' });
+        empty.textContent = 'No visible container with two or more direct items was found.';
+        list.append(empty);
+      }
+      pick.disabled = regions.length === 0;
+      regionDialog.showModal();
+    }
+
+    function nestedInsideGeneratedRegion(region: HTMLElement): boolean {
+      return (
+        region.dataset.astroVeGeneratedSection === 'true' ||
+        Boolean(region.parentElement?.closest('[data-astro-ve-generated-region="true"]'))
+      );
+    }
+
+    function trustedSectionResolution(
+      region: HTMLElement,
+      resolution: ReturnType<typeof sourceResolutionFor>,
+    ): boolean {
+      if (!resolution.proven || nestedInsideGeneratedRegion(region)) return false;
+      return resolution.kind !== 'route' || region.tagName === 'MAIN';
+    }
+
+    function candidateMatchesRenderedStructure(
+      candidate: SectionRegionCandidate,
+      region: HTMLElement,
+    ): boolean {
+      const renderedTags = [...region.children]
+        .filter((child): child is HTMLElement => child instanceof HTMLElement)
+        .map((child) => child.tagName.toLowerCase());
+      return (
+        candidate.containerTag === region.tagName.toLowerCase() &&
+        candidate.itemTags?.length === renderedTags.length &&
+        candidate.itemTags.every((tag, index) => tag === renderedTags[index])
+      );
+    }
+
+    function candidateMatchesRenderedData(
+      candidate: SectionRegionCandidate,
+      region: HTMLElement,
+    ): boolean {
+      if (candidate.containerTag !== 'data') return false;
+      const renderedItems = [...region.children].filter(
+        (child): child is HTMLElement => child instanceof HTMLElement,
+      );
+      if (
+        candidate.items.length !== renderedItems.length ||
+        candidate.itemValues?.length !== renderedItems.length
+      )
+        return false;
+      return candidate.itemValues.every((sourceValues, index) => {
+        const child = renderedItems[index]!;
+        const leafValues = [...child.querySelectorAll<HTMLElement>('*')]
+          .filter((element) => element.children.length === 0)
+          .map((element) => element.textContent?.replace(/\s+/gu, ' ').trim())
+          .filter((value): value is string => Boolean(value));
+        const visibleValues = leafValues.length
+          ? leafValues
+          : [child.textContent?.replace(/\s+/gu, ' ').trim() ?? ''];
+        return visibleValues.every((value) => sourceValues.includes(value));
+      });
+    }
+
+    function candidateMatchesRenderedRegion(
+      candidate: SectionRegionCandidate,
+      region: HTMLElement,
+    ): boolean {
+      return (
+        candidateMatchesRenderedStructure(candidate, region) ||
+        candidateMatchesRenderedData(candidate, region)
+      );
+    }
+
+    function renderedStructureSimilarity(
+      candidate: SectionRegionCandidate,
+      region: HTMLElement,
+    ): number {
+      const renderedTags = [...region.children]
+        .filter((child): child is HTMLElement => child instanceof HTMLElement)
+        .map((child) => child.tagName.toLowerCase());
+      let score = candidate.containerTag === region.tagName.toLowerCase() ? 4 : 0;
+      candidate.itemTags?.forEach((tag, index) => {
+        if (tag === renderedTags[index]) score += 2;
+      });
+      return score;
+    }
+
+    function beginSectionDiscovery(region: HTMLElement): void {
+      const children = [...region.children].filter((child) => child instanceof HTMLElement);
+      sectionDiscoveryElement = region;
+      sectionDiscoveryRequestId = crypto.randomUUID();
+      setupBusy = true;
+      if (regionDialog.open) regionDialog.close('discover');
+      const resolution = sourceResolutionFor(region, config, draftEditabilityPolicy);
+      const hintedFilePath = trustedSectionResolution(region, resolution)
+        ? resolution.filePath
+        : undefined;
+      server.send(SECTION_DISCOVERY_EVENT, {
+        clientId,
+        requestId: sectionDiscoveryRequestId,
+        route: window.location.pathname,
+        selector: selectorFor(region),
+        itemCount: children.length,
+        containerTag: region.tagName.toLowerCase(),
+        itemTags: children.map((child) => child.tagName.toLowerCase()),
+        hintedFilePath,
+      });
+      showMessage(`Checking “${regionLabel(region)}” against its source…`, 'warning');
+    }
+
+    function sectionCandidateScore(candidate: SectionRegionCandidate): number {
+      if (!sectionDiscoveryElement) return 0;
+      let score = candidate.confidence === 'exact' ? 2 : 0;
+      const resolution = sourceResolutionFor(
+        sectionDiscoveryElement,
+        config,
+        draftEditabilityPolicy,
+      );
+      if (
+        trustedSectionResolution(sectionDiscoveryElement, resolution) &&
+        resolution.filePath === candidate.filePath
+      )
+        score += 8;
+      score += renderedStructureSimilarity(candidate, sectionDiscoveryElement);
+      score += candidateMatchesRenderedRegion(candidate, sectionDiscoveryElement) ? 24 : -12;
+      return score;
+    }
+
+    function sourceKind(candidate: { filePath: string }): string {
+      if (/\/layouts?\//u.test(candidate.filePath)) return 'Page layout';
+      if (/\/components?\//u.test(candidate.filePath)) return 'Reusable component';
+      if (/\/pages?\//u.test(candidate.filePath)) return 'Page template';
+      if (/\.(jsonc?|ya?ml)$/u.test(candidate.filePath)) return 'Structured site data';
+      return 'Project source';
+    }
+
+    function saveSectionCandidate(candidate: SectionRegionCandidate): void {
+      if (!sectionDiscoveryElement) return;
+      const regionRule: SectionRegionRule = {
+        id: `region-${crypto.randomUUID()}`,
+        route: window.location.pathname,
+        selector: selectorFor(sectionDiscoveryElement),
+        filePath: candidate.filePath,
+        sourcePath: candidate.sourcePath,
+        items: candidate.items,
+      };
+      draftEditabilityPolicy = {
+        ...draftEditabilityPolicy,
+        regions: [
+          ...(draftEditabilityPolicy.regions ?? []).filter(
+            (region) =>
+              !(region.route === regionRule.route && region.selector === regionRule.selector),
+          ),
+          regionRule,
+        ],
+      };
+      sectionDiscoveryElement = undefined;
+      sectionCandidates = [];
+      if (regionSourceDialog.open) regionSourceDialog.close('confirm');
+      requestPolicyPreview();
+    }
+
+    function renderSectionCandidates(candidates: SectionRegionCandidate[]): void {
+      const list = regionSourceDialog.querySelector<HTMLElement>('.region-source-candidate-list')!;
+      list.replaceChildren();
+      const ranked = candidates
+        .map((candidate) => ({ candidate, score: sectionCandidateScore(candidate) }))
+        .sort(
+          (left, right) =>
+            right.score - left.score ||
+            left.candidate.filePath.localeCompare(right.candidate.filePath),
+        );
+      const resolution = sectionDiscoveryElement
+        ? sourceResolutionFor(sectionDiscoveryElement, config, draftEditabilityPolicy)
+        : undefined;
+      const isSafeAutomaticMatch = (candidate: SectionRegionCandidate): boolean => {
+        if (!sectionDiscoveryElement) return false;
+        if (candidateMatchesRenderedRegion(candidate, sectionDiscoveryElement)) return true;
+        if (
+          resolution &&
+          trustedSectionResolution(sectionDiscoveryElement, resolution) &&
+          resolution.filePath === candidate.filePath
+        )
+          return true;
+        return false;
+      };
+      const viable = ranked.filter(({ candidate }) => isSafeAutomaticMatch(candidate));
+      if (viable[0] && (viable.length === 1 || viable[0].score > viable[1]!.score)) {
+        saveSectionCandidate(viable[0].candidate);
+        return;
+      }
+      viable.forEach(({ candidate }, index) => {
+        const label = createElement('label', { class: 'source-candidate' });
+        const input = createElement('input', {
+          type: 'radio',
+          name: 'region-source-candidate',
+          value: candidate.id,
+        });
+        if (index === 0) input.checked = true;
+        const copy = createElement('span');
+        const file = createElement('strong');
+        file.textContent = sourceKind(candidate);
+        const reason = createElement('small');
+        reason.textContent = `Contains ${candidate.items.length} reorderable items.`;
+        const technical = createElement('details', { class: 'technical-details' });
+        const summary = createElement('summary');
+        summary.textContent = 'Technical details';
+        const path = createElement('code');
+        path.textContent = `${candidate.filePath}:${candidate.line} → ${candidate.sourcePath}`;
+        technical.append(summary, path);
+        copy.append(file, reason, technical);
+        label.append(input, copy);
+        list.append(label);
+      });
+      if (!viable.length) {
+        const empty = createElement('div', { class: 'empty' });
+        empty.textContent = 'No matching contiguous Astro source structure was found.';
+        list.append(empty);
+      }
+      regionSourceDialog.querySelector<HTMLButtonElement>('.confirm-region-source')!.disabled =
+        viable.length === 0;
+      regionSourceDialog.showModal();
+    }
+
+    function confirmSectionCandidate(): void {
+      const selected = regionSourceDialog.querySelector<HTMLInputElement>(
+        'input[name="region-source-candidate"]:checked',
+      );
+      const candidate = sectionCandidates.find((item) => item.id === selected?.value);
+      if (!candidate) return;
+      saveSectionCandidate(candidate);
     }
 
     function requestPolicyPreview(): void {
@@ -531,7 +1244,7 @@ export default defineToolbarApp({
           : {}),
       };
       draftEditabilityPolicy = {
-        version: 1,
+        ...draftEditabilityPolicy,
         rules: [
           ...draftEditabilityPolicy.rules.filter(
             (existing) => !(existing.route === route && existing.selector === selector),
@@ -546,7 +1259,7 @@ export default defineToolbarApp({
 
     function removeDraftRule(rule: EditabilityRule): void {
       draftEditabilityPolicy = {
-        version: 1,
+        ...draftEditabilityPolicy,
         rules: draftEditabilityPolicy.rules.filter((candidate) => candidate.id !== rule.id),
       };
       clearMessage();
@@ -561,7 +1274,80 @@ export default defineToolbarApp({
       window.setTimeout(() => delete item.element.dataset.astroVeInventoryFocus, 1_400);
     }
 
+    function requestSourceDiscovery(item: InventoryItem): void {
+      if (!config.canManageEditability || setupBusy) return;
+      sourceDiscoveryItem = item;
+      sourceCandidates = [];
+      sourceDiscoveryRequestId = crypto.randomUUID();
+      setupBusy = true;
+      server.send(SOURCE_DISCOVERY_EVENT, {
+        clientId,
+        requestId: sourceDiscoveryRequestId,
+        route: window.location.pathname,
+        selector: item.selector,
+        text: item.text,
+        hintedFilePath: item.sourceFile,
+      });
+      showMessage(
+        'Searching supported project source files for exact syntax-aware matches…',
+        'warning',
+      );
+      renderInventory();
+    }
+
+    function renderSourceCandidates(candidates: SourceCandidate[], searchedFiles = 0): void {
+      const list = sourceDialog.querySelector<HTMLElement>('.source-candidate-list')!;
+      list.replaceChildren();
+      const exact = candidates.filter((candidate) => candidate.confidence === 'exact');
+      const automatic =
+        exact.length === 1 ? exact[0] : candidates.length === 1 ? candidates[0] : undefined;
+      if (automatic && sourceDiscoveryItem) {
+        const item = sourceDiscoveryItem;
+        sourceDiscoveryItem = undefined;
+        sourceCandidates = [];
+        setDraftRule(item, 'allow', 'element', automatic.filePath, automatic.sourcePath);
+        return;
+      }
+      if (!candidates.length) {
+        const empty = createElement('div', { class: 'empty' });
+        empty.textContent = `No exact writable source value was found in ${searchedFiles} supported files.`;
+        list.append(empty);
+      } else {
+        candidates.forEach((candidate, index) => {
+          const label = createElement('label', { class: 'source-candidate' });
+          const input = createElement('input', {
+            type: 'radio',
+            name: 'source-candidate',
+            value: candidate.id,
+          });
+          if (index === 0) input.checked = true;
+          const copy = createElement('span');
+          const file = createElement('strong');
+          file.textContent = sourceKind(candidate);
+          const reason = createElement('small');
+          reason.textContent = 'Contains the exact selected text.';
+          const technical = createElement('details', { class: 'technical-details' });
+          const summary = createElement('summary');
+          summary.textContent = 'Technical details';
+          const path = createElement('code');
+          path.textContent = `${candidate.filePath}:${candidate.line} → ${candidate.sourcePath ?? 'literal value'}`;
+          technical.append(summary, path);
+          copy.append(file, reason, technical);
+          label.append(input, copy);
+          list.append(label);
+        });
+      }
+      const confirm = sourceDialog.querySelector<HTMLButtonElement>('.confirm-source')!;
+      confirm.disabled = candidates.length === 0;
+      sourceDialog.showModal();
+      sourceDialog.querySelector<HTMLInputElement>('input:checked')?.focus();
+    }
+
     function renderInventory(): void {
+      const currentInventoryManager = ledger.querySelector<HTMLDetailsElement>('.manage-text');
+      const currentSectionManager = ledger.querySelector<HTMLDetailsElement>('.manage-sections');
+      if (currentInventoryManager) inventoryManagerOpen = currentInventoryManager.open;
+      if (currentSectionManager) sectionManagerOpen = currentSectionManager.open;
       clearInventoryMarkers();
       ledger.setAttribute('aria-label', 'Page editability inventory');
       inventory = inventoryPage(config, draftEditabilityPolicy);
@@ -571,15 +1357,36 @@ export default defineToolbarApp({
       });
       renderEditabilityPanel(ledger, inventory, {
         policyFile: config.editabilityPolicyFile,
+        route: window.location.pathname,
+        sectionRegions: (draftEditabilityPolicy.regions ?? []).filter(
+          (region) => region.route === window.location.pathname,
+        ),
         canManage: config.canManageEditability,
         pendingChanges: policyChangeCount(),
         filter: inventoryFilter,
+        inventoryOpen: inventoryManagerOpen,
+        sectionsOpen: sectionManagerOpen,
         onReview: requestPolicyPreview,
         onFilter: (filter) => {
           inventoryFilter = filter;
           renderInventory();
         },
         onLocate: locateInventoryItem,
+        onDiscoverSource: requestSourceDiscovery,
+        onAddSectionRegion: openRegionSetup,
+        onPickSectionRegion: () => startSetupPagePicker('section'),
+        onPickText: () => startSetupPagePicker('text'),
+        onRemoveSectionRegion: (region) => {
+          draftEditabilityPolicy = {
+            ...draftEditabilityPolicy,
+            regions: (draftEditabilityPolicy.regions ?? []).filter(
+              (candidate) => candidate.id !== region.id,
+            ),
+          };
+          clearMessage();
+          renderInventory();
+          requestPolicyPreview();
+        },
         onSetRule: setDraftRule,
         onRemoveRule: (item) => {
           if (item.activeRule) removeDraftRule(item.activeRule);
@@ -600,6 +1407,7 @@ export default defineToolbarApp({
         renderInventory();
         return;
       }
+      panel.dataset.needsSection = 'false';
       clearInventoryMarkers();
       ledger.setAttribute('aria-label', 'Queued changes');
       ledger.replaceChildren();
@@ -612,24 +1420,82 @@ export default defineToolbarApp({
               ? 'No SEO changes queued.'
               : 'No queued changes. Select visible content to begin.';
         ledger.append(empty);
+        if (mode === 'sections' && config.canManageEditability) {
+          const existingRegions = document.querySelectorAll(
+            '[data-astro-edit-region], [data-astro-edit-sections]',
+          ).length;
+          const enable = createElement('button', {
+            class: 'primary enable-sections',
+            type: 'button',
+          });
+          enable.textContent = existingRegions
+            ? 'Select another section on page'
+            : 'Select section on page';
+          enable.addEventListener('click', () => startSetupPagePicker('section'));
+          ledger.append(enable);
+          panel.dataset.needsSection = 'true';
+        }
       } else {
         for (const [key, change] of queue) {
           const row = createElement('article', { class: 'change' });
           const copy = createElement('div');
           const type = createElement('span', { class: 'change-type' });
-          type.textContent = change.kind;
+          type.textContent =
+            change.kind === 'text' ? 'Text' : change.kind === 'seo' ? 'Page settings' : 'Sections';
+          const affectedPage = pageDisplay(change.route);
+          const page = createElement('div', { class: 'change-page' });
+          const pageName = createElement('strong');
+          pageName.textContent = affectedPage.name;
+          const pagePath = createElement('span');
+          pagePath.textContent = affectedPage.path;
+          page.append(pageName, pagePath);
+          const technical = createElement('details', {
+            class: 'technical-details change-technical',
+          });
+          const technicalSummary = createElement('summary');
+          technicalSummary.textContent = 'Technical details';
           const file = createElement('div', { class: 'file', title: change.filePath });
-          file.textContent = change.filePath;
+          file.textContent = `Source file: ${change.filePath}`;
           const values = summary(change);
           const summaryLine = createElement('div', { class: 'change-summary' });
           summaryLine.textContent = values.title;
-          const diff = createElement('div', { class: 'diff' });
+          const description = createElement('p', { class: 'change-description' });
+          description.textContent = values.description;
+          const visibleDiff = createElement('div', { class: 'visible-diff' });
+          if (change.kind !== 'sections') {
+            const beforeValue = createElement('div');
+            const beforeLabel = createElement('strong');
+            beforeLabel.textContent = 'Before';
+            const beforeCopy = createElement('span');
+            beforeCopy.textContent = visibleValue(values.before);
+            beforeValue.append(beforeLabel, beforeCopy);
+            const afterValue = createElement('div');
+            const afterLabel = createElement('strong');
+            afterLabel.textContent = 'After';
+            const afterCopy = createElement('span');
+            afterCopy.textContent = visibleValue(values.after);
+            afterValue.append(afterLabel, afterCopy);
+            visibleDiff.append(beforeValue, afterValue);
+          }
+          const sourceLocator = createElement('div', { class: 'file' });
+          const sourcePath = change.kind === 'seo' ? undefined : change.sourcePath;
+          sourceLocator.textContent = sourcePath
+            ? `Source field: ${sourcePath}`
+            : change.kind === 'text' && change.selector
+              ? `Page selector: ${change.selector}`
+              : change.kind === 'sections'
+                ? `Section region: ${change.regionId}`
+                : 'Source field: page metadata';
+          const diff = createElement('div', { class: 'diff technical-diff' });
           const oldText = createElement('span', { class: 'old' });
           const newText = createElement('span', { class: 'new' });
-          oldText.textContent = `Before: ${values.oldText}`;
-          newText.textContent = `After: ${values.newText}`;
+          oldText.textContent = `Before: ${values.before}`;
+          newText.textContent = `After: ${values.after}`;
           diff.append(oldText, newText);
-          copy.append(type, file, summaryLine, diff);
+          technical.append(technicalSummary, file, sourceLocator, diff);
+          copy.append(page, type, summaryLine, description);
+          if (visibleDiff.childElementCount) copy.append(visibleDiff);
+          copy.append(technical);
           const removeLabel = `Undo ${change.kind} change in ${change.filePath}`;
           const remove = createElement('button', {
             class: 'icon-button',
@@ -651,7 +1517,14 @@ export default defineToolbarApp({
           ? 'Checking source files…'
           : pendingRequestId
             ? `Retry ${queue.size} safely`
-            : `Review ${queue.size} file change${queue.size === 1 ? '' : 's'}`;
+            : `Review and save${queue.size ? ` (${queue.size})` : ''}`;
+      changeCount.textContent = String(queue.size);
+      changesToggle.setAttribute('aria-expanded', String(mode === 'review'));
+      changesToggle.setAttribute(
+        'aria-label',
+        `${mode === 'review' ? 'Close' : 'Open'} changes tray, ${queue.size} queued change${queue.size === 1 ? '' : 's'}`,
+      );
+      panel.dataset.hasChanges = String(queue.size > 0);
       undoButton.disabled = !history.canUndo || saveInFlight;
       redoButton.disabled = !history.canRedo || saveInFlight;
       revertButton.disabled = !lastReceiptId || saveInFlight || !config.writeEnabled;
@@ -692,7 +1565,7 @@ export default defineToolbarApp({
     function directSections(region: HTMLElement): HTMLElement[] {
       return [...region.children].filter(
         (child): child is HTMLElement =>
-          child instanceof HTMLElement && child.matches('section[data-section]'),
+          child instanceof HTMLElement && child.matches('[data-section]'),
       );
     }
 
@@ -849,20 +1722,41 @@ export default defineToolbarApp({
       );
       const existing = queued?.kind === 'text' ? queued : undefined;
       textarea.value = existing?.newText ?? candidate.textContent?.trim() ?? '';
-      textFile.textContent = sourceFileFor(candidate, config, editabilityPolicy);
+      const resolution = sourceResolutionFor(candidate, config, editabilityPolicy);
+      textFile.textContent = `${resolution.filePath}${resolution.sourcePath ? ` → ${resolution.sourcePath}` : ''}`;
+      sourceWarning.hidden = !resolution.sharedRouteCount;
+      sourceWarning.textContent = resolution.sharedRouteCount
+        ? `Shared source: this edit will affect ${resolution.sharedRouteCount} routes.`
+        : '';
       textDialog.showModal();
       textarea.focus();
       textarea.select();
     }
 
     function onPointerOver(event: PointerEvent): void {
+      if (setupPickerKind) {
+        const candidate = setupPickerCandidate(event.target);
+        if (candidate === setupPickerTarget) return;
+        clearSetupPickerHighlight();
+        setupPickerTarget = candidate;
+        if (candidate) {
+          candidate.dataset.astroVeSetupPick = 'true';
+          setupPickerLabel.textContent =
+            setupPickerKind === 'section'
+              ? `${regionLabel(candidate)} · smallest of ${matchingSectionRegions(event.target).length} available levels`
+              : compactLabel(candidate.textContent ?? 'Selected text');
+        } else {
+          setupPickerLabel.textContent = 'Move over page content to highlight it.';
+        }
+        return;
+      }
       if (!active || mode !== 'text' || textDialog.open) return;
       const candidate = editableTarget(event.target);
       if (candidate === hovered) return;
       restoreHighlight();
       hovered = candidate;
       if (hovered) {
-        hovered.style.outline = '3px solid #ff7a3d';
+        hovered.style.outline = '3px solid #8fc7ee';
         hovered.style.outlineOffset = '3px';
         hovered.style.cursor = 'text';
       }
@@ -870,6 +1764,26 @@ export default defineToolbarApp({
 
     function onPageClick(event: MouseEvent): void {
       if (!active || textDialog.open) return;
+      if (setupPickerKind) {
+        const candidate = setupPickerCandidate(event.target);
+        if (!candidate) return;
+        const kind = setupPickerKind;
+        const regionMatches = kind === 'section' ? matchingSectionRegions(event.target) : [];
+        event.preventDefault();
+        event.stopPropagation();
+        stopSetupPagePicker(false);
+        panel.dataset.open = String(active);
+        updateSetupDock();
+        if (kind === 'section') {
+          if (regionMatches.length > 1) openRegionScopeChoice(regionMatches);
+          else beginSectionDiscovery(candidate);
+        } else {
+          const item = inventory.find((entry) => entry.element === candidate);
+          if (item) openPermissionChoice(item);
+          else if (mode === 'setup') renderInventory();
+        }
+        return;
+      }
       if (mode === 'setup') {
         if (!(event.target instanceof Element)) return;
         const selected = event.target.closest<HTMLElement>('[data-astro-ve-inventory-status]');
@@ -941,14 +1855,58 @@ export default defineToolbarApp({
     }
 
     function editableRegion(section: HTMLElement): HTMLElement | null {
+      const parentRegion = section.parentElement?.closest<HTMLElement>(
+        '[data-astro-edit-region], [data-astro-edit-sections]',
+      );
+      if (parentRegion && directSections(parentRegion).includes(section)) return parentRegion;
       return section.closest<HTMLElement>('[data-astro-edit-region], [data-astro-edit-sections]');
     }
 
     function descriptors(region: HTMLElement): SectionDescriptor[] {
       return directSections(region).map((section) => ({
         id: section.dataset.section!,
+        label: sectionReviewLabel(section),
         ...(section.dataset.astroVeTemplate ? { templateId: section.dataset.astroVeTemplate } : {}),
+        ...(section.dataset.astroEditSourceKey
+          ? { sourceKey: section.dataset.astroEditSourceKey }
+          : {}),
       }));
+    }
+
+    function sectionReviewLabel(section: HTMLElement): string {
+      const clone = section.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll('[data-astro-ve-ui]').forEach((element) => element.remove());
+      const heading = clone.querySelector<HTMLElement>('h1, h2, h3, h4');
+      const shortLabel = clone.querySelector<HTMLElement>('strong, [data-astro-edit-label]');
+      const text = (heading?.textContent ?? shortLabel?.textContent ?? clone.textContent ?? '')
+        .replace(/\s+/gu, ' ')
+        .trim();
+      if (text) return compactLabel(text, 90);
+      return descriptorLabel({ id: section.dataset.section! });
+    }
+
+    function sectionControlLabel(section: HTMLElement): string {
+      const kind = /^H[1-6]$/u.test(section.tagName)
+        ? 'Heading'
+        : section.tagName === 'BUTTON'
+          ? 'Button'
+          : section.tagName === 'P'
+            ? 'Text'
+            : section.tagName === 'SECTION'
+              ? 'Section'
+              : section.tagName === 'ARTICLE'
+                ? 'Card'
+                : 'Block';
+      return `${kind}: ${sectionReviewLabel(section)}`;
+    }
+
+    function sameSectionStructure(
+      before: SectionDescriptor[],
+      after: SectionDescriptor[],
+    ): boolean {
+      const structural = (items: SectionDescriptor[]) =>
+        items.map(({ id, templateId, sourceKey }) => ({ id, templateId, sourceKey }));
+      return JSON.stringify(structural(before)) === JSON.stringify(structural(after));
     }
 
     function regionKey(region: HTMLElement): string {
@@ -958,11 +1916,12 @@ export default defineToolbarApp({
     function queueRegion(region: HTMLElement): void {
       const filePath = sourceFileFor(region, config, editabilityPolicy);
       const regionId = regionIdFor(region);
+      const sourcePath = region.dataset.astroEditPath;
       const key = `sections:${filePath}:${regionId}`;
       const before = initialSections.get(regionKey(region)) ?? descriptors(region);
       initialSections.set(regionKey(region), structuredClone(before));
       const after = descriptors(region);
-      if (JSON.stringify(before) === JSON.stringify(after)) queue.delete(key);
+      if (sameSectionStructure(before, after)) queue.delete(key);
       else {
         queue.set(key, {
           kind: 'sections',
@@ -970,6 +1929,7 @@ export default defineToolbarApp({
           filePath,
           route: window.location.pathname,
           regionId,
+          sourcePath,
           before,
           after,
         });
@@ -1034,21 +1994,22 @@ export default defineToolbarApp({
         ensureAnchor(region);
         for (const section of directSections(region)) {
           const id = section.dataset.section!;
+          const label = sectionControlLabel(section);
           sectionNodes.set(id, section);
           section.dataset.astroVeSectionActive = 'true';
           section.tabIndex = 0;
-          section.setAttribute('aria-label', `Editable section ${id}`);
+          section.setAttribute('aria-label', `Editable section ${label}`);
           const controls = createElement('div', {
             class: 'astro-ve-section-controls',
             'data-astro-ve-ui': 'true',
             role: 'toolbar',
-            'aria-label': `Controls for section ${id}`,
+            'aria-label': `Controls for ${label}`,
           });
-          addControl(controls, `Add section before ${id}`, '+↑', () =>
+          addControl(controls, `Add section before ${label}`, '+↑', () =>
             openTemplates(section, 'before'),
           );
-          addControl(controls, `Move ${id} up`, '↑', () => moveSection(section, -1));
-          const drag = addControl(controls, `Drag ${id} to reorder`, '⠿', () => undefined);
+          addControl(controls, `Move ${label} up`, '↑', () => moveSection(section, -1));
+          const drag = addControl(controls, `Drag ${label} to reorder`, '⠿', () => undefined);
           drag.classList.add('astro-ve-drag-handle');
           drag.draggable = true;
           drag.addEventListener('dragstart', (event) => {
@@ -1064,16 +2025,28 @@ export default defineToolbarApp({
               .querySelectorAll('[data-astro-ve-drag-over]')
               .forEach((node) => node.removeAttribute('data-astro-ve-drag-over'));
           });
-          addControl(controls, `Move ${id} down`, '↓', () => moveSection(section, 1));
-          addControl(controls, `Add section after ${id}`, '+↓', () =>
+          addControl(controls, `Move ${label} down`, '↓', () => moveSection(section, 1));
+          addControl(controls, `Add section after ${label}`, '+↓', () =>
             openTemplates(section, 'after'),
           );
-          addControl(controls, `Delete section ${id}`, '×', () => {
+          addControl(controls, `Delete section ${label}`, '×', () => {
             deleteTarget = section;
             confirmDialog.showModal();
             confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
           });
-          section.append(controls);
+          region.append(controls);
+          const regionRect = region.getBoundingClientRect();
+          const sectionRect = section.getBoundingClientRect();
+          controls.style.setProperty(
+            'top',
+            `${sectionRect.top - regionRect.top + region.scrollTop + 10}px`,
+            'important',
+          );
+          controls.style.setProperty(
+            'right',
+            `${regionRect.right - sectionRect.right + region.scrollLeft + 10}px`,
+            'important',
+          );
           section.addEventListener('dragover', onSectionDragOver, {
             signal: sectionListenerController.signal,
           });
@@ -1229,6 +2202,7 @@ export default defineToolbarApp({
 
     function setMode(next: EditorMode): void {
       if (next === 'setup' && mode !== 'setup') clearMessage();
+      if (next !== 'review' && next !== 'setup') lastEditingMode = next;
       mode = next;
       panel.dataset.mode = mode;
       updateSetupDock();
@@ -1246,24 +2220,38 @@ export default defineToolbarApp({
         instructions.textContent = 'Review every queued source change before committing the batch.';
       if (mode === 'setup')
         instructions.textContent =
-          'Review visible page content, then allow or block it without weakening source safety.';
+          'Set up text permissions and reorderable section regions without weakening source safety.';
       setupButton.setAttribute('aria-pressed', String(mode === 'setup'));
       setupButton.setAttribute(
         'aria-label',
-        mode === 'setup' ? 'Back to editor' : 'Open Editability Setup',
+        mode === 'setup' ? 'Back to editor' : 'Open Editor Setup',
       );
-      setupButton.title = mode === 'setup' ? 'Back to editor' : 'Open Editability Setup';
-      setupButton.textContent = mode === 'setup' ? '← Back to editor' : '⚙';
+      setupButton.title = mode === 'setup' ? 'Back to editor' : 'Open Editor Setup';
+      setupButton.textContent = mode === 'setup' ? '← Back' : 'Settings';
       pickerLabel.textContent =
         mode === 'sections'
           ? 'Arrange sections'
           : mode === 'setup'
-            ? 'Editability Setup'
+            ? 'Editor Setup'
             : 'Tap content to edit';
       setupSectionControls();
       renderQueue();
       if (mode === 'seo') openSeo();
-      if (mode === 'sections' && active) setMinimized(true);
+      if (mode === 'sections' && active) {
+        const hasEditableRegion = [
+          ...document.querySelectorAll<HTMLElement>(
+            '[data-astro-edit-region], [data-astro-edit-sections]',
+          ),
+        ].some((region) => directSections(region).length > 0);
+        if (hasEditableRegion) setMinimized(true);
+        else {
+          setMinimized(false);
+          showMessage(
+            'No section region is enabled on this page yet. Choose “Select section on page”, then hover and click the area you want to reorder.',
+            'warning',
+          );
+        }
+      }
       if (mode === 'setup') setMinimized(false);
     }
 
@@ -1285,6 +2273,10 @@ export default defineToolbarApp({
         capture: true,
         signal: listenerController.signal,
       });
+      document.addEventListener('pointermove', onPointerOver, {
+        capture: true,
+        signal: listenerController.signal,
+      });
       document.addEventListener('click', onPageClick, {
         capture: true,
         signal: listenerController.signal,
@@ -1294,6 +2286,7 @@ export default defineToolbarApp({
 
     function deactivate(): void {
       active = false;
+      stopSetupPagePicker(false);
       updateSetupDock();
       panel.dataset.open = 'false';
       picker.dataset.open = 'false';
@@ -1315,6 +2308,9 @@ export default defineToolbarApp({
         historyDialog,
         diffDialog,
         policyDialog,
+        permissionDialog,
+        regionDialog,
+        regionSourceDialog,
       ])
         if (dialog.open) dialog.close();
     }
@@ -1339,6 +2335,16 @@ export default defineToolbarApp({
         requestId: previewRequestId,
         changes: serializableQueue(),
       });
+      window.clearTimeout(previewTimeoutId);
+      previewTimeoutId = window.setTimeout(() => {
+        previewInFlight = false;
+        previewRequestId = undefined;
+        showMessage(
+          'The source check did not complete. Your changes are still queued; try Review and save again.',
+          'warning',
+        );
+        renderQueue();
+      }, config.requestTimeoutMs);
       renderQueue();
     }
 
@@ -1401,6 +2407,11 @@ export default defineToolbarApp({
 
     function onDocumentKeydown(event: KeyboardEvent): void {
       if (!active) return;
+      if (setupPickerKind && event.key === 'Escape') {
+        event.preventDefault();
+        stopSetupPagePicker(true);
+        return;
+      }
       const modifier = event.metaKey || event.ctrlKey;
       if (modifier && event.key.toLowerCase() === 's') {
         event.preventDefault();
@@ -1432,7 +2443,7 @@ export default defineToolbarApp({
         mode === 'sections' &&
         event.altKey &&
         document.activeElement instanceof HTMLElement &&
-        document.activeElement.matches('section[data-section]')
+        document.activeElement.matches('[data-section]')
       ) {
         if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
           event.preventDefault();
@@ -1459,6 +2470,9 @@ export default defineToolbarApp({
     pickerReview.addEventListener('click', () => {
       setMinimized(false);
       if (queue.size) setMode('review');
+    });
+    changesToggle.addEventListener('click', () => {
+      setMode(mode === 'review' ? lastEditingMode : 'review');
     });
     picker
       .querySelector<HTMLButtonElement>('.picker-close')!
@@ -1542,11 +2556,39 @@ export default defineToolbarApp({
         });
         renderInventory();
       });
+    sourceDialog
+      .querySelector<HTMLButtonElement>('.confirm-source')!
+      .addEventListener('click', () => {
+        if (!sourceDiscoveryItem) return;
+        const selected = sourceDialog.querySelector<HTMLInputElement>(
+          'input[name="source-candidate"]:checked',
+        );
+        const candidate = sourceCandidates.find((item) => item.id === selected?.value);
+        if (!candidate) return;
+        sourceDialog.close('confirm');
+        const item = sourceDiscoveryItem;
+        sourceDiscoveryItem = undefined;
+        sourceCandidates = [];
+        setDraftRule(item, 'allow', 'element', candidate.filePath, candidate.sourcePath);
+      });
+    regionDialog
+      .querySelector<HTMLButtonElement>('.pick-region-on-page')!
+      .addEventListener('click', () => startSetupPagePicker('section'));
+    setupPagePicker
+      .querySelector<HTMLButtonElement>('.cancel-setup-picker')!
+      .addEventListener('click', () => stopSetupPagePicker(true));
+    permissionDialog
+      .querySelector<HTMLButtonElement>('.cancel-permission')!
+      .addEventListener('click', () => permissionDialog.close('cancel'));
+    regionSourceDialog
+      .querySelector<HTMLButtonElement>('.confirm-region-source')!
+      .addEventListener('click', confirmSectionCandidate);
 
     server.on(CONFIG_EVENT, (next: ClientEditorConfig) => {
       config = { ...defaultConfig, ...next };
       configReady = true;
       configConfirmed = true;
+      renderDemoSurfaces();
       sessionStorage.setItem(SESSION_CONFIG, JSON.stringify(next));
       setupButton.hidden = !config.canManageEditability;
       try {
@@ -1570,7 +2612,7 @@ export default defineToolbarApp({
       }
       if (config.writeEnabled)
         setConnection(
-          'Connected. Changes remain local until committed.',
+          'Ready. Changes stay local until saved.',
           config.remoteWarning ? 'warning' : 'ready',
         );
       else setConnection(config.remoteWarning ?? 'Source writes are unavailable.', 'error');
@@ -1584,6 +2626,7 @@ export default defineToolbarApp({
     server.on(SAVE_RESULT_EVENT, handleSaveResponse);
     server.on(PREVIEW_RESULT_EVENT, (response: PreviewResponse) => {
       if (response.clientId !== clientId || response.requestId !== previewRequestId) return;
+      window.clearTimeout(previewTimeoutId);
       previewInFlight = false;
       if (!response.success || !response.diffs) {
         previewRequestId = undefined;
@@ -1631,6 +2674,7 @@ export default defineToolbarApp({
         editabilityPolicy = structuredClone(response.policy);
         draftEditabilityPolicy = structuredClone(response.policy);
         editabilityPolicyHash = response.policyHash;
+        applySectionRegionPolicy(editabilityPolicy);
         config.canManageEditability = response.canManage ?? config.canManageEditability;
         setupButton.hidden = !config.canManageEditability;
         if (mode === 'setup') showMessage('Editability policy loaded from the project.', 'success');
@@ -1660,11 +2704,47 @@ export default defineToolbarApp({
         editabilityPolicy = structuredClone(response.policy);
         draftEditabilityPolicy = structuredClone(response.policy);
         editabilityPolicyHash = response.policyHash;
+        applySectionRegionPolicy(editabilityPolicy);
         setMode('text');
         showMessage(
-          `Saved ${response.policyFile ?? config.editabilityPolicyFile}. You can now edit the allowed content.`,
+          `Saved ${response.policyFile ?? config.editabilityPolicyFile}. Your text permissions and section mappings are now active.`,
           'success',
         );
+      }
+      renderQueue();
+    });
+    server.on(SOURCE_DISCOVERY_RESULT_EVENT, (response: SourceDiscoveryResponse) => {
+      if (response.clientId !== clientId || response.requestId !== sourceDiscoveryRequestId) return;
+      setupBusy = false;
+      sourceDiscoveryRequestId = undefined;
+      if (!response.success || !response.candidates) {
+        sourceDiscoveryItem = undefined;
+        showMessage(response.error ?? 'Source discovery failed.', 'error');
+      } else {
+        sourceCandidates = response.candidates;
+        clearMessage();
+        renderSourceCandidates(response.candidates, response.searchedFiles);
+        if (response.truncated) {
+          showMessage(
+            'The source result list was bounded; refine or confirm one visible candidate.',
+            'warning',
+          );
+        }
+      }
+      if (mode === 'setup') renderInventory();
+    });
+    server.on(SECTION_DISCOVERY_RESULT_EVENT, (response: SectionDiscoveryResponse) => {
+      if (response.clientId !== clientId || response.requestId !== sectionDiscoveryRequestId)
+        return;
+      setupBusy = false;
+      sectionDiscoveryRequestId = undefined;
+      if (!response.success || !response.candidates) {
+        sectionDiscoveryElement = undefined;
+        showMessage(response.error ?? 'Section discovery failed.', 'error');
+      } else {
+        sectionCandidates = response.candidates;
+        clearMessage();
+        renderSectionCandidates(response.candidates);
       }
       renderQueue();
     });
@@ -1678,7 +2758,10 @@ export default defineToolbarApp({
       'astro:page-load',
       () => {
         updateSetupDock();
-        if (configReady) replaceQueue(safeParseQueue());
+        if (configReady) {
+          applySectionRegionPolicy(editabilityPolicy);
+          replaceQueue(safeParseQueue());
+        }
       },
       { signal: listenerController.signal },
     );

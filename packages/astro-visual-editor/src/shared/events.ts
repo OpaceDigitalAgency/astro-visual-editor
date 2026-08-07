@@ -17,3 +17,7 @@ export const EDITABILITY_PREVIEW_EVENT = `${APP_ID}:editability-preview`;
 export const EDITABILITY_PREVIEW_RESULT_EVENT = `${APP_ID}:editability-preview-result`;
 export const EDITABILITY_SAVE_EVENT = `${APP_ID}:editability-save`;
 export const EDITABILITY_SAVE_RESULT_EVENT = `${APP_ID}:editability-save-result`;
+export const SOURCE_DISCOVERY_EVENT = `${APP_ID}:source-discovery`;
+export const SOURCE_DISCOVERY_RESULT_EVENT = `${APP_ID}:source-discovery-result`;
+export const SECTION_DISCOVERY_EVENT = `${APP_ID}:section-discovery`;
+export const SECTION_DISCOVERY_RESULT_EVENT = `${APP_ID}:section-discovery-result`;

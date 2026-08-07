@@ -33,6 +33,25 @@ function updateFrontmatter(
 }
 
 export function applyMarkdownText(source: string, change: TextEditorChange): string {
+  if (change.sourcePath?.startsWith('markdown:body:')) {
+    const offset = Number(change.sourcePath.slice('markdown:body:'.length));
+    if (
+      !Number.isSafeInteger(offset) ||
+      source.slice(offset, offset + change.oldText.length) !== change.oldText
+    ) {
+      throw new Error(
+        `The confirmed Markdown source mapping is stale for ${change.filePath}. Run source discovery again.`,
+      );
+    }
+    return applyRanges(source, [
+      {
+        start: offset,
+        end: offset + change.oldText.length,
+        replacement: change.newText,
+        label: `${change.filePath} Markdown body`,
+      },
+    ]);
+  }
   if (change.sourcePath) {
     const path = pathParts(change.sourcePath.replace(/^frontmatter\./u, ''));
     return updateFrontmatter(source, (document) => {

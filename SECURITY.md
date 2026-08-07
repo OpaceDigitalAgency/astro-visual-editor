@@ -7,7 +7,7 @@ Security fixes are applied to the latest published version.
 ## Reporting a vulnerability
 
 Please do not open a public issue for a suspected vulnerability. Email
-`security@opace.co.uk` with a minimal reproduction and impact description.
+`info@opace.co.uk` with a minimal reproduction and impact description.
 
 ## Security model
 

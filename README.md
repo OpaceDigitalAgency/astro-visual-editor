@@ -27,20 +27,20 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 > **Release status:** install the current published version from npm. The
 > [changelog](./CHANGELOG.md) records released changes.
 
-| At a glance     | Behaviour                                                                         |
-| --------------- | --------------------------------------------------------------------------------- |
-| Editing surface | Astro's native development toolbar on the rendered page                           |
-| Content         | Literal Astro/Markdown text plus explicitly mapped JSON, JSONC and YAML fields    |
-| Page structure  | Add, delete and reorder sections inside declared source-owned regions             |
-| Review          | One mixed text, SEO and section ledger with undo, redo, commit and guarded revert |
-| Safety boundary | Local development only; no editor client or write endpoint in production          |
+| At a glance     | Behaviour                                                                      |
+| --------------- | ------------------------------------------------------------------------------ |
+| Editing surface | Astro's native development toolbar on the rendered page                        |
+| Content         | Discovered or mapped Astro/Markdown, JSON/JSONC and YAML values                |
+| Page structure  | Enable and reorder Astro children or complete JSON/YAML arrays safely          |
+| Changes         | One mixed text, SEO and section tray with undo, redo, save and guarded restore |
+| Safety boundary | Local development only; no editor client or write endpoint in production       |
 
 ## What it does
 
 - Click rendered text and preview a replacement in place.
 - Edit title, description, keywords, canonical URL, Open Graph fields and
   robots directives in one SEO form.
-- Add, delete and reorder declared sections.
+- Enable existing page regions, then add, delete or reorder supported sections.
 - Reorder with real pointer drag-and-drop, move buttons or keyboard controls.
 - Add sections from a reusable template registry.
 - Queue mixed text, SEO and structural changes in one visible ledger.
@@ -132,25 +132,37 @@ toolbar and select **Astro Visual Editor**.
 Suggested review path:
 
 1. In **Text**, edit the hero heading and queue it without committing.
-2. Undo and redo the queued preview, then inspect the Review ledger.
+2. Undo and redo the queued preview, then open the **Changes** tray.
 3. In **Sections**, drag a card by its handle, use a move button, insert a
    template and undo the structural changes.
 4. In **SEO**, change a field and inspect its queued preview.
 5. Commit only when you intentionally want to modify `demo/src/pages/index.astro`;
-   use **Revert last commit** immediately afterwards to test safe restoration.
-6. Narrow the viewport to exercise compact Pick mode and the Review sheet.
+   use **Restore previous save** immediately afterwards to test safe restoration.
+6. Narrow the viewport to exercise compact Pick mode and the Changes sheet.
+7. Use **Complex sources** in the workbench to open `/fixtures/complex`. Queue
+   the shared JSON hero title and the Content Collection title, review the
+   two-file diff, then commit and restore it from History. The fixture proves
+   layout, component, JSON and Markdown-frontmatter ownership in one route.
 
 Port 4322 is only a documented demo choice; any free loopback port works. Source
 writes are disabled by default when the dev server is exposed beyond loopback.
 
 ## Editor modes
 
-### Editability Setup
+### Editor Setup
 
 Choose the settings control in the workbench to open the owner-only setup mode.
-On desktop the inventory docks beside the page so the content remains visible.
-It lists each visible text item with its status, plain-language reason, owning
-source file and structured path where known.
+On desktop the settings panel docks beside the page so the content remains visible.
+It exposes matching **Sections** and **Text** on-page selectors. Full searchable
+text and section inventories remain collapsed under **Manage all text** and
+**Manage sections** until needed. Section mappings
+map existing page containers to syntax-aware source structures for safe
+reordering, while the text inventory lists each visible item with its status,
+plain-language reason, owning source file and structured path where known.
+Both use the same non-technical interaction: choose a readable item from the
+list or select it directly on the page with hover highlighting. Source
+verification runs behind that visual choice; technical paths stay collapsed
+unless ambiguity requires explicit confirmation.
 
 An owner can allow or block one stable element or an appropriate element group,
 such as all `<strong>` labels on the current route. Choosing a permission opens
@@ -161,6 +173,12 @@ control remains visible throughout setup. Unresolved items can confirm their
 project-relative source file and optional structured path. Every change is
 shown as an exact diff before it is written to
 `astro-visual-editor.policy.json`.
+
+Choosing **Find source and allow editing** searches supported project files with Astro,
+Markdown/frontmatter, JSON/JSONC and YAML parsers. It lists every exact
+candidate with its line and structured path. The owner confirms one candidate,
+and repeated Astro literals remain separate stale-checked nodes instead of
+being changed by a global string replacement.
 
 An allow rule only makes an element selectable. It does not override explicit
 `data-astro-edit-ignore` exclusions, unsafe nested structure, missing source
@@ -175,8 +193,23 @@ Keyboard users can focus editable content and press `Alt+Enter`.
 
 ### Sections
 
-Section persistence is deliberately explicit. Declare a source-owned region and
-give every direct section a stable ID:
+An owner can choose **Select section on page** or **Choose from list**. After
+clicking page content, the editor shows every valid nesting level under that
+point: the smallest reorderable area, its parent areas and the whole page.
+Each level can be enabled independently, so a page's major sections and the
+cards, headings, text or buttons inside them can all be maintained. The editor
+automatically uses a unique structural source match and stores a project policy
+mapping without adding editor attributes to the site's components. The candidate
+supports contiguous Astro component/element children and complete JSON/JSONC
+or YAML arrays. Structured arrays must also match the visible values in order,
+and every complete item is hash-checked before reordering.
+
+Each enabled container moves only its direct items. Parent and inner regions
+can be reordered in the same reviewed multi-file save while each remains tied
+to its own source.
+
+Projects can also declare a source-owned region directly and give every section
+a stable ID:
 
 ```astro
 <div data-astro-edit-region="homepage-sections" data-astro-edit-file="src/pages/index.astro">
@@ -186,7 +219,7 @@ give every direct section a stable ID:
 </div>
 ```
 
-The editable sections must be contiguous direct children of the region. This
+Declared editable sections must be contiguous direct children of the region. This
 lets the Astro adapter preserve each complete source block while safely
 reordering, deleting or inserting it.
 
@@ -231,20 +264,32 @@ result is compiled before writing. For `.md` and `.mdx` owners, standard YAML
 frontmatter fields are updated. Length guidance is editorial and non-blocking;
 canonical URLs must be complete HTTP(S) URLs.
 
-### Review
+If the route delegates metadata to a layout, expose every editable field as a
+unique literal route prop: `title`, `description`, `keywords`, `canonical`,
+`ogTitle`, `ogDescription` and `robots`. Missing, computed or ambiguous props
+are refused rather than guessed against a shared layout.
 
-The ledger groups all queued changes by type and source file. It supports:
+### Changes
+
+The compact **Changes (N)** tray shows the affected page first, followed by a
+plain-language description of the visible change. Exact source files, fields,
+selectors and complete before/after values remain available under
+**Technical details**. It supports:
 
 - remove one change;
 - undo/redo the last queued operation;
 - clear all;
 - a single validated commit;
 - idempotent retry if the response is delayed;
+- a bounded source check that keeps the queue intact and offers a retry if the
+  development connection stops responding;
 - revert the latest successful receipt while its files remain unchanged.
 
 Structural rows use semantic summaries such as **Reordered 3 sections** or
-**Added 1 section**, followed by labelled Before/After region order, so a drag
-operation is reviewable before commit.
+**Added 1 section**, followed by readable section names instead of internal
+section identifiers. Long text edits show the changed fragment rather than two
+apparently identical truncated values. The final save review still presents
+the exact source diff before anything is written.
 
 Shortcuts: `Cmd/Ctrl+S` saves, `Cmd/Ctrl+Z` undoes and
 `Cmd/Ctrl+Shift+Z` or `Cmd/Ctrl+Y` redoes.
@@ -286,6 +331,23 @@ For Markdown frontmatter:
 
 Unstructured MDX body edits are refused because replacing text across expression
 boundaries cannot yet be proven safe.
+
+When a project renders an explicit source annotation from a direct import or
+Content Collection field, it can also declare the provenance and known shared
+routes. The editor shows this context before an edit is queued:
+
+```astro
+<h1
+  data-astro-edit-file="src/data/homepage.json"
+  data-astro-edit-path="hero.title"
+  data-astro-edit-origin="a direct JSON import"
+  data-astro-edit-shared-routes="/,/pricing"
+>
+  {homepage.hero.title}
+</h1>
+```
+
+These hints explain a supported mapping; they never bypass adapter validation.
 
 ### Selector mappings
 
@@ -331,7 +393,7 @@ Exclude content with:
 <p data-astro-edit-ignore>Managed externally.</p>
 ```
 
-The visual Editability Setup adds project-owned policy on top of these explicit
+The visual Editor Setup adds project-owned policy on top of these explicit
 annotations. Source exclusions remain authoritative, and saved rules are
 visible in Git rather than being hidden in browser storage.
 
@@ -370,6 +432,7 @@ interface AstroVisualEditorOptions {
   selectorMappings?: Record<string, string>;
   allowedExtensions?: Array<'.astro' | '.md' | '.mdx' | '.json' | '.jsonc' | '.yaml' | '.yml'>;
   sectionTemplates?: SectionTemplate[];
+  demoPages?: Array<{ id: string; label: string; path: string; description: string }>;
   maxChanges?: number; // 100
   maxTextLength?: number; // 10,000
   maxRequestBytes?: number; // 1,000,000
@@ -383,6 +446,11 @@ interface AstroVisualEditorOptions {
   editabilityPolicyFile?: string; // project-root JSON manifest
 }
 ```
+
+`demoPages` is optional and local-only. It is intended for a project's test
+fixture, not application navigation. When two or more entries are supplied,
+the workbench displays a compact route switcher and warns before leaving queued
+preview changes.
 
 `allowUnsafeSourceText` permits raw markup insertion into literal Astro text
 nodes. It is an expert escape hatch and remains off by default. The normal mode
@@ -400,8 +468,8 @@ even if ordinary source writes were explicitly enabled with `allowRemoteDev`.
 ## Mobile and accessibility
 
 At phone widths, enabling the editor opens compact Pick mode rather than the
-full workbench. Page content remains tappable, while **Review N** opens a bottom
-sheet containing every mode and commit state.
+full workbench. Page content remains tappable, while **Review N** opens the
+Changes sheet with the complete mixed ledger and save state.
 
 Implemented accessibility behaviour includes:
 
@@ -440,10 +508,12 @@ Astro integration (development command only)
 ## Current boundaries
 
 - It is a local development editor, not an authenticated production CMS.
-- Source ownership still requires annotations/mappings for component props,
-  shared data and non-conventional routes.
-- It does not rewrite arbitrary Astro component structure; section operations
-  require declared, contiguous regions with stable IDs.
+- Exact source values can be discovered across supported formats, but
+  transformed output that cannot be reversed to one source target still
+  requires owner confirmation or is refused.
+- Section Setup maps contiguous Astro children and complete JSON/JSONC or YAML
+  arrays. It does not infer Markdown heading groups or filtered, merged and
+  transformed subsets.
 - Existing sections cannot be moved across unrelated regions, and templates
   cannot be dropped onto arbitrary page locations.
 - It does not infer every import/data dependency or provide a full schema-aware

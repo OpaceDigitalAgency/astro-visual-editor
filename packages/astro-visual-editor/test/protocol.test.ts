@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { parseEditabilityPolicyChangeRequest, parseSaveRequest } from '../src/shared/protocol.js';
+import {
+  parseEditabilityPolicyChangeRequest,
+  parseSaveRequest,
+  parseSectionDiscoveryRequest,
+  parseSourceDiscoveryRequest,
+} from '../src/shared/protocol.js';
 
 describe('toolbar protocol', () => {
   const valid = {
@@ -55,5 +60,30 @@ describe('toolbar protocol', () => {
       ),
     ).toThrow('validation');
     expect(() => parseEditabilityPolicyChangeRequest(policyRequest, 10)).toThrow('byte');
+  });
+
+  it('validates bounded text and section discovery requests', () => {
+    const source = {
+      clientId: 'tab-1',
+      requestId: 'source-1',
+      route: '/',
+      selector: 'main > h1',
+      text: 'Visible heading',
+    };
+    expect(parseSourceDiscoveryRequest(source, 10_000)).toEqual(source);
+    expect(() => parseSourceDiscoveryRequest({ ...source, text: '' }, 10_000)).toThrow(
+      'validation',
+    );
+    const sections = {
+      clientId: 'tab-1',
+      requestId: 'sections-1',
+      route: '/',
+      selector: 'main',
+      itemCount: 4,
+    };
+    expect(parseSectionDiscoveryRequest(sections, 10_000)).toEqual(sections);
+    expect(() => parseSectionDiscoveryRequest({ ...sections, itemCount: 1 }, 10_000)).toThrow(
+      'validation',
+    );
   });
 });

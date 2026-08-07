@@ -4,6 +4,99 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## 0.1.0-beta.5 - 2026-08-06
+
+### Added
+
+- Added a composed demo page that renders through a shared layout and reusable
+  components while sourcing editable values from direct JSON imports and an
+  Astro Content Collection entry.
+- Added an optional, local-only demo-page switcher so testers can move between
+  the original single-file fixture and the composed-source fixture.
+- Added visible structured source paths and a shared-route warning before an
+  affected value is queued for editing.
+- Added browser coverage that reviews, commits and safely restores a JSON
+  property and Markdown frontmatter field in one multi-file batch.
+- Added syntax-aware project source discovery for exact Astro,
+  Markdown/frontmatter, JSON/JSONC and YAML values, including separate
+  stale-checked locators for repeated Astro literals.
+- Added owner-confirmed section setup that maps existing rendered containers to
+  contiguous Astro children or complete JSON/JSONC and YAML arrays without
+  requiring editor annotations in site components.
+- Added policy-backed section mappings with exact source-item hashes, reviewed
+  policy persistence and safe refresh after source order changes.
+- Added browser coverage that enables four mixed component/element blocks on
+  the complex fixture, reorders them, commits the exact Astro diff and restores
+  the source.
+- Added nested region coverage that enables a component's direct text and
+  button children independently, reorders them alongside a parent-page move,
+  saves both files atomically and restores both sources.
+- Added a hierarchical on-page region chooser that exposes the smallest area,
+  parent areas and whole page from one click, including rendered cards backed
+  by JSON or YAML arrays.
+
+### Changed
+
+- Simplified the workbench around three editing modes and one compact
+  **Changes (N)** tray, keeping review, undo, redo, history, discard and restore
+  available without presenting review as a competing editing mode.
+- Made owner Settings start with matching on-page selectors for text and
+  sections. Full searchable text and section management now stays behind
+  explicit progressive-disclosure controls.
+- Separated the neutral editor surface and demo-only route switcher from the
+  host page, reserved orange for primary save actions and limited page outlines
+  to the currently hovered or selected item.
+- Renamed ambiguous source-control language to owner-facing save, discard and
+  restore actions while preserving exact diffs and collapsed technical detail.
+- Made each queued-change receipt lead with the affected page, a concise
+  owner-readable description and visible before/after content. Exact source
+  paths, selectors, hashes and complete structural order remain under collapsed
+  technical details.
+- Kept syntax-aware adapters and confirmed project mappings as the final
+  authority. Ambiguous, transformed or non-reversible data flow is refused
+  rather than guessed or globally replaced.
+- Made explicitly mapped structured fields use their file and source path as a
+  stable preview target, so repeated component output is edited independently.
+- Kept Sections mode open with a clear explanation when the current page has
+  no declared source-owned section region.
+- Made section-region setup visible in the owner Settings screen alongside
+  text permissions, with current-route mappings and reviewed removal controls.
+- Preserved draft section mappings when text permission rules are added or
+  removed, so independent setup changes cannot discard one another.
+- Replaced developer-facing section and text setup with one consistent visual
+  picker: readable labels, on-page hover highlighting and click selection.
+- Moved syntax paths and file candidates behind collapsed technical details,
+  automatically accepting only a uniquely scored structural source match.
+- Matched parsed Astro literal nodes before considering quoted-value fallback,
+  preventing identical words in annotations from causing false ambiguity.
+- Made the section picker describe its direct-child boundary and allow an
+  inner component region to be enabled separately, with readable Heading,
+  Text, Button, Card and Section control labels.
+
+### Fixed
+
+- Made delegated Astro SEO fields update unique literal route props when a
+  layout owns the rendered `<head>`, while refusing missing, computed or
+  ambiguous prop matches.
+- Exposed every SEO field shown by the complex fixture through its layout, so
+  keywords, canonical, social metadata and robots changes all have a safe,
+  explicit source target at final review.
+- Matched structured-array section candidates against the ordered rendered
+  values before enabling card reordering, preventing unrelated equal-length
+  arrays from being selected.
+- Stopped section setup from silently accepting an unrelated source structure
+  merely because its container had the same number of children.
+- Added composed-page regressions for delete and Undo, guarded section-source
+  confirmation, and one atomic JSON, Markdown frontmatter and SEO batch.
+- Prevented generated section metadata from becoming persistent CSS selectors
+  or biasing nested source discovery toward the parent page file.
+- Kept section controls outside the host element so headings, paragraphs and
+  buttons remain valid HTML while their source-owned region is being edited.
+- Added a bounded source-preview timeout that preserves queued changes and
+  offers a safe retry instead of leaving the editor on “Checking source files”.
+- Aligned source-discovery and save-time hashes for multiline Astro closing
+  tags, preventing a valid nested reorder from being rejected or malformed.
+
 ## 0.1.0-beta.4 - 2026-08-05
 
 ### Added

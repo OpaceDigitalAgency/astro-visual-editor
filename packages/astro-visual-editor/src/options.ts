@@ -62,7 +62,7 @@ const defaultTemplates: SectionTemplate[] = [
     markup: `<section data-section="{{id}}" class="ave-hero">
   <p class="ave-kicker">New section</p>
   <h2>Introduce the next important idea</h2>
-  <p>Explain the value clearly, then edit this copy with Text mode.</p>
+  <p>Explain the value clearly, then edit this copy directly in the Builder.</p>
   <a href="#">Primary action</a>
 </section>`,
   },
@@ -85,7 +85,7 @@ const defaultTemplates: SectionTemplate[] = [
     description: 'A simple long-form content section.',
     markup: `<section data-section="{{id}}" class="ave-text">
   <h2>Section heading</h2>
-  <p>This is a simple content section. Use Text mode to replace this paragraph.</p>
+  <p>This is a simple content section. Select this paragraph to edit it.</p>
 </section>`,
   },
 ];

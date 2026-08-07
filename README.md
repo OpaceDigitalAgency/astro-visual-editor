@@ -53,7 +53,9 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 - Recover queued and in-flight work across Astro HMR and navigation.
 - Keep queues and responses isolated between multiple browser tabs.
 - Provide a compact touch Pick mode on narrow screens.
-- Distinguish blue editable, gold owner-locked and red source-protected areas.
+- Distinguish hierarchy independently from permission: blue groups, teal
+  sections and neutral elements, with visible Editable, Locked and Protected
+  text states.
 - Persist owner locks in a Git-reviewable project manifest after server-side
   diff and conflict validation.
 
@@ -61,12 +63,14 @@ The old editor documented drag-and-drop but only implemented up/down buttons.
 This package provides both genuine drag-and-drop and accessible button/keyboard
 alternatives.
 
-The visual builder uses a familiar purple inspector with icon-led **Content**,
-**Structure** and **Page** tabs. The page makes room for the inspector on
+The visual builder uses a familiar purple inspector with **Builder** and
+**Page** tabs. The page makes room for the inspector on
 desktop rather than hiding it over the content. Enabling the editor adds
-Elementor-style boundaries to every safe discovered element and declared
-section. Hovering reveals a Divi-style contextual toolbar with settings and
-lock state; source-owned sections also expose move, drag and delete. Add before
+an immediately readable hierarchy: blue named groups, teal named sections and
+neutral content elements. Persistent handles name every section and state
+badges say **Editable**, **Locked** or **Protected** without relying on colour.
+Hovering or selecting expands a Divi-style contextual toolbar; source-owned
+sections expose settings, move, drag, lock and delete. Add before
 and Add after remain in the section inspector. The inspector can be collapsed to a
 compact picker on desktop or mobile. Icon controls expose visible hover/focus
 tooltips and accessible names, and dialogs close through Cancel, Escape or a
@@ -75,7 +79,8 @@ click on the backdrop.
 Selecting desktop content now keeps the exact element outlined and changes the
 inspector title to **Edit heading**, **Edit paragraph** or the matching element
 type. Its stable **Content / Design / Advanced** settings follow the familiar
-Divi/Elementor model: Content edits and queues the value, Design reports the
+Divi/Elementor model: typing in Content previews and auto-queues the value,
+Design reports the
 actual rendered typography and spacing, and Advanced identifies its source
 file, structured field and page selector. Structure selection uses the same
 inspector contract alongside its on-canvas add, move, drag and delete toolbar.
@@ -84,7 +89,8 @@ be proven safely; the editor labels that boundary instead of offering a control
 that cannot persist.
 
 The familiar presentation does not weaken the source boundary: **Review
-changes** still exposes the exact mixed change ledger before anything is saved,
+changes** can expose the mixed change ledger, while **Save and apply** always
+performs the exact source-diff safety check before anything is written,
 and the existing policy engine, undo, redo, history, safe retry and restore
 capabilities remain available.
 
@@ -194,18 +200,21 @@ An allow rule only makes an element selectable. It does not override explicit
 `data-astro-edit-ignore` exclusions, unsafe nested structure, missing source
 ownership or syntax-aware adapter validation.
 
-### Content
+### Builder content
 
-Click an eligible leaf text element. The dialog shows its expected source file,
-previews the new value and adds it to the ledger without writing source.
+Click an eligible leaf text element and type. The page previews the value and,
+after a short pause or blur, coalesces it into the local unsaved set without a
+Queue button and without writing source. Locked content instead shows a clear
+state card and an explicit owner-only Unlock action.
 
 Keyboard users can focus editable content and press `Alt+Enter`.
 
-### Structure
+### Builder sections
 
-Every declared or saved source-owned region is active immediately. Hover a
-section to reveal settings, lock, move, drag and delete icons; clicking the
-section switches the inspector to Structure automatically. Add before and Add
+Every declared or saved source-owned region is active immediately. Named group
+and section handles remain visible; hover, focus or selection expands settings,
+lock, move, drag and delete icons. Clicking the section opens its contextual
+inspector automatically. Add before and Add
 after are available in that inspector. Contiguous Astro component/element
 children and complete JSON/JSONC or YAML arrays remain hash-checked before
 reordering, and unsupported structure is visibly protected rather than

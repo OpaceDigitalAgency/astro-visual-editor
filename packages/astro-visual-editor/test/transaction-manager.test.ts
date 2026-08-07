@@ -130,6 +130,60 @@ describe('TransactionManager', () => {
     expect(await readFile(page, 'utf8')).toContain('New heading');
   });
 
+  it('adds template sections before applying independently scoped text edits inside them', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ave-transaction-'));
+    const src = join(root, 'src');
+    await mkdir(join(src, 'pages'), { recursive: true });
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(
+      page,
+      '<main data-astro-edit-region="home"><section data-section="hero"><h1>Hero</h1></section></main>',
+    );
+    const manager = new TransactionManager(root, src, normalizeOptions());
+    const response = await manager.save({
+      clientId: 'tab',
+      requestId: 'add-then-edit',
+      changes: [
+        {
+          kind: 'text',
+          id: 'text-one',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          selector: '[data-section="text-one"] > p',
+          oldText: 'This is a simple content section. Select this paragraph to edit it.',
+          newText: 'First independent paragraph.',
+        },
+        {
+          kind: 'text',
+          id: 'text-two',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          selector: '[data-section="text-two"] > p',
+          oldText: 'This is a simple content section. Select this paragraph to edit it.',
+          newText: 'Second independent paragraph.',
+        },
+        {
+          kind: 'sections',
+          id: 'sections',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          regionId: 'home',
+          before: [{ id: 'hero' }],
+          after: [
+            { id: 'hero' },
+            { id: 'text-one', templateId: 'text' },
+            { id: 'text-two', templateId: 'text' },
+          ],
+        },
+      ],
+    });
+    expect(response.success, response.error).toBe(true);
+    const result = await readFile(page, 'utf8');
+    expect(result).toContain('First independent paragraph.');
+    expect(result).toContain('Second independent paragraph.');
+    expect(result).not.toContain('This is a simple content section.');
+  });
+
   it('refuses restart recovery when a committed file changed afterwards', async () => {
     const root = await mkdtemp(join(tmpdir(), 'ave-transaction-'));
     const src = join(root, 'src');

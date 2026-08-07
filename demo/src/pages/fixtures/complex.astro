@@ -18,11 +18,16 @@ const dataSource = 'src/data/complex-page.json';
     class="complex-builder-region"
     data-astro-edit-region="complex-sections"
     data-astro-edit-file="src/pages/fixtures/complex.astro"
+    data-astro-edit-label="Complex page content"
   >
-    <div class="complex-builder-section" data-section="complex-hero">
+    <div class="complex-builder-section" data-section="complex-hero" data-astro-edit-label="Hero">
       <SourceHero {...content.hero} />
     </div>
-    <div class="complex-builder-section" data-section="complex-shared">
+    <div
+      class="complex-builder-section"
+      data-section="complex-shared"
+      data-astro-edit-label="Release note"
+    >
       <p
         class="shared-note"
         data-astro-edit-file={dataSource}
@@ -33,12 +38,17 @@ const dataSource = 'src/data/complex-page.json';
         {content.shared.notice}
       </p>
     </div>
-    <div class="complex-builder-section" data-section="complex-evidence">
+    <div
+      class="complex-builder-section"
+      data-section="complex-evidence"
+      data-astro-edit-label="Evidence cards"
+    >
       <EvidenceGrid items={content.evidence} />
     </div>
     <section
       class="collection complex-builder-section"
       data-section="complex-collection"
+      data-astro-edit-label="Content collection"
       aria-labelledby="collection-title"
     >
       <p class="kicker">Content Collection</p>

@@ -95,10 +95,11 @@ function normalizedLiteralRange(
   ast: AstroNode,
   renderedText: string,
   label: string,
+  root: AstroNode = ast,
 ): SourceRange {
   const target = normalizedText(renderedText);
   const matches: SourceRange[] = [];
-  walk(ast, (node) => {
+  walk(root, (node) => {
     if (node.type !== 'text' || !node.position?.end) return;
     const raw = source.slice(node.position.start.offset, node.position.end.offset);
     if (normalizedText(raw) !== target) return;
@@ -117,6 +118,18 @@ function normalizedLiteralRange(
     throw new Error(`Original text is ambiguous for ${label}. Add a structured source path.`);
   }
   return matches[0]!;
+}
+
+function sectionScopedRoot(ast: AstroNode, selector?: string): AstroNode | undefined {
+  if (!selector) return undefined;
+  const match = /\[data-section=(?:"([^"]+)"|'([^']+)')\]/u.exec(selector);
+  const sectionId = match?.[1] ?? match?.[2];
+  if (!sectionId) return undefined;
+  const matches: AstroNode[] = [];
+  walk(ast, (node) => {
+    if (attribute(node, 'data-section') === sectionId) matches.push(node);
+  });
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 function mappedLiteralRange(
@@ -191,7 +204,8 @@ export async function applyAstroText(
     try {
       // Match parsed Astro text nodes first so the same words inside attributes,
       // comments or scripts cannot make a visible literal falsely ambiguous.
-      range = normalizedLiteralRange(source, ast, change.oldText, label);
+      const scopedRoot = sectionScopedRoot(ast, change.selector);
+      range = normalizedLiteralRange(source, ast, change.oldText, label, scopedRoot ?? ast);
     } catch (error) {
       if (error instanceof Error && error.message.includes('ambiguous')) throw error;
       // Complete quoted values are the only supported non-literal fallback.

@@ -18,23 +18,36 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Added an explicit source-owned four-section region to the composed fixture so
   complex structure editing is available immediately rather than requiring a
   setup journey.
+- Added a persistent three-level canvas grammar: blue named groups, teal named
+  sections and neutral content elements, with explicit Editable, Locked and
+  Protected text badges that never rely on an icon or colour alone.
+- Added regression coverage for adding two identical section templates and
+  editing each new paragraph independently in the same atomic save.
 
 ### Changed
 
 - Replaced the everyday Settings > select > hierarchy modal > review > save
   permission journey with one-click Lock and Unlock controls directly on the
   rendered page and in the selected-item inspector.
-- Made canvas selection authoritative: clicking text opens Content, while
-  clicking a section or its settings icon opens Structure automatically. The
-  Content and Structure tabs are optional navigators rather than prerequisites.
+- Made canvas selection authoritative: one Builder canvas replaces the global
+  Content/Structure mode choice. Clicking text or a named section opens the
+  matching contextual inspector automatically; Page remains separate.
 - Kept advanced policy, source-discovery and syntax-aware validation machinery
   internally, while removing Editor Setup from the ordinary editing surface.
-- Made all safe editable boundaries visible at activation, with blue editable,
-  gold owner-locked and red source-protected states; hover reveals a compact
-  labelled action bar.
+- Made every source-owned group and section visible and meaningfully named at
+  activation. Compact section identity/state handles persist while the full
+  action strip expands only for hover, focus or selection.
 - Reduced contextual toolbars to familiar compact icons and moved add-before
   and add-after into the section inspector, preserving those capabilities
   without allowing a toolbar to overlap an adjacent column.
+- Replaced the manual Queue change step with debounced local auto-queueing and
+  live preview. Source files still change only through the explicit Save and
+  apply safety check.
+- Replaced locked editable-looking fields with a clear Locked/Protected card
+  and removed the mobile behaviour that silently unlocked content on tap.
+- Applied structural additions before dependent text edits and scoped Astro
+  literal lookup to the owning section, fixing same-batch saves for text edited
+  inside a newly added template.
 
 ### Security
 

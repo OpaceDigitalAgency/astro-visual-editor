@@ -49,8 +49,11 @@ function requestKey(clientId: string, requestId: string): string {
 }
 
 function operationPriority(change: EditorChange): number {
-  if (change.kind === 'text') return 0;
-  if (change.kind === 'seo') return 1;
+  // Structural edits must create newly-added template markup before a text
+  // change can target content inside it. Text and SEO changes can then use the
+  // updated, still-in-memory source while the batch remains atomic.
+  if (change.kind === 'sections') return 0;
+  if (change.kind === 'text') return 1;
   return 2;
 }
 

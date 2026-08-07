@@ -386,6 +386,8 @@ export default defineToolbarApp({
     let lastEditingMode: Exclude<EditorMode, 'review' | 'setup'> = 'text';
     let hovered: HTMLElement | null = null;
     let editing: HTMLElement | null = null;
+    let editingOriginalText = '';
+    let textQueueTimer: number | undefined;
     let selectedKind: 'text' | 'section' | null = null;
     let draggedSection: HTMLElement | null = null;
     let addTarget: { section: HTMLElement; placement: 'before' | 'after' } | null = null;
@@ -440,9 +442,8 @@ export default defineToolbarApp({
         <div class="masthead-actions"><button class="utility-button setup-toggle" type="button" aria-label="Developer diagnostics" title="Developer diagnostics" hidden>${icon('settings')}<span class="utility-label">Diagnostics</span></button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">${icon('minus')}</button></div>
       </header>
       <aside class="demo-context" hidden><span>Demo page</span><nav class="demo-surfaces" aria-label="Demo test pages"></nav></aside>
-      <div class="mode-tabs" role="tablist" aria-label="Editing mode">
-        <button class="mode-tab" role="tab" data-mode="text" aria-selected="true">${icon('content')}<span>Content</span></button>
-        <button class="mode-tab" role="tab" data-mode="sections" aria-selected="false">${icon('structure')}<span>Structure</span></button>
+      <div class="mode-tabs" role="tablist" aria-label="Builder view">
+        <button class="mode-tab" role="tab" data-mode="text" aria-selected="true">${icon('structure')}<span>Builder</span></button>
         <button class="mode-tab" role="tab" data-mode="seo" aria-selected="false">${icon('page')}<span>Page</span></button>
       </div>
       <div class="instructions"><span class="instruction-icon" aria-hidden="true">${icon('content')}</span><span class="instructions-copy">Click text to edit, or use a section handle to arrange the page.</span></div>
@@ -460,7 +461,8 @@ export default defineToolbarApp({
             <button class="inspector-tab" type="button" role="tab" data-inspector-tab="advanced" aria-selected="false">Advanced</button>
           </div>
           <div class="inspector-panel" data-inspector-panel="content">
-            <details class="setting-group text-setting" open>
+            <div class="selection-lock-card" hidden><strong></strong><span></span></div>
+            <details class="setting-group text-setting editable-text-setting" open>
               <summary>Text</summary>
               <div class="setting-body">
                 <label for="ave-inspector-text">Content</label>
@@ -499,7 +501,7 @@ export default defineToolbarApp({
             <button class="icon-button cancel-selection" type="button" aria-label="Cancel element editing" title="Cancel">${icon('close')}</button>
             <button class="secondary toggle-selection-lock" type="button">${icon('lock')}<span>Lock</span></button>
             <button class="secondary reset-selection" type="button">Reset</button>
-            <button class="primary apply-selection" type="button">Queue change</button>
+            <button class="primary apply-selection" type="button" hidden>Done</button>
           </footer>
         </section>
         <div class="changes-header">
@@ -513,7 +515,7 @@ export default defineToolbarApp({
           <button class="secondary show-history" type="button">${icon('history')}<span>History</span></button>
         </div>
         <footer class="actions">
-          <button class="primary commit" type="button" disabled>Review and save</button>
+          <button class="primary commit" type="button" disabled>Save and apply</button>
           <button class="secondary clear" type="button">Discard changes</button>
           <button class="secondary revert" type="button" disabled>Restore previous save</button>
         </footer>
@@ -540,7 +542,7 @@ export default defineToolbarApp({
       'aria-labelledby': 'ave-text-title',
       'aria-describedby': 'ave-text-file',
     });
-    textDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Preview before writing</p><h2 id="ave-text-title">Edit text</h2><p id="ave-text-file" class="dialog-file"></p><p class="source-warning" hidden></p><label for="ave-text-value">Replacement text</label><textarea id="ave-text-value" required></textarea><p class="field-help">The owning adapter validates syntax before any source file is written.</p><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Cancel</button><button class="primary queue-text" type="button">Queue change</button></div></form>`;
+    textDialog.innerHTML = `<form method="dialog" class="dialog-body"><p class="eyebrow">Live page editing</p><h2 id="ave-text-title">Edit text</h2><p id="ave-text-file" class="dialog-file"></p><p class="source-warning" hidden></p><label for="ave-text-value">Content</label><textarea id="ave-text-value" required></textarea><p class="field-help">Changes appear immediately and stay local until you choose Save and apply.</p><div class="dialog-actions"><button class="secondary" value="cancel" type="submit">Close</button><button class="primary queue-text" type="button">Done</button></div></form>`;
 
     const seoDialog = createElement('dialog', {
       'aria-labelledby': 'ave-seo-title',
@@ -572,7 +574,7 @@ export default defineToolbarApp({
       'aria-labelledby': 'ave-diff-title',
       'aria-describedby': 'ave-diff-help',
     });
-    diffDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Final safety check</p><h2 id="ave-diff-title">Review and save</h2><p id="ave-diff-help" class="field-help">These are the exact source lines that will be written. Nothing is saved until you confirm.</p><div class="file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-diff" type="button">Cancel</button><button class="primary confirm-commit" type="button">Save changes</button></div></div>`;
+    diffDialog.innerHTML = `<div class="dialog-body diff-dialog"><p class="eyebrow">Final safety check</p><h2 id="ave-diff-title">Save and apply</h2><p id="ave-diff-help" class="field-help">These are the exact source lines that will be written. Nothing is saved until you confirm.</p><div class="file-diff-list"></div><div class="dialog-actions"><button class="secondary cancel-diff" type="button">Cancel</button><button class="primary confirm-commit" type="button">Save and apply</button></div></div>`;
 
     const policyDialog = createElement('dialog', {
       'aria-labelledby': 'ave-policy-title',
@@ -648,6 +650,7 @@ export default defineToolbarApp({
     const inspectorName = panel.querySelector<HTMLElement>('.selection-name')!;
     const inspectorPreview = panel.querySelector<HTMLElement>('.selection-preview')!;
     const inspectorState = panel.querySelector<HTMLElement>('.selection-state')!;
+    const selectionLockCard = panel.querySelector<HTMLElement>('.selection-lock-card')!;
     const inspectorFile = panel.querySelector<HTMLElement>('.inspector-file')!;
     const inspectorSourcePath = panel.querySelector<HTMLElement>('.inspector-source-path')!;
     const inspectorSelector = panel.querySelector<HTMLElement>('.inspector-selector')!;
@@ -897,6 +900,7 @@ export default defineToolbarApp({
           child instanceof HTMLElement && /^H[1-4]$/u.test(child.tagName),
       );
       const explicit =
+        region.dataset.astroEditLabel ??
         region.getAttribute('aria-label') ??
         labelledText ??
         directHeading?.textContent?.trim() ??
@@ -1689,7 +1693,7 @@ export default defineToolbarApp({
           ? 'Checking source files…'
           : pendingRequestId
             ? `Retry ${queue.size} safely`
-            : `Review and save${queue.size ? ` (${queue.size})` : ''}`;
+            : `Save and apply${queue.size ? ` (${queue.size})` : ''}`;
       changeCount.textContent = String(queue.size);
       changesToggle.setAttribute('aria-expanded', String(mode === 'review'));
       changesToggle.setAttribute(
@@ -1882,7 +1886,7 @@ export default defineToolbarApp({
     function showElementControls(candidate: HTMLElement): void {
       document.querySelector('.astro-ve-element-controls')?.remove();
       const protection = selectionProtection(candidate);
-      const label = textTargetLabel(candidate);
+      const label = elementControlLabel(candidate);
       const controls = createElement('div', {
         class: 'astro-ve-element-controls',
         'data-astro-ve-ui': 'true',
@@ -1893,7 +1897,17 @@ export default defineToolbarApp({
       const controlsLabel = createElement('span', { class: 'astro-ve-element-label' });
       controlsLabel.textContent = label;
       controls.append(controlsLabel);
-      addControl(controls, `Edit ${label}`, 'settings', () => openTextEditor(candidate));
+      const state = createElement('span', { class: 'astro-ve-control-state' });
+      state.textContent =
+        protection.state === 'unlocked'
+          ? 'Editable'
+          : protection.state === 'locked'
+            ? 'Locked'
+            : 'Protected';
+      controls.append(state);
+      if (protection.state === 'unlocked') {
+        addControl(controls, `Edit ${label}`, 'settings', () => openTextEditor(candidate));
+      }
       if (protection.state === 'protected') {
         const shield = addControl(
           controls,
@@ -1940,9 +1954,11 @@ export default defineToolbarApp({
     }
 
     function clearSelection(): void {
+      flushPendingText();
       editing?.removeAttribute('data-astro-ve-selected');
       editing?.removeAttribute('data-astro-ve-protection');
       editing = null;
+      editingOriginalText = '';
       selectedKind = null;
       selectionInspector.hidden = true;
       panel.dataset.hasSelection = 'false';
@@ -2018,9 +2034,20 @@ export default defineToolbarApp({
       const editable = protection.state === 'unlocked';
       if (selectedKind === 'text') {
         inspectorTextarea.disabled = !editable;
+        selectionLockCard.hidden = editable;
+        selectionLockCard.querySelector('strong')!.textContent =
+          protection.state === 'locked' ? 'Locked' : 'Protected';
+        selectionLockCard.querySelector('span')!.textContent =
+          protection.state === 'locked'
+            ? 'This content cannot be edited until you unlock it.'
+            : protection.reason;
+        selectionInspector
+          .querySelectorAll<HTMLElement>('.text-setting')
+          .forEach((setting) => (setting.hidden = !editable));
         resetSelectionButton.hidden = !editable;
-        applySelectionButton.hidden = !editable;
+        applySelectionButton.hidden = true;
       } else {
+        selectionLockCard.hidden = true;
         applySelectionButton.hidden = false;
         for (const button of [
           addBeforeSelectedButton,
@@ -2056,6 +2083,12 @@ export default defineToolbarApp({
       return 'Text';
     }
 
+    function elementControlLabel(candidate: HTMLElement): string {
+      const kind = textTargetLabel(candidate);
+      const copy = compactLabel(candidate.textContent ?? '', 42);
+      return copy ? `${kind} · ${copy}` : kind;
+    }
+
     function editableTarget(target: EventTarget | null): HTMLElement | null {
       if (!(target instanceof Element) || !configReady) return null;
       let candidate: HTMLElement | null = null;
@@ -2078,6 +2111,10 @@ export default defineToolbarApp({
     }
 
     function openTextEditor(candidate: HTMLElement): void {
+      flushPendingText();
+      document
+        .querySelectorAll<HTMLElement>('.astro-ve-section-controls[data-visible="true"]')
+        .forEach((controls) => (controls.dataset.visible = 'false'));
       if (mode !== 'text') setMode('text');
       editing?.removeAttribute('data-astro-ve-selected');
       editing = candidate;
@@ -2088,6 +2125,7 @@ export default defineToolbarApp({
         `text:${sourceFileFor(candidate, config, editabilityPolicy)}:${selector}`,
       );
       const existing = queued?.kind === 'text' ? queued : undefined;
+      editingOriginalText = existing?.oldText ?? candidate.textContent?.trim() ?? '';
       textarea.value = existing?.newText ?? candidate.textContent?.trim() ?? '';
       const resolution = sourceResolutionFor(candidate, config, editabilityPolicy);
       textFile.textContent = `${resolution.filePath}${resolution.sourcePath ? ` → ${resolution.sourcePath}` : ''}`;
@@ -2118,7 +2156,6 @@ export default defineToolbarApp({
       inspectorSourceWarning.textContent = resolution.sharedRouteCount
         ? `Shared source: this edit will affect ${resolution.sharedRouteCount} routes.`
         : '';
-      applySelectionButton.textContent = existing ? 'Update queued change' : 'Queue change';
       selectionInspector
         .querySelectorAll<HTMLElement>('.text-setting')
         .forEach((setting) => (setting.hidden = false));
@@ -2134,11 +2171,13 @@ export default defineToolbarApp({
     }
 
     function openSectionInspector(section: HTMLElement): void {
+      flushPendingText();
       if (mode !== 'sections') setMode('sections');
       editing?.removeAttribute('data-astro-ve-selected');
       editing = section;
       selectedKind = 'section';
       editing.dataset.astroVeSelected = 'true';
+      revealSectionControls(section);
       const label = sectionControlLabel(section);
       const region = editableRegion(section);
       const resolutionTarget = region ?? section;
@@ -2246,11 +2285,7 @@ export default defineToolbarApp({
       if (text) {
         event.preventDefault();
         event.stopPropagation();
-        const protection = selectionProtection(text);
-        if (matchMedia('(max-width: 640px)').matches && protection.state === 'locked') {
-          selectedKind = 'text';
-          toggleUserLock(text);
-        } else openTextEditor(text);
+        openTextEditor(text);
         return;
       }
       if (event.target instanceof Element) {
@@ -2264,8 +2299,14 @@ export default defineToolbarApp({
       }
     }
 
-    function queueText(): void {
+    function queueText(options: { closeEditor?: boolean; announce?: boolean } = {}): void {
       if (!editing) return;
+      if (selectionProtection(editing).state !== 'unlocked') return;
+      if (textQueueTimer !== undefined) {
+        clearTimeout(textQueueTimer);
+        textQueueTimer = undefined;
+      }
+      const { closeEditor = false, announce = false } = options;
       const inspectorOpen = !selectionInspector.hidden && !matchMedia('(max-width: 640px)').matches;
       const newText = (inspectorOpen ? inspectorTextarea : textarea).value.trim();
       const selector = selectorFor(editing);
@@ -2280,8 +2321,7 @@ export default defineToolbarApp({
         );
         return;
       }
-      const oldText =
-        existing?.kind === 'text' ? existing.oldText : (editing.textContent?.trim() ?? '');
+      const oldText = existing?.kind === 'text' ? existing.oldText : editingOriginalText;
       if (!newText) {
         showMessage(
           'Replacement text cannot be empty. Delete a section in Sections mode instead.',
@@ -2309,14 +2349,29 @@ export default defineToolbarApp({
           queue.set(key, change);
         }
       });
-      if (textDialog.open) textDialog.close();
-      if (matchMedia('(max-width: 640px)').matches) {
+      if (closeEditor && textDialog.open) textDialog.close();
+      if (closeEditor && matchMedia('(max-width: 640px)').matches) {
         setMinimized(true);
       } else {
-        applySelectionButton.textContent = 'Update queued change';
         inspectorPreview.textContent = compactLabel(newText);
-        showMessage('Content preview queued. Review changes before saving.', 'success');
+        if (announce) showMessage('Change ready. Save and apply when you are finished.', 'success');
       }
+    }
+
+    function scheduleTextQueue(input: HTMLTextAreaElement): void {
+      if (!editing || selectedKind !== 'text' || selectionProtection(editing).state !== 'unlocked')
+        return;
+      editing.textContent = input.value;
+      inspectorPreview.textContent = compactLabel(input.value);
+      if (textQueueTimer !== undefined) clearTimeout(textQueueTimer);
+      textQueueTimer = window.setTimeout(() => queueText(), 320);
+    }
+
+    function flushPendingText(): void {
+      if (textQueueTimer === undefined) return;
+      clearTimeout(textQueueTimer);
+      textQueueTimer = undefined;
+      queueText();
     }
 
     function editableRegion(section: HTMLElement): HTMLElement | null {
@@ -2339,6 +2394,8 @@ export default defineToolbarApp({
     }
 
     function sectionReviewLabel(section: HTMLElement): string {
+      const explicit = section.dataset.astroEditLabel ?? section.getAttribute('aria-label');
+      if (explicit) return compactLabel(explicit, 90);
       const clone = section.cloneNode(true) as HTMLElement;
       clone.querySelectorAll('[data-astro-ve-ui]').forEach((element) => element.remove());
       const heading = clone.querySelector<HTMLElement>('h1, h2, h3, h4');
@@ -2351,18 +2408,7 @@ export default defineToolbarApp({
     }
 
     function sectionControlLabel(section: HTMLElement): string {
-      const kind = /^H[1-6]$/u.test(section.tagName)
-        ? 'Heading'
-        : section.tagName === 'BUTTON'
-          ? 'Button'
-          : section.tagName === 'P'
-            ? 'Text'
-            : section.tagName === 'SECTION'
-              ? 'Section'
-              : section.tagName === 'ARTICLE'
-                ? 'Card'
-                : 'Block';
-      return `${kind}: ${sectionReviewLabel(section)}`;
+      return sectionReviewLabel(section);
     }
 
     function sameSectionStructure(
@@ -2466,10 +2512,23 @@ export default defineToolbarApp({
             delete section.dataset.astroVeAddedTabindex;
           }
         });
+      document
+        .querySelectorAll<HTMLElement>('[data-astro-ve-region-active]')
+        .forEach((region) => region.removeAttribute('data-astro-ve-region-active'));
       if (!active) return;
       for (const region of document.querySelectorAll<HTMLElement>(
         '[data-astro-edit-region], [data-astro-edit-sections]',
       )) {
+        region.dataset.astroVeRegionActive = 'true';
+        const groupLabel = regionLabel(region);
+        const regionControls = createElement('div', {
+          class: 'astro-ve-region-controls',
+          'data-astro-ve-ui': 'true',
+          role: 'note',
+          'aria-label': `Group: ${groupLabel}`,
+        });
+        regionControls.textContent = `GROUP · ${groupLabel}`;
+        region.append(regionControls);
         const current = descriptors(region);
         if (!initialSections.has(regionKey(region)))
           initialSections.set(regionKey(region), structuredClone(current));
@@ -2496,8 +2555,16 @@ export default defineToolbarApp({
             'aria-label': `Controls for ${label}`,
           });
           const controlsLabel = createElement('span', { class: 'astro-ve-section-label' });
-          controlsLabel.textContent = label;
+          controlsLabel.textContent = `SECTION · ${label}`;
           controls.append(controlsLabel);
+          const state = createElement('span', { class: 'astro-ve-control-state' });
+          state.textContent =
+            protection.state === 'unlocked'
+              ? 'Editable'
+              : protection.state === 'locked'
+                ? 'Locked'
+                : 'Protected';
+          controls.append(state);
           addControl(controls, `Open settings for ${label}`, 'settings', () =>
             openSectionInspector(section),
           );
@@ -2747,16 +2814,19 @@ export default defineToolbarApp({
       updateSetupDock();
       restoreHighlight();
       for (const tab of panel.querySelectorAll<HTMLButtonElement>('.mode-tab'))
-        tab.setAttribute('aria-selected', String(tab.dataset.mode === mode));
+        tab.setAttribute(
+          'aria-selected',
+          String(tab.dataset.mode === mode || (tab.dataset.mode === 'text' && mode === 'sections')),
+        );
       if (mode === 'text') {
         panelTitle.textContent = 'Edit content';
         instructions.textContent =
           'Click text to edit, or use a section handle to arrange the page.';
       }
       if (mode === 'sections') {
-        panelTitle.textContent = 'Edit structure';
+        panelTitle.textContent = 'Edit section';
         instructions.textContent =
-          'Section handles are available directly on the page. This tab is an optional navigator.';
+          'The selected section and its source-safe actions are shown here.';
       }
       if (mode === 'seo') {
         panelTitle.textContent = 'Page settings';
@@ -2861,6 +2931,9 @@ export default defineToolbarApp({
             delete section.dataset.astroVeAddedTabindex;
           }
         });
+      document
+        .querySelectorAll<HTMLElement>('[data-astro-ve-region-active]')
+        .forEach((region) => region.removeAttribute('data-astro-ve-region-active'));
       for (const dialog of [
         textDialog,
         seoDialog,
@@ -2887,6 +2960,7 @@ export default defineToolbarApp({
     }
 
     function requestPreview(): void {
+      flushPendingText();
       if (queue.size === 0 || saveInFlight || previewInFlight || !config.writeEnabled) return;
       previewInFlight = true;
       clearMessage();
@@ -2901,7 +2975,7 @@ export default defineToolbarApp({
         previewInFlight = false;
         previewRequestId = undefined;
         showMessage(
-          'The source check did not complete. Your changes are still queued; try Review and save again.',
+          'The source check did not complete. Your changes are still queued; try Save and apply again.',
           'warning',
         );
         renderQueue();
@@ -3045,10 +3119,12 @@ export default defineToolbarApp({
       .addEventListener('click', () => app.toggleState({ state: false }));
     textDialog
       .querySelector<HTMLButtonElement>('.queue-text')!
-      .addEventListener('click', queueText);
+      .addEventListener('click', () => queueText({ closeEditor: true, announce: true }));
+    textarea.addEventListener('input', () => scheduleTextQueue(textarea));
+    inspectorTextarea.addEventListener('input', () => scheduleTextQueue(inspectorTextarea));
+    inspectorTextarea.addEventListener('blur', flushPendingText);
     applySelectionButton.addEventListener('click', () => {
-      if (selectedKind === 'text') queueText();
-      else clearSelection();
+      clearSelection();
     });
     cancelSelectionButton.addEventListener('click', clearSelection);
     resetSelectionButton.addEventListener('click', () => {
@@ -3101,6 +3177,16 @@ export default defineToolbarApp({
         const region = editableRegion(deleteTarget);
         if (region)
           mutate(() => {
+            const sectionId = deleteTarget!.dataset.section;
+            if (sectionId) {
+              for (const [key, change] of queue) {
+                if (
+                  change.kind === 'text' &&
+                  change.selector?.includes(`[data-section="${sectionId}"]`)
+                )
+                  queue.delete(key);
+              }
+            }
             deleteTarget!.remove();
             queueRegion(region);
           });

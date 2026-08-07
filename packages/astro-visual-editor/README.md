@@ -26,13 +26,12 @@ does not ship an editor client or write endpoint in production.
 
 Built by [Opace Astro developers](https://opace.agency/services/web-design/astro-development/).
 
-| Mode      | Included workflow                                                       |
-| --------- | ----------------------------------------------------------------------- |
-| Content   | Select rendered content, edit it in the inspector and queue it          |
-| Structure | Select and reorder declared Astro children or JSON/YAML items safely    |
-| Page      | Edit title, description, keywords, canonical, Open Graph and robots     |
-| Changes   | Inspect mixed changes, undo/redo, save once and conflict-check restores |
-| Locks     | Lock or unlock an element/section directly on the rendered page         |
+| Mode    | Included workflow                                                       |
+| ------- | ----------------------------------------------------------------------- |
+| Builder | Select rendered content or named sections and edit directly on canvas   |
+| Page    | Edit title, description, keywords, canonical, Open Graph and robots     |
+| Changes | Inspect mixed changes, undo/redo, save once and conflict-check restores |
+| Locks   | Lock or unlock an element/section directly on the rendered page         |
 
 ## Install
 
@@ -61,23 +60,28 @@ Run `astro dev`, open the Dev Toolbar and choose **Visual Editor**.
 
 ## Familiar visual-builder workflow
 
-- **Content:** every discovered text boundary appears when the editor opens;
+- **Builder content:** every discovered text boundary appears when the editor opens;
   click or focus (`Alt+Enter`) rendered text. Desktop selection
   stays outlined on the page and opens an element-named inspector with
-  **Content**, **Design** and **Advanced** tabs. Mobile retains a focused dialog.
-- **Structure:** every declared section is active immediately. Its contextual
-  toolbar provides settings, lock/unlock, drag, move and delete where the
-  validated source region supports them. Add from templates in the inspector.
+  **Content**, **Design** and **Advanced** tabs. Typing previews and auto-queues
+  locally after a short pause; there is no Queue button. Mobile retains a
+  focused dialog.
+- **Builder sections:** blue named groups and teal named section handles are
+  active immediately. Persistent badges say **Editable**, **Locked** or
+  **Protected**. Hover, focus or selection expands settings, lock/unlock, drag,
+  move and delete where the validated source region supports them. Add from
+  templates in the inspector.
 - **Page:** title, description, keywords, canonical, Open Graph and robots.
 - **Changes:** compact mixed-change tray with individual removal, undo/redo,
   discard, idempotent save and conflict-protected restore.
 
-The Content tab contains the source-safe editable value. Design reports the
+The Content tab contains the source-safe editable value. Locked content shows a
+clear state card instead of an editable-looking disabled field. Design reports the
 actual rendered typography and spacing, but does not pretend it can write an
 unresolved CSS/style owner. Advanced identifies the exact source file, field
 and page selector and explains protected source ownership when needed.
 
-The queue recovers through Astro HMR/navigation and stays isolated per browser
+The local unsaved set recovers through Astro HMR/navigation and stays isolated per browser
 tab. The workbench collapses to compact Pick mode on desktop or mobile. Icon
 controls provide visible hover/focus tooltips, and dialogs close with Cancel,
 Escape or a backdrop click.
@@ -154,7 +158,7 @@ able to change it; network-exposed development servers cannot manage policy.
 ## Persistent section regions
 
 Declared and saved section regions are active as soon as the editor opens.
-Clicking a section switches the inspector to Structure automatically; its
+Clicking a section opens its contextual Builder inspector automatically; its
 toolbar exposes only operations the source adapter can safely perform. The
 candidate supports contiguous Astro component/element children and complete
 JSON/JSONC or YAML array items. Structured candidates must match rendered child

@@ -349,7 +349,14 @@ export const pageSectionStyles = String.raw`
   [data-astro-ve-section-active="true"][data-astro-ve-protection="protected"] { box-shadow: inset 0 0 0 4px rgba(228,91,103,.7) !important; opacity: .5 !important; filter: grayscale(.45) !important; }
   [data-astro-ve-section-active="true"][data-astro-ve-selected="true"] { outline: 3px solid #e94b8a !important; outline-offset: -3px !important; }
   [data-astro-edit-region], [data-astro-edit-sections] { position: relative !important; }
-  [data-astro-ve-drag-over="true"] { outline: 4px dashed #e94b8a !important; outline-offset: -5px; }
+  [data-astro-ve-drag-over="true"] { outline: 4px dashed #e94b8a !important; outline-offset: -5px !important; }
+  /* Blocks carry a two-attribute active outline above, which outranks the
+     single-attribute rule and used to hide the drop target entirely. Match that
+     specificity so a block highlights exactly like a section does. */
+  [data-astro-ve-section-active="true"][data-astro-ve-hierarchy="block"][data-astro-ve-drag-over="true"] { outline: 4px dashed #e94b8a !important; outline-offset: -5px !important; }
+  /* Which side the block lands on, mirroring the midpoint test the drop uses. */
+  [data-astro-ve-drop-edge="before"] { box-shadow: inset 0 6px 0 0 #e94b8a !important; }
+  [data-astro-ve-drop-edge="after"] { box-shadow: inset 0 -6px 0 0 #e94b8a !important; }
   [data-astro-ve-dragging="true"] { opacity: .55 !important; }
   [data-astro-ve-ui] { box-sizing: border-box; }
   [data-astro-ve-inventory-status] { outline: none !important; }

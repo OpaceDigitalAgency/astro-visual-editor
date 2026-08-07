@@ -510,6 +510,47 @@ test('adds a section and saves an auto-queued text edit inside it in one atomic 
   }
 });
 
+test('drags a hero block released over another block control', async ({ page }) => {
+  // Section controls are absolutely positioned over the region rather than
+  // inside the section they label, and they stack in the left gutter roughly a
+  // control-height apart. Releasing a block drag on top of one is the common
+  // case by hand, and it used to swallow the drop silently: dragover fired on
+  // the control, never reached the section, so preventDefault never ran.
+  const simple = await enableEditor(page);
+  await simple.workbench.getByRole('button', { name: 'Complex sources' }).click();
+  await expect(page).toHaveURL(/\/fixtures\/complex$/);
+  await enableEditor(page);
+
+  const blocks = page.locator('[data-astro-edit-region="complex-hero-blocks"] > [data-section]');
+  await expect(blocks.first()).toBeVisible();
+  const before = await blocks.evaluateAll((els) =>
+    els.map((el) => el.getAttribute('data-section')),
+  );
+
+  // Two blocks are labelled "Summary" on this route; scope to the hero's.
+  const handle = page
+    .locator('.astro-ve-section-controls[data-section-id="hero-summary"]')
+    .getByRole('button', { name: 'Drag Summary to reorder' });
+  await handle.scrollIntoViewIfNeeded();
+  const handleBox = (await handle.boundingBox())!;
+  // Aim at the Heading's own control, in the gutter — not at bare text.
+  const targetControl = page
+    .locator('.astro-ve-section-controls[data-section-id="hero-heading"]')
+    .getByRole('button', { name: 'Drag Heading to reorder' });
+  const targetBox = (await targetControl.boundingBox())!;
+
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, {
+    steps: 18,
+  });
+  await page.mouse.up();
+
+  await expect
+    .poll(async () => blocks.evaluateAll((els) => els.map((el) => el.getAttribute('data-section'))))
+    .not.toEqual(before);
+});
+
 test('reorders nested hero blocks and saves two structural changes consecutively', async ({
   page,
 }) => {

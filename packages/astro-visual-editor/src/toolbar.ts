@@ -2693,9 +2693,7 @@ export default defineToolbarApp({
             drag.addEventListener('dragend', () => {
               delete section.dataset.astroVeDragging;
               draggedSection = null;
-              document
-                .querySelectorAll('[data-astro-ve-drag-over]')
-                .forEach((node) => node.removeAttribute('data-astro-ve-drag-over'));
+              clearDropFeedback();
             });
             addControl(controls, `Move ${label} down`, 'chevron-down', () =>
               moveSection(section, 1),
@@ -2706,6 +2704,20 @@ export default defineToolbarApp({
               confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
             });
           }
+          // Controls are positioned over the region rather than inside the
+          // section they label, and they stack in the gutter roughly a control
+          // apart, so releasing a drag on one is the common case by hand. They
+          // are not descendants of their section, so the section's own drag
+          // listeners never see those events - forward them explicitly.
+          controls.addEventListener('dragover', (event) => dragOverSection(section, event), {
+            signal: sectionListenerController.signal,
+          });
+          controls.addEventListener('drop', (event) => dropOnSection(section, event), {
+            signal: sectionListenerController.signal,
+          });
+          controls.addEventListener('dragleave', () => clearDropFeedback(section), {
+            signal: sectionListenerController.signal,
+          });
           region.append(controls);
           const regionRect = region.getBoundingClientRect();
           const sectionRect = section.getBoundingClientRect();
@@ -2751,7 +2763,7 @@ export default defineToolbarApp({
           section.addEventListener('dragover', onSectionDragOver, {
             signal: sectionListenerController.signal,
           });
-          section.addEventListener('dragleave', () => delete section.dataset.astroVeDragOver, {
+          section.addEventListener('dragleave', () => clearDropFeedback(section), {
             signal: sectionListenerController.signal,
           });
           section.addEventListener('drop', onSectionDrop, {
@@ -2761,21 +2773,52 @@ export default defineToolbarApp({
       }
     }
 
-    function onSectionDragOver(event: DragEvent): void {
-      if (!draggedSection || !(event.currentTarget instanceof HTMLElement)) return;
-      const target = event.currentTarget;
-      if (editableRegion(target) !== editableRegion(draggedSection) || target === draggedSection)
-        return;
+    function dropTargetFor(target: HTMLElement): HTMLElement | null {
+      if (!draggedSection) return null;
+      const region = editableRegion(target);
+      // Mirror the drop guards exactly wherever they are evaluated. Accepting a
+      // drag here that drop would reject leaves the cursor promising a move
+      // that never happens.
+      if (!region || region !== editableRegion(draggedSection) || target === draggedSection)
+        return null;
+      return region;
+    }
+
+    function dragOverSection(target: HTMLElement, event: DragEvent): void {
+      if (!dropTargetFor(target)) return;
       event.preventDefault();
       target.dataset.astroVeDragOver = 'true';
+      // Show which side it lands on, using the same midpoint test as the drop
+      // so the preview cannot disagree with the result.
+      const rect = target.getBoundingClientRect();
+      target.dataset.astroVeDropEdge =
+        event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
       if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
     }
 
+    function clearDropFeedback(section?: HTMLElement): void {
+      const nodes = section
+        ? [section]
+        : [...document.querySelectorAll<HTMLElement>('[data-astro-ve-drag-over], [data-astro-ve-drop-edge]')];
+      for (const node of nodes) {
+        delete node.dataset.astroVeDragOver;
+        delete node.dataset.astroVeDropEdge;
+      }
+    }
+
+    function onSectionDragOver(event: DragEvent): void {
+      if (!(event.currentTarget instanceof HTMLElement)) return;
+      dragOverSection(event.currentTarget, event);
+    }
+
     function onSectionDrop(event: DragEvent): void {
-      if (!draggedSection || !(event.currentTarget instanceof HTMLElement)) return;
-      const target = event.currentTarget;
-      const region = editableRegion(target);
-      if (!region || region !== editableRegion(draggedSection) || target === draggedSection) return;
+      if (!(event.currentTarget instanceof HTMLElement)) return;
+      dropOnSection(event.currentTarget, event);
+    }
+
+    function dropOnSection(target: HTMLElement, event: DragEvent): void {
+      const region = dropTargetFor(target);
+      if (!region) return;
       event.preventDefault();
       mutate(() => {
         const before =

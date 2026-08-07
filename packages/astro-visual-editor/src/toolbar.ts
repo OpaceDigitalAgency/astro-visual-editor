@@ -477,6 +477,10 @@ export default defineToolbarApp({
       </div>
       <div class="instructions"><span class="instruction-icon" aria-hidden="true">${icon('content')}</span><span class="instructions-copy">Click text to edit, or use a section handle to arrange the page.</span></div>
       <section class="changes-tray" aria-label="Changes tray">
+        <nav class="navigator" aria-label="Page structure">
+          <div class="navigator-head"><h3>Page structure</h3><span class="navigator-hint">Click an item to select it on the page</span></div>
+          <ol class="navigator-tree"></ol>
+        </nav>
         <section class="selection-inspector" aria-label="Selected element settings" hidden>
           <div class="selection-summary">
             <span class="selection-kicker">Selected element</span>
@@ -2029,10 +2033,25 @@ export default defineToolbarApp({
       }
     }
 
+    /** Faint context outline + visible tag on the region that owns the selection. */
+    function markSelectedParent(candidate: HTMLElement | null): void {
+      document
+        .querySelectorAll<HTMLElement>('[data-astro-ve-selected-parent]')
+        .forEach((region) => region.removeAttribute('data-astro-ve-selected-parent'));
+      const region = candidate?.parentElement?.closest<HTMLElement>(
+        '[data-astro-ve-region-active="true"]',
+      );
+      if (region) region.dataset.astroVeSelectedParent = 'true';
+    }
+
     function clearSelection(): void {
       flushPendingText();
       editing?.removeAttribute('data-astro-ve-selected');
       editing?.removeAttribute('data-astro-ve-protection');
+      markSelectedParent(null);
+      document
+        .querySelectorAll<HTMLElement>('.astro-ve-section-controls[data-visible="true"]')
+        .forEach((controls) => (controls.dataset.visible = 'false'));
       editing = null;
       editingOriginalText = '';
       selectedKind = null;
@@ -2042,6 +2061,7 @@ export default defineToolbarApp({
         panelTitle.textContent = 'Edit content';
         instructions.textContent = 'Hover over page content, then click to edit.';
       }
+      renderNavigator();
     }
 
     function populateComputedSettings(candidate: HTMLElement): void {
@@ -2196,6 +2216,7 @@ export default defineToolbarApp({
       editing = candidate;
       selectedKind = 'text';
       editing.dataset.astroVeSelected = 'true';
+      markSelectedParent(candidate);
       const selector = selectorFor(candidate);
       const queued = queue.get(
         `text:${sourceFileFor(candidate, config, editabilityPolicy)}:${selector}`,
@@ -2253,6 +2274,8 @@ export default defineToolbarApp({
       editing = section;
       selectedKind = 'section';
       editing.dataset.astroVeSelected = 'true';
+      delete section.dataset.astroVeHover;
+      markSelectedParent(section);
       revealSectionControls(section);
       const label = sectionControlLabel(section);
       const region = editableRegion(section);
@@ -2281,6 +2304,7 @@ export default defineToolbarApp({
       populateComputedSettings(section);
       renderSelectionState(section);
       setInspectorTab('content');
+      renderNavigator();
     }
 
     function onPointerOver(event: PointerEvent): void {
@@ -2303,10 +2327,7 @@ export default defineToolbarApp({
       if (!active || mode === 'review' || mode === 'seo' || mode === 'setup' || textDialog.open)
         return;
       if (event.target instanceof Element && event.target.closest('[data-astro-ve-ui]')) return;
-      if (event.target instanceof Element && !event.target.closest('[data-astro-ve-ui]'))
-        document
-          .querySelectorAll<HTMLElement>('.astro-ve-section-controls[data-visible="true"]')
-          .forEach((toolbar) => (toolbar.dataset.visible = 'false'));
+      updateSectionHover(event.target);
       const candidate = textCandidate(event.target);
       if (candidate === hovered) return;
       restoreHighlight();
@@ -2318,6 +2339,34 @@ export default defineToolbarApp({
         hovered.style.cursor = protection.state === 'protected' ? 'not-allowed' : 'pointer';
         showElementControls(hovered);
       }
+    }
+
+    /** Reveal exactly one section name tag for the pointed-at hierarchy level. */
+    function updateSectionHover(target: EventTarget | null): void {
+      const section =
+        target instanceof Element
+          ? target.closest<HTMLElement>('[data-astro-ve-section-active="true"]')
+          : null;
+      document.querySelectorAll<HTMLElement>('[data-astro-ve-hover="true"]').forEach((previous) => {
+        if (previous !== section) delete previous.dataset.astroVeHover;
+      });
+      document
+        .querySelectorAll<HTMLElement>('.astro-ve-section-controls[data-peek="true"]')
+        .forEach((controls) => {
+          if (!section || controls.dataset.sectionId !== section.dataset.section)
+            delete controls.dataset.peek;
+        });
+      if (!section || section.dataset.astroVeSelected === 'true') return;
+      section.dataset.astroVeHover = 'true';
+      const region = editableRegion(section);
+      region?.querySelectorAll<HTMLElement>('.astro-ve-section-controls').forEach((controls) => {
+        if (
+          controls.parentElement === region &&
+          controls.dataset.sectionId === section.dataset.section &&
+          controls.dataset.visible !== 'true'
+        )
+          controls.dataset.peek = 'true';
+      });
     }
 
     function onPageClick(event: MouseEvent): void {
@@ -2572,9 +2621,94 @@ export default defineToolbarApp({
         if (
           toolbar.parentElement === region &&
           toolbar.dataset.sectionId === section.dataset.section
-        )
+        ) {
+          delete toolbar.dataset.peek;
           toolbar.dataset.visible = 'true';
+        }
       });
+    }
+
+    /** Divi/Elementor-style structural overview: every group, section and
+     *  block visible at once in the panel, so the canvas can stay quiet. */
+    function renderNavigator(): void {
+      const tree = panel.querySelector<HTMLElement>('.navigator-tree');
+      if (!tree) return;
+      tree.replaceChildren();
+      const allRegions = [
+        ...document.querySelectorAll<HTMLElement>('[data-astro-ve-region-active="true"]'),
+      ];
+      const roots = allRegions.filter(
+        (region) => !region.parentElement?.closest('[data-astro-ve-region-active="true"]'),
+      );
+      if (!roots.length) {
+        const empty = createElement('li', { class: 'navigator-empty' });
+        empty.textContent = 'No editable sections on this page yet.';
+        tree.append(empty);
+        return;
+      }
+      const appendRegion = (list: HTMLElement, region: HTMLElement): void => {
+        const nested = region.dataset.astroVeHierarchy === 'row';
+        const item = createElement('li', { class: 'navigator-region' });
+        const heading = createElement('span', { class: 'navigator-region-label' });
+        const kind = createElement('span', {
+          class: 'navigator-kind',
+          'data-kind': nested ? 'ROW' : 'GROUP',
+        });
+        kind.textContent = nested ? 'Row' : 'Group';
+        const name = createElement('span', { class: 'navigator-item-label' });
+        name.textContent = regionLabel(region);
+        heading.append(kind, name);
+        item.append(heading);
+        const children = createElement('ol');
+        for (const section of directSections(region)) appendSection(children, section);
+        if (children.childElementCount) item.append(children);
+        list.append(item);
+      };
+      const appendSection = (list: HTMLElement, section: HTMLElement): void => {
+        const block = section.dataset.astroVeHierarchy === 'block';
+        const protection = selectionProtection(section);
+        const item = createElement('li', { class: 'navigator-item' });
+        const button = createElement('button', {
+          type: 'button',
+          class: 'navigator-item-button',
+          'aria-current': String(section === editing),
+        });
+        const kind = createElement('span', {
+          class: 'navigator-kind',
+          'data-kind': block ? 'BLOCK' : 'SECTION',
+        });
+        kind.textContent = block ? 'Block' : 'Section';
+        const name = createElement('span', { class: 'navigator-item-label' });
+        name.textContent = sectionControlLabel(section);
+        button.append(kind, name);
+        if (protection.state !== 'unlocked') {
+          const state = createElement('span', {
+            class: 'navigator-state',
+            'data-protection': protection.state,
+            title: protection.state === 'locked' ? 'Locked' : 'Protected',
+          });
+          state.innerHTML = icon(protection.state === 'locked' ? 'lock' : 'shield');
+          button.append(state);
+        }
+        button.addEventListener('click', () => {
+          section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          openSectionInspector(section);
+        });
+        button.addEventListener('pointerenter', () => updateSectionHover(section));
+        button.addEventListener('pointerleave', () => updateSectionHover(null));
+        item.append(button);
+        const nestedRegions = allRegions.filter(
+          (region) =>
+            region.parentElement?.closest('[data-astro-ve-section-active="true"]') === section,
+        );
+        if (nestedRegions.length) {
+          const children = createElement('ol');
+          for (const region of nestedRegions) appendRegion(children, region);
+          item.append(children);
+        }
+        list.append(item);
+      };
+      for (const region of roots) appendRegion(tree, region);
     }
 
     function setupSectionControls(): void {
@@ -2709,23 +2843,40 @@ export default defineToolbarApp({
           region.append(controls);
           const regionRect = region.getBoundingClientRect();
           const sectionRect = section.getBoundingClientRect();
-          controls.style.setProperty(
-            'top',
-            `${sectionRect.top - regionRect.top + region.scrollTop + 10}px`,
-            'important',
-          );
+          const sectionTop = sectionRect.top - regionRect.top + region.scrollTop;
+          // Anchor the toolbar to the section's top edge, above the content.
+          // Flip inside only when the region leaves no room above.
+          const controlHeight = 38;
+          const top = sectionTop >= controlHeight ? sectionTop - controlHeight : sectionTop + 6;
+          controls.style.setProperty('top', `${top}px`, 'important');
           if (nestedRegion) {
             controls.style.setProperty(
               'right',
-              `${regionRect.right - sectionRect.right + 10}px`,
+              `${regionRect.right - sectionRect.right + 6}px`,
               'important',
             );
           } else {
             controls.style.setProperty(
               'left',
-              `${sectionRect.left - regionRect.left + region.scrollLeft + 10}px`,
+              `${sectionRect.left - regionRect.left + region.scrollLeft + 6}px`,
               'important',
             );
+          }
+          if (protection.state !== 'unlocked') {
+            const chip = createElement('span', {
+              class: 'astro-ve-lock-chip',
+              'data-astro-ve-ui': 'true',
+              'data-protection': protection.state,
+              'aria-hidden': 'true',
+            });
+            chip.innerHTML = `${icon(protection.state === 'locked' ? 'lock' : 'shield')}<span>${protection.state === 'locked' ? 'Locked' : 'Protected'}</span>`;
+            chip.style.setProperty('top', `${sectionTop + 6}px`, 'important');
+            chip.style.setProperty(
+              'right',
+              `${regionRect.right - sectionRect.right + 6}px`,
+              'important',
+            );
+            region.append(chip);
           }
           const showControls = () => {
             revealSectionControls(section);
@@ -2759,6 +2910,7 @@ export default defineToolbarApp({
           });
         }
       }
+      renderNavigator();
     }
 
     function onSectionDragOver(event: DragEvent): void {

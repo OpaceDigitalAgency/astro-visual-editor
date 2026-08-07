@@ -161,7 +161,7 @@ describe('source adapters', () => {
     const page = join(src, 'pages', 'index.astro');
     await writeFile(
       page,
-      `---\nimport Layout from '../layouts/Layout.astro';\n---\n<Layout title="Old rendered title" description="Old rendered description"><main /></Layout>`,
+      `---\nimport Layout from '../layouts/Layout.astro';\n---\n<Layout title="Old rendered title" description="Old rendered description" keywords="" canonical="" ogTitle="" ogDescription="" robots=""><main /></Layout>`,
     );
     await applyChangeBatch(
       root,
@@ -181,6 +181,11 @@ describe('source adapters', () => {
             ...emptySeo,
             title: 'New rendered title',
             description: 'New rendered description',
+            keywords: 'astro, editor',
+            canonical: 'https://example.com/reviewed',
+            ogTitle: 'New social title',
+            ogDescription: 'New social description',
+            robots: 'index, follow',
           },
         },
       ],
@@ -189,6 +194,11 @@ describe('source adapters', () => {
     const result = await readFile(page, 'utf8');
     expect(result).toContain('title="New rendered title"');
     expect(result).toContain('description="New rendered description"');
+    expect(result).toContain('keywords="astro, editor"');
+    expect(result).toContain('canonical="https://example.com/reviewed"');
+    expect(result).toContain('ogTitle="New social title"');
+    expect(result).toContain('ogDescription="New social description"');
+    expect(result).toContain('robots="index, follow"');
   });
 
   it('refuses ambiguous or non-title layout props for delegated SEO titles', async () => {

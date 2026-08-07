@@ -293,6 +293,11 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await seoDialog
       .locator('[name="description"]')
       .fill('A reviewed description owned by the composed route.');
+    await seoDialog.locator('[name="keywords"]').fill('astro, editor');
+    await seoDialog.locator('[name="canonical"]').fill('https://example.com/complex');
+    await seoDialog.locator('[name="ogTitle"]').fill('Complex social title');
+    await seoDialog.locator('[name="ogDescription"]').fill('Complex social description');
+    await seoDialog.locator('[name="robots"]').fill('index, follow');
     await seoDialog.getByRole('button', { name: 'Queue SEO change' }).click();
     await complexWorkbench
       .getByRole('button', { name: 'Open changes tray, 3 queued changes' })
@@ -319,6 +324,21 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await expect
       .poll(async () => readFile(complexRouteSource, 'utf8'))
       .toContain('description="A reviewed description owned by the composed route."');
+    await expect
+      .poll(async () => readFile(complexRouteSource, 'utf8'))
+      .toContain('keywords="astro, editor"');
+    await expect
+      .poll(async () => readFile(complexRouteSource, 'utf8'))
+      .toContain('canonical="https://example.com/complex"');
+    await expect
+      .poll(async () => readFile(complexRouteSource, 'utf8'))
+      .toContain('ogTitle="Complex social title"');
+    await expect
+      .poll(async () => readFile(complexRouteSource, 'utf8'))
+      .toContain('ogDescription="Complex social description"');
+    await expect
+      .poll(async () => readFile(complexRouteSource, 'utf8'))
+      .toContain('robots="index, follow"');
 
     await restoreFromHistory(page);
     await expect.poll(async () => readFile(complexJsonSource, 'utf8')).toBe(originalJson);

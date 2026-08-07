@@ -264,6 +264,11 @@ result is compiled before writing. For `.md` and `.mdx` owners, standard YAML
 frontmatter fields are updated. Length guidance is editorial and non-blocking;
 canonical URLs must be complete HTTP(S) URLs.
 
+If the route delegates metadata to a layout, expose every editable field as a
+unique literal route prop: `title`, `description`, `keywords`, `canonical`,
+`ogTitle`, `ogDescription` and `robots`. Missing, computed or ambiguous props
+are refused rather than guessed against a shared layout.
+
 ### Changes
 
 The compact **Changes (N)** tray shows the affected page first, followed by a

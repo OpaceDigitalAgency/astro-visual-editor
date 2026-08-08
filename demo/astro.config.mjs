@@ -15,6 +15,15 @@ export default defineConfig({
       selectorMappings: {
         '[data-demo-banner]': 'src/pages/index.astro',
       },
+      lockedAreaMessages: [
+        {
+          selector: '[data-section="commit"]',
+          route: '/',
+          message:
+            'This card explains the save flow, so its label is fixed as part of the demo chrome.',
+          action: 'A developer can change it in demo/src/pages/index.astro.',
+        },
+      ],
       demoPages: [
         {
           id: 'simple',

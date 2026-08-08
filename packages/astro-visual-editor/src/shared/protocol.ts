@@ -7,6 +7,8 @@ import type {
   RevertRequest,
   SaveRequest,
   SeoCapabilitiesRequest,
+  SessionRestoreRequest,
+  SessionStateRequest,
   SeoValues,
   SourceDiscoveryRequest,
   SectionDiscoveryRequest,
@@ -122,6 +124,20 @@ export function parseRevertRequest(value: unknown): RevertRequest {
     throw new Error('Revert request failed runtime validation.');
   }
   return value as unknown as RevertRequest;
+}
+
+export function parseSessionStateRequest(value: unknown): SessionStateRequest {
+  if (!isRecord(value) || !isString(value.clientId, 200) || !isString(value.requestId, 200)) {
+    throw new Error('Session state request failed runtime validation.');
+  }
+  return value as unknown as SessionStateRequest;
+}
+
+export function parseSessionRestoreRequest(value: unknown): SessionRestoreRequest {
+  if (!isRecord(value) || !isString(value.clientId, 200) || !isString(value.requestId, 200)) {
+    throw new Error('Session restore request failed runtime validation.');
+  }
+  return value as unknown as SessionRestoreRequest;
 }
 
 export function parseEditabilityPolicyRequest(value: unknown): EditabilityPolicyRequest {

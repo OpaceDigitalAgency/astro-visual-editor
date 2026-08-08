@@ -13,10 +13,10 @@ const dataSource = 'src/data/complex-page.json';
 <DemoLayout
   title="Complex source fixture"
   description="Test source-aware editing across Astro layouts, components and structured content."
-  keywords="astro, visual editor, source-aware editing"
+  keywords="astro, visual editor, structured content, source-aware editing"
   canonical="http://localhost:4321/fixtures/complex"
-  ogTitle="Complex source fixture"
-  ogDescription="Source-aware editing across Astro layouts, components and structured content."
+  ogTitle="Complex source fixture, an Astro Visual Editor demo"
+  ogDescription="A layout, components, JSON data and a Content Collection, all editable with a full source trail."
   robots="index, follow"
 >
   <div
@@ -97,6 +97,15 @@ const dataSource = 'src/data/complex-page.json';
       </p>
     </section>
   </div>
+  <p
+    class="generated-note"
+    data-demo-generated-note
+    data-astro-edit-ignore
+    data-astro-edit-locked-reason="This line is assembled automatically when the page builds, so there is no single file the editor could safely change."
+    data-astro-edit-locked-action="Ask your developer to move this copy into a content file if it should be editable."
+  >
+    Generated at build time: three sources power this page.
+  </p>
 </DemoLayout>
 
 <style>
@@ -112,6 +121,11 @@ const dataSource = 'src/data/complex-page.json';
   .complex-builder-region,
   .complex-builder-section {
     position: relative;
+  }
+  .generated-note {
+    margin: 34px 0 0;
+    color: #8f96a3;
+    font-size: 0.85rem;
   }
   .collection {
     max-width: 760px;

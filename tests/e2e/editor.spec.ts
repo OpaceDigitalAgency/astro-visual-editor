@@ -211,10 +211,27 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await protectedText.dispatchEvent('pointerover');
   await expect(protectedText).toHaveAttribute('data-astro-ve-text-state', 'protected');
   await expect(protectedText).toHaveAttribute('data-astro-ve-text-label', 'Protected · Bold text');
+  // The hover toolbar explains the lock in the owner's words: the project's
+  // configured lockedAreaMessages entry for the commit card wins over the
+  // per-status default copy.
+  await expect(page.locator('.astro-ve-explainer')).toContainText(
+    'fixed as part of the demo chrome',
+  );
+  await expect(
+    page.locator('.astro-ve-element-controls').getByRole('button', {
+      name: 'Why can’t I edit this?',
+    }),
+  ).toBeEnabled();
   await protectedText.dispatchEvent('click');
   let inspector = await selectedTextInspector(toolbar);
   await expect(inspector.locator('.selection-state')).toContainText('Protected');
   await expect(inspector.locator('.selection-lock-card')).toContainText('Protected');
+  await expect(inspector.locator('.selection-lock-card')).toContainText(
+    'fixed as part of the demo chrome',
+  );
+  await expect(inspector.locator('.selection-lock-card .lock-action')).toContainText(
+    'demo/src/pages/index.astro',
+  );
   await expect(inspector.locator('.editable-text-setting')).toBeHidden();
   await expect(inspector.getByRole('button', { name: 'Lock' })).toBeHidden();
 
@@ -1111,4 +1128,117 @@ test('shows unlocked, owner-locked and source-protected states on the canvas', a
     results.violations.filter((item) => item.impact === 'critical' || item.impact === 'serious'),
   ).toEqual([]);
   await expect(workbench.getByRole('button', { name: 'Diagnostics' })).toBeHidden();
+});
+
+test('explains locked content in plain language and spotlights what is editable', async ({
+  page,
+}) => {
+  await page.goto('/fixtures/complex');
+  const { toolbar, workbench } = await enableEditor(page);
+
+  // A page-authored data-astro-edit-locked-reason wins over the per-status
+  // default copy and over configured lockedAreaMessages.
+  const generated = page.locator('[data-demo-generated-note]');
+  await generated.dispatchEvent('pointerover');
+  await expect(generated).toHaveAttribute('data-astro-ve-text-state', 'protected');
+  await expect(page.locator('.astro-ve-explainer')).toContainText(
+    'assembled automatically when the page builds',
+  );
+  await page
+    .locator('.astro-ve-element-controls')
+    .getByRole('button', { name: 'Why can’t I edit this?' })
+    .dispatchEvent('click');
+  const inspector = await selectedTextInspector(toolbar);
+  await expect(inspector.locator('.selection-lock-card')).toContainText(
+    'assembled automatically when the page builds',
+  );
+  await expect(inspector.locator('.selection-lock-card .lock-action')).toContainText(
+    'move this copy into a content file',
+  );
+
+  // The "What can I edit?" filter fades protected content and leaves editable
+  // content at full strength, then restores the page when switched off.
+  const filterToggle = workbench.getByRole('button', { name: 'Show what I can edit' });
+  await filterToggle.click();
+  await expect(page.locator('html')).toHaveAttribute('data-astro-ve-editable-filter', 'true');
+  await expect(filterToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(() => generated.evaluate((element) => Number(getComputedStyle(element).opacity)))
+    .toBeLessThan(0.5);
+  await expect
+    .poll(() =>
+      page
+        .locator('[data-demo-json-title]')
+        .evaluate((element) => Number(getComputedStyle(element).opacity)),
+    )
+    .toBe(1);
+  await filterToggle.click();
+  await expect(page.locator('html')).toHaveAttribute('data-astro-ve-editable-filter', 'false');
+  await expect
+    .poll(() => generated.evaluate((element) => Number(getComputedStyle(element).opacity)))
+    .toBe(1);
+});
+
+test('rewinds every save in the session with Restore session start', async ({ page }) => {
+  test.setTimeout(90_000);
+  const originalSource = await readFile(demoSource, 'utf8');
+  try {
+    let current = await enableEditor(page);
+    const lead = page.locator('[data-astro-edit-id="hero-lead"]');
+    await lead.click();
+    await queueSelectedText(current.toolbar, 'First session edit for the rewind test.');
+    await reviewAndCommit(current.toolbar, current.workbench);
+    await expect
+      .poll(async () => readFile(demoSource, 'utf8'))
+      .toContain('First session edit for the rewind test.');
+
+    // Astro replaces the document after the source write; re-acquire the
+    // toolbar and layer a second save on the same element.
+    await page.waitForTimeout(1_000);
+    await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
+    current = await enableEditor(page);
+    await page
+      .getByText('First session edit for the rewind test.', { exact: true })
+      .dispatchEvent('click');
+    await queueSelectedText(current.toolbar, 'Second session edit for the rewind test.');
+    await reviewAndCommit(current.toolbar, current.workbench);
+    await expect
+      .poll(async () => readFile(demoSource, 'utf8'))
+      .toContain('Second session edit for the rewind test.');
+
+    // A brand-new tab must reconnect to the same undo trail: the client
+    // identity is durable, so closing a tab never orphans the rewind.
+    const freshTab = await page.context().newPage();
+    await freshTab.goto('/');
+    const fresh = await enableEditor(freshTab);
+    await fresh.workbench.getByRole('button', { name: /Open changes tray/ }).click();
+    await expect(
+      fresh.workbench.getByRole('button', { name: 'Restore session start' }),
+    ).toBeEnabled();
+    await freshTab.close();
+
+    await page.waitForTimeout(1_000);
+    await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
+    current = await enableEditor(page);
+    await current.workbench.getByRole('button', { name: /Open changes tray/ }).click();
+    const restoreButton = current.workbench.getByRole('button', {
+      name: 'Restore session start',
+    });
+    await expect(restoreButton).toBeEnabled();
+    await restoreButton.click();
+    const confirmRestore = current.toolbar
+      .locator('dialog')
+      .filter({ hasText: 'Restore how this session started?' });
+    await expect(confirmRestore).toContainText('src/pages/index.astro');
+    await confirmRestore
+      .getByRole('button', { name: 'Restore session start' })
+      .dispatchEvent('click');
+
+    // Both saves are gone in one step: the file is byte-identical to the
+    // pre-session original, not merely missing the last edit.
+    await expect.poll(async () => readFile(demoSource, 'utf8')).toBe(originalSource);
+  } finally {
+    if ((await readFile(demoSource, 'utf8')) !== originalSource)
+      await writeFile(demoSource, originalSource);
+  }
 });

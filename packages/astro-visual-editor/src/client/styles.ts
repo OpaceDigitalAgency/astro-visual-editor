@@ -37,6 +37,7 @@ export const toolbarStyles = String.raw`
   .status[data-state="warning"] .status-dot { background: #ffd166; }
   .status[data-state="error"] .status-dot { background: #ff8585; }
   .icon-button, .utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0; color: #f5f2f8; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.24); border-radius: 5px; cursor: pointer; }
+  .editable-filter-toggle[aria-pressed="true"] { color: #14301f; background: #6ee7a8; border-color: #9ff2c4; }
   .utility-button { min-height: 44px; padding-inline: 12px; font-size: 11px; font-weight: 750; }
   .icon-button:hover, .icon-button:focus-visible, .utility-button:hover, .utility-button:focus-visible { color: white; background: rgba(255,255,255,.2); outline: 2px solid #fff; outline-offset: 2px; }
   .utility-label { display: inline; }
@@ -99,6 +100,8 @@ export const toolbarStyles = String.raw`
   .selection-lock-card { display: grid; gap: 5px; margin: 2px 0 10px; padding: 16px; color: #f8e8bd; background: repeating-linear-gradient(135deg,#302817,#302817 10px,#352d1a 10px,#352d1a 20px); border: 1px solid #8a6c2c; border-radius: 6px; }
   .selection-lock-card strong { font-size: 15px; }
   .selection-lock-card span { color: #d8cba9; font-size: 11px; line-height: 1.5; }
+  .selection-lock-card .lock-action { margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.14); color: #fff; font-weight: 700; }
+  .selection-lock-card .lock-action[hidden] { display: none; }
   .selection-inspector[data-protection="protected"] .selection-lock-card { color: #ffe7e9; background: repeating-linear-gradient(135deg,#351f23,#351f23 10px,#3b2328 10px,#3b2328 20px); border-color: #82414b; }
   .inspector-tabs { position: sticky; z-index: 2; top: 0; display: grid; grid-template-columns: repeat(3,1fr); background: #292730; border-bottom: 1px solid var(--ave-border); }
   .inspector-tab { min-width: 0; min-height: 46px; color: #aaa7b2; background: transparent; border: 0; border-right: 1px solid #3b3842; border-radius: 0; cursor: pointer; font-size: 11px; font-weight: 760; }
@@ -197,6 +200,9 @@ export const toolbarStyles = String.raw`
   .workbench:not([data-mode="setup"]) .setup-actions { display: none; }
   .commit { grid-column: 1 / -1; }
   .clear, .revert { width: 100%; }
+  .restore-session { grid-column: 1 / -1; width: 100%; }
+  .session-restore-files { display: grid; gap: 4px; margin: 14px 0 0; padding: 0 0 0 18px; color: #b8d0e2; font: 600 11px/1.5 ui-monospace, monospace; }
+  .session-restore-files:empty { display: none; }
   .primary, .secondary, .danger { min-height: 44px; padding-inline: 14px; border-radius: 5px; font-weight: 780; cursor: pointer; }
   .primary { color: #fff; background: var(--ave-builder); border: 1px solid #8650ca; }
   .primary:hover:not(:disabled), .primary:focus-visible { background: #7b3bc5; outline: 2px solid #d9bdf7; outline-offset: 2px; }
@@ -401,6 +407,10 @@ export const pageSectionStyles = String.raw`
   [data-astro-ve-drop-edge="after"] { box-shadow: inset 0 -6px 0 0 #e94b8a !important; }
   [data-astro-ve-dragging="true"] { opacity: .55 !important; }
   [data-astro-ve-ui] { box-sizing: border-box; }
+  /* "What can I edit?" filter: fade everything the editor cannot change here.
+     Editable and user-locked (unlockable) content stays in full colour. */
+  html[data-astro-ve-editable-filter="true"] [data-astro-ve-protection="protected"]:not([data-astro-ve-ui]) { opacity: .35 !important; filter: grayscale(.8) !important; transition: opacity .16s ease !important; }
+  html[data-astro-ve-editable-filter="true"] [data-astro-ve-section-active="true"][data-astro-ve-protection="protected"] { opacity: .35 !important; filter: grayscale(.8) !important; }
   [data-astro-ve-inventory-status] { outline: none !important; }
   [data-astro-ve-inventory-focus="true"] { outline: 4px solid #8fc7ee !important; outline-offset: 5px !important; }
   [data-astro-ve-setup-pick="true"] { outline: 4px solid #8fc7ee !important; outline-offset: 5px !important; cursor: pointer !important; box-shadow: 0 0 0 8px rgba(75,151,203,.2) !important; }
@@ -414,6 +424,11 @@ export const pageSectionStyles = String.raw`
   .astro-ve-section-controls[data-peek="true"]:not([data-visible="true"]) button:not(.astro-ve-drag-handle) { display: none !important; }
   .astro-ve-section-controls[data-hierarchy-level="block"] { z-index: 2147483400 !important; background: #535e6b !important; }
   .astro-ve-element-controls { position: absolute !important; z-index: 2147483200 !important; display: flex !important; align-items: center !important; width: fit-content !important; min-height: 34px !important; color: #fff !important; background: #4f5967 !important; border-radius: 4px !important; box-shadow: 0 8px 22px rgba(0,0,0,.38) !important; font: 700 11px/1 Inter,system-ui,sans-serif !important; pointer-events: none !important; }
+  /* Only the protected variant wraps: its explainer takes a full second row.
+     Unlocked toolbars must stay single-row so they never overlap the text
+     they control (a wrapped row would intercept canvas clicks). */
+  .astro-ve-element-controls[data-protection="protected"] { flex-wrap: wrap !important; max-width: min(420px, calc(100vw - 24px)) !important; }
+  .astro-ve-explainer { flex: 1 1 100% !important; order: 10 !important; padding: 8px 10px !important; color: #ffe0e4 !important; background: #43303a !important; border-top: 1px solid rgba(255,255,255,.18) !important; border-radius: 0 0 4px 4px !important; font: 600 11px/1.45 Inter,system-ui,sans-serif !important; white-space: normal !important; }
   .astro-ve-element-label { max-width: 230px !important; overflow: hidden !important; padding: 0 9px !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
   .astro-ve-control-state { align-self: stretch !important; display: inline-flex !important; align-items: center !important; padding: 0 8px !important; color: #dff7e8 !important; background: #165c43 !important; border-left: 1px solid rgba(255,255,255,.22) !important; font: 800 9px/1 Inter,system-ui,sans-serif !important; text-transform: uppercase !important; letter-spacing: .04em !important; white-space: nowrap !important; }
   [data-protection="locked"] > .astro-ve-control-state { color: #2a1d08 !important; background: #f0bd5b !important; }

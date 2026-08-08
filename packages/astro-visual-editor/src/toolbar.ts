@@ -3,6 +3,7 @@ import { ChangeHistory, changeKey } from './client/history.js';
 import {
   classifyElement,
   inventoryPage,
+  lockExplanation,
   matchingPolicyRule,
   policyAllowSelectors,
   type InventoryItem,
@@ -37,6 +38,10 @@ import {
   REVERT_RESULT_EVENT,
   SAVE_EVENT,
   SAVE_RESULT_EVENT,
+  SESSION_RESTORE_EVENT,
+  SESSION_RESTORE_RESULT_EVENT,
+  SESSION_STATE_EVENT,
+  SESSION_STATE_RESULT_EVENT,
   SOURCE_DISCOVERY_EVENT,
   SOURCE_DISCOVERY_RESULT_EVENT,
   SECTION_DISCOVERY_EVENT,
@@ -61,6 +66,8 @@ import type {
   SectionsEditorChange,
   SeoCapabilitiesResponse,
   SeoField,
+  SessionRestoreResponse,
+  SessionStateResponse,
   SeoFieldCapability,
   SeoValues,
   SaveResponse,
@@ -94,6 +101,7 @@ const defaultConfig: ClientEditorConfig = {
     '[data-astro-ve-ui]',
   ],
   fileMappings: {},
+  lockedAreaMessages: [],
   selectorMappings: {},
   sectionTemplates: [],
   demoPages: [],
@@ -115,6 +123,8 @@ type IconName =
   | 'content'
   | 'delete'
   | 'drag'
+  | 'eye'
+  | 'help'
   | 'history'
   | 'lock'
   | 'minus'
@@ -135,6 +145,8 @@ function icon(name: IconName): string {
     content: '<path d="M5 6h14M5 10h14M5 14h9M5 18h7"/>',
     delete: '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/>',
     drag: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>',
+    eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.6 2.6 0 0 1 4.9 1.1c0 1.7-2.5 2.1-2.5 3.6M12 17.2v.1"/>',
     history: '<path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v4l3 2"/>',
     lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/>',
     minus: '<path d="M6 12h12"/>',
@@ -163,11 +175,12 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 }
 
 function getClientId(): string {
-  let id = sessionStorage.getItem(SESSION_CLIENT);
-  if (!id) {
-    id = crypto.randomUUID();
-    sessionStorage.setItem(SESSION_CLIENT, id);
-  }
+  // localStorage, not sessionStorage: closing the tab must not orphan the
+  // undo trail. The sessionStorage read migrates identities minted before
+  // this change so an in-flight session keeps its history.
+  let id = localStorage.getItem(SESSION_CLIENT) ?? sessionStorage.getItem(SESSION_CLIENT);
+  if (!id) id = crypto.randomUUID();
+  localStorage.setItem(SESSION_CLIENT, id);
   return id;
 }
 
@@ -425,7 +438,12 @@ export default defineToolbarApp({
     let previewTimeoutId: number | undefined;
     let receiptPollId: number | undefined;
     let pendingRequestId = sessionStorage.getItem(SESSION_PENDING) ?? undefined;
-    let lastReceiptId = sessionStorage.getItem(SESSION_RECEIPT) ?? undefined;
+    let lastReceiptId =
+      localStorage.getItem(SESSION_RECEIPT) ??
+      sessionStorage.getItem(SESSION_RECEIPT) ??
+      undefined;
+    let sessionRestoreAvailable = false;
+    let sessionRestoreFiles: string[] = [];
     let savedHistory: HistoryEntry[] = [];
     let previewRequestId: string | undefined;
     let previewInFlight = false;
@@ -473,7 +491,7 @@ export default defineToolbarApp({
         <div class="masthead-copy"><p class="eyebrow">Astro Visual Builder</p><h2 class="panel-title">Edit content</h2>
           <p class="status" data-state="warning"><span class="status-dot" aria-hidden="true"></span><span class="status-copy">Connecting to Astro…</span></p>
         </div>
-        <div class="masthead-actions"><button class="utility-button setup-toggle" type="button" aria-label="Developer diagnostics" title="Developer diagnostics" hidden>${icon('settings')}<span class="utility-label">Diagnostics</span></button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">${icon('minus')}</button></div>
+        <div class="masthead-actions"><button class="utility-button editable-filter-toggle" type="button" aria-pressed="false" aria-label="Show what I can edit" title="Highlight editable content and fade the rest">${icon('eye')}<span class="utility-label">What can I edit?</span></button><button class="utility-button setup-toggle" type="button" aria-label="Developer diagnostics" title="Developer diagnostics" hidden>${icon('settings')}<span class="utility-label">Diagnostics</span></button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">${icon('minus')}</button></div>
       </header>
       <aside class="demo-context" hidden><span>Demo page</span><nav class="demo-surfaces" aria-label="Demo test pages"></nav></aside>
       <div class="mode-tabs" role="tablist" aria-label="Builder view">
@@ -500,7 +518,7 @@ export default defineToolbarApp({
             <button class="inspector-tab" type="button" role="tab" data-inspector-tab="advanced" aria-selected="false">Advanced</button>
           </div>
           <div class="inspector-panel" data-inspector-panel="content">
-            <div class="selection-lock-card" hidden><strong></strong><span></span></div>
+            <div class="selection-lock-card" hidden><strong></strong><span></span><span class="lock-action"></span></div>
             <details class="setting-group text-setting editable-text-setting" open>
               <summary>Text</summary>
               <div class="setting-body">
@@ -561,6 +579,7 @@ export default defineToolbarApp({
           <button class="primary commit" type="button" disabled>Save and apply</button>
           <button class="secondary clear" type="button">Discard changes</button>
           <button class="secondary revert" type="button" disabled>Restore previous save</button>
+          <button class="danger restore-session" type="button" disabled>Restore session start</button>
         </footer>
       </section>
       <div class="setup-actions">
@@ -649,6 +668,12 @@ export default defineToolbarApp({
     });
     permissionDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Text editing</p><h2 id="ave-permission-title">Choose what can be edited</h2><p id="ave-permission-help" class="field-help permission-copy"></p><details class="technical-details"><summary>Technical details</summary><p class="dialog-file permission-source"></p></details><div class="dialog-actions permission-actions"><button class="secondary cancel-permission" type="button">Cancel</button></div></div>`;
 
+    const sessionRestoreDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-session-restore-title',
+      'aria-describedby': 'ave-session-restore-help',
+    });
+    sessionRestoreDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Undo this session</p><h2 id="ave-session-restore-title">Restore how this session started?</h2><p id="ave-session-restore-help" class="field-help">Every file saved with this editor goes back to how it was before your first save, even across page reloads and closed tabs. The restore is refused if anything was changed outside this editor, so other work is never lost.</p><ul class="session-restore-files"></ul><div class="dialog-actions"><button class="secondary cancel-session-restore" type="button">Keep my changes</button><button class="danger confirm-session-restore" type="button">Restore session start</button></div></div>`;
+
     canvas.append(
       style,
       panel,
@@ -665,6 +690,7 @@ export default defineToolbarApp({
       regionDialog,
       regionSourceDialog,
       permissionDialog,
+      sessionRestoreDialog,
     );
 
     const ledger = panel.querySelector<HTMLElement>('.ledger')!;
@@ -683,6 +709,7 @@ export default defineToolbarApp({
     const commitButton = panel.querySelector<HTMLButtonElement>('.commit')!;
     const clearButton = panel.querySelector<HTMLButtonElement>('.clear')!;
     const revertButton = panel.querySelector<HTMLButtonElement>('.revert')!;
+    const restoreSessionButton = panel.querySelector<HTMLButtonElement>('.restore-session')!;
     const undoButton = panel.querySelector<HTMLButtonElement>('.undo')!;
     const redoButton = panel.querySelector<HTMLButtonElement>('.redo')!;
     const historyButton = panel.querySelector<HTMLButtonElement>('.show-history')!;
@@ -716,6 +743,7 @@ export default defineToolbarApp({
     const templateGrid = templateDialog.querySelector<HTMLElement>('.template-grid')!;
     const minimizeButton = panel.querySelector<HTMLButtonElement>('.minimize')!;
     const setupButton = panel.querySelector<HTMLButtonElement>('.setup-toggle')!;
+    const editableFilterButton = panel.querySelector<HTMLButtonElement>('.editable-filter-toggle')!;
     const leaveSetupButton = panel.querySelector<HTMLButtonElement>('.leave-setup')!;
     const reloadPolicyButton = panel.querySelector<HTMLButtonElement>('.reload-policy')!;
     const reviewPolicyButton = panel.querySelector<HTMLButtonElement>('.review-policy')!;
@@ -758,7 +786,7 @@ export default defineToolbarApp({
       renderHistoryPanel(historyList, savedHistory, (entry) => {
         if (saveInFlight) return;
         lastReceiptId = entry.receiptId;
-        sessionStorage.setItem(SESSION_RECEIPT, entry.receiptId);
+        localStorage.setItem(SESSION_RECEIPT, entry.receiptId);
         historyDialog.close();
         requestRevert();
       });
@@ -1797,6 +1825,8 @@ export default defineToolbarApp({
       undoButton.disabled = !history.canUndo || saveInFlight;
       redoButton.disabled = !history.canRedo || saveInFlight;
       revertButton.disabled = !lastReceiptId || saveInFlight || !config.writeEnabled;
+      restoreSessionButton.disabled =
+        !sessionRestoreAvailable || saveInFlight || !config.writeEnabled;
       pickerReview.textContent = queue.size ? `Review ${queue.size}` : 'Expand';
       pickerReview.title = queue.size
         ? `Expand editor and review ${queue.size} queued change${queue.size === 1 ? '' : 's'}`
@@ -2029,13 +2059,10 @@ export default defineToolbarApp({
         addControl(controls, `Edit ${label}`, 'settings', () => openTextEditor(candidate));
       }
       if (pinned && protection.state === 'protected') {
-        const shield = addControl(
-          controls,
-          `${label} is source-protected`,
-          'shield',
-          () => undefined,
-        );
-        shield.disabled = true;
+        addControl(controls, 'Why can’t I edit this?', 'help', () => openTextEditor(candidate));
+        const explainer = createElement('span', { class: 'astro-ve-explainer' });
+        explainer.textContent = protection.reason;
+        controls.append(explainer);
       } else if (pinned) {
         addControl(
           controls,
@@ -2094,7 +2121,9 @@ export default defineToolbarApp({
       }
       document.body.append(controls);
       const rect = candidate.getBoundingClientRect();
-      const controlHeight = 34;
+      // Measure the rendered toolbar: the protected variant carries a wrapped
+      // explainer row, so a fixed 34px offset would overlap the content.
+      const controlHeight = Math.ceil(controls.getBoundingClientRect().height) || 34;
       const top =
         rect.top >= controlHeight + 8
           ? window.scrollY + rect.top - controlHeight
@@ -2169,6 +2198,7 @@ export default defineToolbarApp({
     function selectionProtection(candidate: HTMLElement): {
       state: 'unlocked' | 'locked' | 'protected';
       reason: string;
+      action?: string;
     } {
       const lock = userLockRule(candidate);
       if (lock)
@@ -2177,14 +2207,17 @@ export default defineToolbarApp({
           reason: 'Locked by the site owner. Unlock it here to edit or move it.',
         };
       if (isSourceProtected(candidate)) {
-        const item = candidate.matches('[data-section]')
-          ? undefined
-          : classifyElement(candidate, config, editabilityPolicy);
+        const status = candidate.matches('[data-section]')
+          ? 'unresolved'
+          : classifyElement(candidate, config, editabilityPolicy).status;
+        const explanation = lockExplanation(
+          { element: candidate, status: status === 'editable' ? 'excluded' : status },
+          config,
+        );
         return {
           state: 'protected',
-          reason:
-            item?.reason ??
-            'Protected because this section does not have a validated source-owned region.',
+          reason: explanation.summary,
+          action: explanation.action,
         };
       }
       return {
@@ -2219,11 +2252,14 @@ export default defineToolbarApp({
         inspectorTextarea.disabled = !editable;
         selectionLockCard.hidden = editable;
         selectionLockCard.querySelector('strong')!.textContent =
-          protection.state === 'locked' ? 'Locked' : 'Protected';
+          protection.state === 'locked' ? 'Locked' : 'Protected — not editable here';
         selectionLockCard.querySelector('span')!.textContent =
           protection.state === 'locked'
             ? 'This content cannot be edited until you unlock it.'
             : protection.reason;
+        const lockAction = selectionLockCard.querySelector<HTMLElement>('.lock-action')!;
+        lockAction.textContent = protection.state === 'protected' ? (protection.action ?? '') : '';
+        lockAction.hidden = !lockAction.textContent;
         selectionInspector
           .querySelectorAll<HTMLElement>('.text-setting')
           .forEach((setting) => (setting.hidden = !editable));
@@ -3604,6 +3640,8 @@ export default defineToolbarApp({
 
     function deactivate(): void {
       active = false;
+      delete document.documentElement.dataset.astroVeEditableFilter;
+      editableFilterButton.setAttribute('aria-pressed', 'false');
       stopSetupPagePicker(false);
       updateSetupDock();
       panel.dataset.open = 'false';
@@ -3715,6 +3753,33 @@ export default defineToolbarApp({
       server.send(REVERT_EVENT, { clientId, requestId, receiptId: lastReceiptId });
     }
 
+    function requestSessionState(): void {
+      server.send(SESSION_STATE_EVENT, { clientId, requestId: crypto.randomUUID() });
+    }
+
+    function openSessionRestoreDialog(): void {
+      if (!sessionRestoreAvailable || saveInFlight || !config.writeEnabled) return;
+      const list = sessionRestoreDialog.querySelector<HTMLElement>('.session-restore-files')!;
+      list.innerHTML = '';
+      for (const file of sessionRestoreFiles) {
+        const item = document.createElement('li');
+        item.textContent = file;
+        list.append(item);
+      }
+      sessionRestoreDialog.showModal();
+      sessionRestoreDialog
+        .querySelector<HTMLButtonElement>('.cancel-session-restore')
+        ?.focus();
+    }
+
+    function requestSessionRestore(): void {
+      if (sessionRestoreDialog.open) sessionRestoreDialog.close();
+      if (!sessionRestoreAvailable || saveInFlight || !config.writeEnabled) return;
+      saveInFlight = true;
+      renderQueue();
+      server.send(SESSION_RESTORE_EVENT, { clientId, requestId: crypto.randomUUID() });
+    }
+
     function handleSaveResponse(response: SaveResponse): void {
       if (response.clientId !== clientId || response.requestId !== pendingRequestId) return;
       window.clearTimeout(timeoutId);
@@ -3731,7 +3796,7 @@ export default defineToolbarApp({
         history.record(serializableQueue());
         if (queue.size === 0) sessionStorage.removeItem(SESSION_QUEUE);
         lastReceiptId = response.receiptId;
-        if (lastReceiptId) sessionStorage.setItem(SESSION_RECEIPT, lastReceiptId);
+        if (lastReceiptId) localStorage.setItem(SESSION_RECEIPT, lastReceiptId);
         if (queue.size > 0)
           showMessage(
             `Saved ${response.changeCount ?? 0} other change${response.changeCount === 1 ? '' : 's'}. The change that needs attention is still here.`,
@@ -3739,9 +3804,10 @@ export default defineToolbarApp({
           );
         else
           showMessage(
-            `Written ${response.changeCount ?? 0} change${response.changeCount === 1 ? '' : 's'} to source.`,
+            `Written ${response.changeCount ?? 0} change${response.changeCount === 1 ? '' : 's'} to source. Change of heart? Use Restore previous save, or Restore session start to rewind everything.`,
             'success',
           );
+        requestSessionState();
       } else {
         pendingRequestId = undefined;
         sessionStorage.removeItem(SESSION_PENDING);
@@ -3822,6 +3888,18 @@ export default defineToolbarApp({
         tab.addEventListener('click', () => setMode(tab.dataset.mode as EditorMode)),
       );
     minimizeButton.addEventListener('click', () => setMinimized(true));
+    editableFilterButton.addEventListener('click', () => {
+      const enabled = document.documentElement.dataset.astroVeEditableFilter !== 'true';
+      document.documentElement.dataset.astroVeEditableFilter = String(enabled);
+      editableFilterButton.setAttribute('aria-pressed', String(enabled));
+      if (enabled) setupTextBoundaries();
+      showMessage(
+        enabled
+          ? 'Editable content stays in full colour; faded content cannot be edited here. Hover anything faded to see why.'
+          : 'Showing the page normally again.',
+        'success',
+      );
+    });
     setupButton.addEventListener('click', () =>
       mode === 'setup' ? leaveSetup() : setMode('setup'),
     );
@@ -3959,6 +4037,13 @@ export default defineToolbarApp({
       renderQueue();
     });
     revertButton.addEventListener('click', requestRevert);
+    restoreSessionButton.addEventListener('click', openSessionRestoreDialog);
+    sessionRestoreDialog
+      .querySelector<HTMLButtonElement>('.cancel-session-restore')!
+      .addEventListener('click', () => sessionRestoreDialog.close('cancel'));
+    sessionRestoreDialog
+      .querySelector<HTMLButtonElement>('.confirm-session-restore')!
+      .addEventListener('click', requestSessionRestore);
     reloadPolicyButton.addEventListener('click', () => {
       setupBusy = true;
       editabilityRequestId = crypto.randomUUID();
@@ -4082,12 +4167,13 @@ export default defineToolbarApp({
       saveInFlight = false;
       if (response.success) {
         lastReceiptId = undefined;
-        sessionStorage.removeItem(SESSION_RECEIPT);
+        localStorage.removeItem(SESSION_RECEIPT);
         showMessage(
           `Restored ${response.files?.length ?? 0} source file${response.files?.length === 1 ? '' : 's'}.`,
           'success',
         );
         server.send(HISTORY_EVENT, { clientId, requestId: crypto.randomUUID() });
+        requestSessionState();
       } else showMessage(response.error ?? 'Revert was refused.', 'error');
       renderQueue();
     });
@@ -4095,6 +4181,31 @@ export default defineToolbarApp({
       if (response.clientId !== clientId) return;
       savedHistory = response.entries;
       renderHistory();
+    });
+    server.on(SESSION_STATE_RESULT_EVENT, (response: SessionStateResponse) => {
+      if (response.clientId !== clientId) return;
+      sessionRestoreAvailable = response.available;
+      sessionRestoreFiles = response.files;
+      renderQueue();
+    });
+    server.on(SESSION_RESTORE_RESULT_EVENT, (response: SessionRestoreResponse) => {
+      if (response.clientId !== clientId) return;
+      saveInFlight = false;
+      if (response.success) {
+        sessionRestoreAvailable = false;
+        sessionRestoreFiles = [];
+        lastReceiptId = undefined;
+        localStorage.removeItem(SESSION_RECEIPT);
+        showMessage(
+          `Restored ${response.files?.length ?? 0} file${response.files?.length === 1 ? '' : 's'} to how this session started.`,
+          'success',
+        );
+        server.send(HISTORY_EVENT, { clientId, requestId: crypto.randomUUID() });
+      } else {
+        showMessage(response.error ?? 'Session restore was refused.', 'error');
+        requestSessionState();
+      }
+      renderQueue();
     });
     server.on(EDITABILITY_POLICY_RESULT_EVENT, (response: EditabilityPolicyResponse) => {
       if (response.clientId !== clientId || response.requestId !== editabilityRequestId) return;
@@ -4256,6 +4367,7 @@ export default defineToolbarApp({
     const announceReady = (): void => {
       if (panel.isConnected)
         server.send(READY_EVENT, { clientId, route: window.location.pathname });
+        requestSessionState();
     };
     if (configReady) replaceQueue(safeParseQueue());
     announceReady();

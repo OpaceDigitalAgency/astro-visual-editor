@@ -96,6 +96,18 @@ export interface SectionsEditorChange extends BaseEditorChange {
 
 export type EditorChange = TextEditorChange | SeoEditorChange | SectionsEditorChange;
 
+/** Plain-language explanation shown to editors on content the tool cannot edit. */
+export interface LockedAreaMessage {
+  /** CSS selector for the locked area; matched with closest(), so it may target an ancestor. */
+  selector: string;
+  /** Optional route filter, e.g. "/services". A trailing * matches route prefixes. */
+  route?: string;
+  /** Owner-facing sentence explaining why this content is not editable here. */
+  message: string;
+  /** Optional owner-facing sentence explaining what would make it editable. */
+  action?: string;
+}
+
 export interface ClientEditorConfig {
   editableSelectors: string[];
   excludeSelectors: string[];
@@ -103,6 +115,7 @@ export interface ClientEditorConfig {
   selectorMappings: Record<string, string>;
   sectionTemplates: ClientSectionTemplate[];
   demoPages: DemoPage[];
+  lockedAreaMessages: LockedAreaMessage[];
   maxChanges: number;
   maxTextLength: number;
   requestTimeoutMs: number;
@@ -173,6 +186,30 @@ export interface RevertResponse extends ClientMessage {
   requestId: string;
   receiptId: string;
   success: boolean;
+  files?: string[];
+  error?: string;
+}
+
+export interface SessionStateRequest extends ClientMessage {
+  requestId: string;
+}
+
+export interface SessionStateResponse extends ClientMessage {
+  requestId: string;
+  /** True when this session has at least one saved change that can be rewound. */
+  available: boolean;
+  /** Project-relative files the restore would rewind. */
+  files: string[];
+}
+
+export interface SessionRestoreRequest extends ClientMessage {
+  requestId: string;
+}
+
+export interface SessionRestoreResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  /** Files rewound to their state before this session's first save. */
   files?: string[];
   error?: string;
 }

@@ -1022,6 +1022,17 @@ test('double-click edits text in place; Escape restores, Enter keeps and queues'
   const lengthBefore = (await lead.textContent())!.length;
   await page.keyboard.press('Backspace');
   await expect.poll(async () => (await lead.textContent())!.length).toBe(lengthBefore - 1);
+  // Editing must survive the queue's 320ms preview cycle: pause past it,
+  // then keep deleting — the caret may not be destroyed by a rewrite.
+  await page.waitForTimeout(450);
+  await page.keyboard.press('Backspace');
+  await expect.poll(async () => (await lead.textContent())!.length).toBe(lengthBefore - 2);
+  // Clicking elsewhere inside the same text moves the caret without ending
+  // the session, and Backspace keeps working afterwards.
+  await lead.click({ position: { x: 60, y: 10 } });
+  await expect(lead).toHaveAttribute('contenteditable', /plaintext-only|true/u);
+  await page.keyboard.press('Backspace');
+  await expect.poll(async () => (await lead.textContent())!.length).toBe(lengthBefore - 3);
   await page.keyboard.type('ZZZ ');
   await page.keyboard.press('Escape');
   await expect(lead).toHaveText(original);

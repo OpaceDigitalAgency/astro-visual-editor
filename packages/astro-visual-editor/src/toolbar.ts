@@ -1872,7 +1872,10 @@ export default defineToolbarApp({
       for (const change of [...changes].reverse()) {
         if (change.kind === 'text' && change.selector) {
           const element = document.querySelector<HTMLElement>(change.selector);
-          if (element) element.textContent = change.oldText;
+          // An inline-edited element IS the input; rewriting it destroys the
+          // caret mid-word. Its content is already the live value.
+          if (element && element.dataset.astroVeInlineEditing !== 'true')
+            element.textContent = change.oldText;
         } else if (change.kind === 'seo') setSeoPreview(change.before);
         else if (change.kind === 'sections') applySectionState(change, change.before);
       }
@@ -1882,7 +1885,11 @@ export default defineToolbarApp({
       for (const change of changes) {
         if (change.kind === 'text' && change.selector) {
           const element = document.querySelector<HTMLElement>(change.selector);
-          if (element && element.textContent !== change.newText)
+          if (
+            element &&
+            element.dataset.astroVeInlineEditing !== 'true' &&
+            element.textContent !== change.newText
+          )
             element.textContent = change.newText;
         } else if (change.kind === 'seo') setSeoPreview(change.after);
         else if (change.kind === 'sections') applySectionState(change, change.after);
@@ -1905,7 +1912,11 @@ export default defineToolbarApp({
         for (const change of queue.values()) {
           if (change.kind !== 'text' || !change.selector) continue;
           const element = document.querySelector<HTMLElement>(change.selector);
-          if (element && element.textContent !== change.newText)
+          if (
+            element &&
+            element.dataset.astroVeInlineEditing !== 'true' &&
+            element.textContent !== change.newText
+          )
             element.textContent = change.newText;
         }
       });
@@ -2503,6 +2514,10 @@ export default defineToolbarApp({
       if (mode === 'review' || mode === 'seo') return;
       const text = textCandidate(event.target);
       if (text) {
+        // Clicks inside the element being inline-edited are the browser's
+        // business: they move the caret. Intercepting them steals focus to
+        // the panel and silently ends the editing session.
+        if (text.dataset.astroVeInlineEditing === 'true') return;
         event.preventDefault();
         event.stopPropagation();
         // The second click of a double-click enters inline editing directly:
@@ -2546,6 +2561,7 @@ export default defineToolbarApp({
       if (matchMedia('(max-width: 640px)').matches) return;
       const candidate = textCandidate(event.target);
       if (!candidate || selectionProtection(candidate).state !== 'unlocked') return;
+      if (candidate.dataset.astroVeInlineEditing === 'true') return;
       event.preventDefault();
       event.stopPropagation();
       startInlineEdit(candidate, event);

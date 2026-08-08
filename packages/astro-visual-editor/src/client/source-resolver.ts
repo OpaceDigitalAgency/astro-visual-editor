@@ -9,9 +9,45 @@ export interface SourceResolution {
   filePath: string;
   sourcePath?: string;
   proven: boolean;
-  kind: 'annotation' | 'selector' | 'policy' | 'route' | 'fallback';
+  kind: 'annotation' | 'selector' | 'policy' | 'route' | 'inferred' | 'fallback';
   reason: string;
   sharedRouteCount?: number;
+}
+
+export interface InferredSource {
+  filePath: string;
+  sourcePath?: string;
+}
+
+/**
+ * Zero-step resolution registry: sources proven at runtime because the
+ * server found exactly one literal occurrence of the element's text. Kept
+ * per route so navigation cannot leak a match across pages; save-time
+ * validation independently re-verifies every write against the file.
+ */
+const inferredSources = new Map<string, Map<string, InferredSource>>();
+
+export function registerInferredSource(
+  route: string,
+  selector: string,
+  source: InferredSource,
+): void {
+  const forRoute = inferredSources.get(route) ?? new Map<string, InferredSource>();
+  forRoute.set(selector, source);
+  inferredSources.set(route, forRoute);
+}
+
+function inferredSourceFor(route: string, element: HTMLElement): InferredSource | undefined {
+  const forRoute = inferredSources.get(route);
+  if (!forRoute) return undefined;
+  for (const [selector, source] of forRoute) {
+    try {
+      if (element.matches(selector)) return source;
+    } catch {
+      // Selector came from this client; ignore anything the browser rejects.
+    }
+  }
+  return undefined;
 }
 
 function sharedRouteCount(element: HTMLElement): number | undefined {
@@ -90,6 +126,15 @@ export function sourceResolutionFor(
       proven: true,
       kind: 'route',
       reason: 'Confirmed by the page route mapping.',
+    };
+  const inferred = inferredSourceFor(path, element);
+  if (inferred)
+    return {
+      filePath: inferred.filePath,
+      sourcePath: inferred.sourcePath ?? sourcePath,
+      proven: true,
+      kind: 'inferred',
+      reason: 'Matched automatically to its single exact source occurrence.',
     };
   return {
     filePath: routeFallback(path),

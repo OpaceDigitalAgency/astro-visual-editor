@@ -166,8 +166,18 @@ export function parseSourceDiscoveryRequest(
     !isString(value.requestId, 200) ||
     typeof value.route !== 'string' ||
     value.route.length > 4_096 ||
-    !isString(value.selector, 2_000) ||
-    !isString(value.text) ||
+    // Batch mode carries its selector/text pairs in `batch`; the top-level
+    // fields are then unused and may be empty.
+    (value.batch === undefined && (!isString(value.selector, 2_000) || !isString(value.text))) ||
+    (value.batch !== undefined &&
+      (typeof value.selector !== 'string' ||
+        typeof value.text !== 'string' ||
+        !Array.isArray(value.batch) ||
+        value.batch.length === 0 ||
+        value.batch.length > 60 ||
+        value.batch.some(
+          (entry) => !isRecord(entry) || !isString(entry.selector, 2_000) || !isString(entry.text),
+        ))) ||
     (value.hintedFilePath !== undefined && !isString(value.hintedFilePath, 4_096))
   ) {
     throw new Error('Source discovery request failed runtime validation.');

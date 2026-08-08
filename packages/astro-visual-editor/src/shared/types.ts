@@ -253,6 +253,8 @@ export interface SourceDiscoveryRequest extends ClientMessage {
   selector: string;
   text: string;
   hintedFilePath?: string;
+  /** Zero-step resolution: many texts resolved in one bounded source scan. */
+  batch?: Array<{ selector: string; text: string }>;
 }
 
 export type SourceCandidateFormat = 'astro' | 'markdown' | 'json' | 'yaml';
@@ -271,6 +273,8 @@ export interface SourceDiscoveryResponse extends ClientMessage {
   requestId: string;
   success: boolean;
   candidates?: SourceCandidate[];
+  /** Batch-mode results, one entry per requested selector. */
+  results?: Array<{ selector: string; candidates: SourceCandidate[] }>;
   searchedFiles?: number;
   truncated?: boolean;
   error?: string;

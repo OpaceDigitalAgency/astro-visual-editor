@@ -9,6 +9,7 @@
     "demo/src/layouts/DemoLayout.astro": "f99c53eb35aea92c93cbd16ac4bc59a28d0abfaf0658a1072fb94b039a7e9e75",
     "demo/src/pages/fixtures/complex.astro": "60210fee742c6d17f2e817482e6e87a926a3ddbc15179039ab5c3d13c8641b9d",
     "demo/src/pages/fixtures/article.astro": "e11687bbf53f3b78824290105a02e533e4f96c784947ec0c48e7d45e4ebb0bfa",
-    "demo/src/pages/index.astro": "1ebeea2dd8b7e5ff8fd198028e07bfa67555e712305039008e4935acf91c61db"
+    "demo/src/pages/index.astro": "1ebeea2dd8b7e5ff8fd198028e07bfa67555e712305039008e4935acf91c61db",
+    "demo/src/pages/fixtures/plain.astro": "bf03f14c0f9f9255dd375bc0748682fbb151724cea24b4db745ac9badb07987d"
   }
 }

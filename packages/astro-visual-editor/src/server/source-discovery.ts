@@ -360,37 +360,62 @@ export async function discoverSources(
   try {
     const listing = await sourceFiles(sourceRoot, options);
     const routeFiles = likelyRouteFiles(request.route);
-    const candidates: SourceCandidate[] = [];
+    // Batch mode resolves every entry in one pass over the source tree, so
+    // zero-step resolution of a whole page costs a single scan.
+    const queries = request.batch?.length
+      ? request.batch
+      : [{ selector: request.selector, text: request.text }];
+    const perQuery = new Map<string, SourceCandidate[]>();
+    for (const query of queries)
+      if (!perQuery.has(query.selector)) perQuery.set(query.selector, []);
     for (const fullPath of listing.files) {
       const source = await readFile(fullPath, 'utf8');
       const filePath = displayPath(projectRoot, fullPath);
       const extension = extname(fullPath).toLowerCase();
-      let matches: Match[] = [];
-      if (extension === '.astro') matches = await astroMatches(source, request.text);
-      else if (extension === '.json' || extension === '.jsonc')
-        matches = jsonMatches(source, request.text);
-      else if (extension === '.yaml' || extension === '.yml')
-        matches = yamlMatches(source, request.text);
-      else if (extension === '.md' || extension === '.mdx')
-        matches = markdownMatches(source, request.text, extension === '.md');
-      for (const match of matches) {
-        const hinted = request.hintedFilePath === filePath;
-        const routeOwned = routeFiles.has(filePath);
-        candidates.push({
-          id: idFor(filePath, match.sourcePath, match.line),
-          filePath,
-          sourcePath: match.sourcePath,
-          format: formatFor(extension),
-          line: match.line,
-          confidence: hinted || routeOwned ? 'exact' : 'likely',
-          reason: `${match.reason}${hinted ? ' Matches the current source hint.' : routeOwned ? ' Matches the current route.' : ''}`,
-        });
+      for (const query of queries) {
+        if (!query.text) continue;
+        let matches: Match[] = [];
+        if (extension === '.astro') matches = await astroMatches(source, query.text);
+        else if (extension === '.json' || extension === '.jsonc')
+          matches = jsonMatches(source, query.text);
+        else if (extension === '.yaml' || extension === '.yml')
+          matches = yamlMatches(source, query.text);
+        else if (extension === '.md' || extension === '.mdx')
+          matches = markdownMatches(source, query.text, extension === '.md');
+        for (const match of matches) {
+          const hinted = request.hintedFilePath === filePath;
+          const routeOwned = routeFiles.has(filePath);
+          perQuery.get(query.selector)!.push({
+            id: idFor(filePath, match.sourcePath, match.line),
+            filePath,
+            sourcePath: match.sourcePath,
+            format: formatFor(extension),
+            line: match.line,
+            confidence: hinted || routeOwned ? 'exact' : 'likely',
+            reason: `${match.reason}${hinted ? ' Matches the current source hint.' : routeOwned ? ' Matches the current route.' : ''}`,
+          });
+        }
       }
     }
-    candidates.sort((left, right) => {
-      if (left.confidence !== right.confidence) return left.confidence === 'exact' ? -1 : 1;
-      return left.filePath.localeCompare(right.filePath) || left.line - right.line;
-    });
+    const sortCandidates = (candidates: SourceCandidate[]): SourceCandidate[] =>
+      [...candidates].sort((left, right) => {
+        if (left.confidence !== right.confidence) return left.confidence === 'exact' ? -1 : 1;
+        return left.filePath.localeCompare(right.filePath) || left.line - right.line;
+      });
+    if (request.batch?.length) {
+      return {
+        clientId: request.clientId,
+        requestId: request.requestId,
+        success: true,
+        results: [...perQuery.entries()].map(([selector, candidates]) => ({
+          selector,
+          candidates: sortCandidates(candidates).slice(0, 20),
+        })),
+        searchedFiles: listing.files.length,
+        truncated: listing.truncated,
+      };
+    }
+    const candidates = sortCandidates(perQuery.get(request.selector) ?? []);
     return {
       clientId: request.clientId,
       requestId: request.requestId,

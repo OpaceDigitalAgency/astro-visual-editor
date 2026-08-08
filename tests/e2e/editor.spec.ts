@@ -1242,3 +1242,52 @@ test('rewinds every save in the session with Restore session start', async ({ pa
       await writeFile(demoSource, originalSource);
   }
 });
+
+test('edits and rearranges a completely unannotated page with zero setup', async ({ page }) => {
+  // The plain fixture has no data attributes, no fileMappings entry and no
+  // policy rules: everything the editor offers must come from zero-step
+  // inference, and every write is still save-time validated.
+  const plainSource = fileURLToPath(
+    new URL('../../demo/src/pages/fixtures/plain.astro', import.meta.url),
+  );
+  const original = await readFile(plainSource, 'utf8');
+  try {
+    // First-ever hit on a route can abort while Vite optimises; retry once.
+    await page.goto('/fixtures/plain').catch(() => page.goto('/fixtures/plain'));
+    const { toolbar, workbench } = await enableEditor(page);
+    const heading = page.locator('main > section > h1');
+    await expect
+      .poll(async () => heading.getAttribute('data-astro-ve-protection'), { timeout: 10_000 })
+      .toBe('unlocked');
+    await expect
+      .poll(async () => page.locator('main > section[data-astro-ve-section-active="true"]').count())
+      .toBe(3);
+
+    await heading.dispatchEvent('click');
+    await queueSelectedText(toolbar, 'A completely ordinary page, edited live');
+
+    const secondSection = page.locator('main > section').nth(1);
+    await secondSection.dispatchEvent('click');
+    const inspector = toolbar.locator('.selection-inspector');
+    await expect(inspector).toBeVisible();
+    await page
+      .locator('.astro-ve-section-controls[data-visible="true"]')
+      .getByRole('button', { name: /Move .* up/ })
+      .evaluate((button: HTMLButtonElement) => button.click());
+    await expect(page.locator('main > section').first()).toContainText('Why plain pages matter');
+
+    await workbench.getByRole('button', { name: 'Open changes tray, 2 queued changes' }).click();
+    await workbench.getByRole('button', { name: /Save and apply \(2\)/ }).click();
+    const review = toolbar.getByRole('dialog', { name: 'Save and apply' });
+    await review.getByRole('button', { name: 'Save and apply' }).dispatchEvent('click');
+    await expect
+      .poll(async () => readFile(plainSource, 'utf8'))
+      .toContain('A completely ordinary page, edited live');
+    const saved = await readFile(plainSource, 'utf8');
+    expect(saved.indexOf('Why plain pages matter')).toBeLessThan(
+      saved.indexOf('A completely ordinary page, edited live'),
+    );
+  } finally {
+    await writeFile(plainSource, original);
+  }
+});

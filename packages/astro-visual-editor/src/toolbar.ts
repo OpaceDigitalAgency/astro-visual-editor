@@ -13,6 +13,7 @@ import { renderEditabilityPanel } from './client/editability-panel.js';
 import { renderFileDiffPanel, renderHistoryPanel } from './client/review-panels.js';
 import {
   regionIdFor,
+  registerInferredSource,
   selectorFor,
   sourceFileFor,
   sourceResolutionFor,
@@ -429,6 +430,13 @@ export default defineToolbarApp({
     // Astro's dev toolbar closes the active app on Escape KEYUP; when the
     // editor consumes an Escape keydown it must swallow the paired keyup too.
     let swallowEscapeKeyup = false;
+    // Zero-step resolution: one automatic pass per route that turns unique
+    // literal matches into editable sources and safe structural matches into
+    // generated regions, with no setup journey.
+    let autoTextRequestId: string | undefined;
+    const autoRegionRequests = new Map<string, HTMLElement>();
+    const autoRegionRules: SectionRegionRule[] = [];
+    const zeroStepRoutes = new Set<string>();
     let selectedKind: 'text' | 'section' | null = null;
     let draggedSection: HTMLElement | null = null;
     let addTarget: { section: HTMLElement; placement: 'before' | 'after' } | null = null;
@@ -936,7 +944,7 @@ export default defineToolbarApp({
       clearGeneratedSectionMappings();
       initialSections.clear();
       const claimedRegions = new Set<HTMLElement>();
-      for (const regionRule of policy.regions ?? []) {
+      for (const regionRule of [...(policy.regions ?? []), ...autoRegionRules]) {
         if (regionRule.route !== window.location.pathname) continue;
         let matches: NodeListOf<HTMLElement>;
         try {
@@ -962,6 +970,58 @@ export default defineToolbarApp({
           child.dataset.astroEditSourceKey = item.sourceKey;
         });
         claimedRegions.add(region);
+      }
+    }
+
+    /**
+     * Zero-step resolution. Runs once per route after the policy applies:
+     * every discovered-but-unresolved text is batch-searched server-side and
+     * becomes editable when its content has exactly one literal source
+     * occurrence; when the page declares no regions at all, plausible
+     * containers go through the existing section discovery and unique safe
+     * structural matches become generated regions. Ambiguity keeps the
+     * existing confirm dialogs; nothing here weakens save-time validation,
+     * which re-verifies every write against the file.
+     */
+    function runZeroStepResolution(): void {
+      if (!active || !configReady) return;
+      const route = window.location.pathname;
+      if (zeroStepRoutes.has(route)) return;
+      zeroStepRoutes.add(route);
+      const unresolved = inventoryPage(config, editabilityPolicy).filter(
+        (item) => item.status === 'unresolved' && item.text,
+      );
+      if (unresolved.length > 0) {
+        autoTextRequestId = `auto-${crypto.randomUUID()}`;
+        server.send(SOURCE_DISCOVERY_EVENT, {
+          clientId,
+          requestId: autoTextRequestId,
+          route,
+          selector: '',
+          text: '',
+          batch: unresolved
+            .slice(0, 60)
+            .map((item) => ({ selector: item.selector, text: item.text })),
+        });
+      }
+      if (!document.querySelector('[data-astro-edit-region], [data-astro-edit-sections]')) {
+        for (const container of sectionRegionElements().slice(0, 6)) {
+          const children = [...container.children].filter(
+            (child): child is HTMLElement => child instanceof HTMLElement,
+          );
+          if (children.length < 2) continue;
+          const requestId = `auto-${crypto.randomUUID()}`;
+          autoRegionRequests.set(requestId, container);
+          server.send(SECTION_DISCOVERY_EVENT, {
+            clientId,
+            requestId,
+            route,
+            selector: selectorFor(container),
+            itemCount: children.length,
+            containerTag: container.tagName.toLowerCase(),
+            itemTags: children.map((child) => child.tagName.toLowerCase()),
+          });
+        }
       }
     }
 
@@ -3636,6 +3696,7 @@ export default defineToolbarApp({
       );
       setupSectionControls();
       setupTextBoundaries();
+      runZeroStepResolution();
     }
 
     function deactivate(): void {
@@ -4220,6 +4281,7 @@ export default defineToolbarApp({
         if (mode === 'setup') showMessage('Editability policy loaded from the project.', 'success');
         setupSectionControls();
         setupTextBoundaries();
+        runZeroStepResolution();
       }
       renderQueue();
     });
@@ -4278,7 +4340,30 @@ export default defineToolbarApp({
       renderQueue();
     });
     server.on(SOURCE_DISCOVERY_RESULT_EVENT, (response: SourceDiscoveryResponse) => {
-      if (response.clientId !== clientId || response.requestId !== sourceDiscoveryRequestId) return;
+      if (response.clientId !== clientId) return;
+      if (response.requestId === autoTextRequestId) {
+        autoTextRequestId = undefined;
+        if (!response.success || !response.results) return;
+        let registered = 0;
+        for (const entry of response.results) {
+          // Only a single occurrence in the whole source tree is safe to
+          // accept without asking; anything else keeps the confirm flow.
+          if (entry.candidates.length !== 1) continue;
+          const candidate = entry.candidates[0]!;
+          registerInferredSource(window.location.pathname, entry.selector, {
+            filePath: candidate.filePath,
+            sourcePath: candidate.sourcePath,
+          });
+          registered += 1;
+        }
+        if (registered > 0) {
+          setupTextBoundaries();
+          renderNavigator();
+          if (mode === 'setup') renderInventory();
+        }
+        return;
+      }
+      if (response.requestId !== sourceDiscoveryRequestId) return;
       setupBusy = false;
       sourceDiscoveryRequestId = undefined;
       if (!response.success || !response.candidates) {
@@ -4310,8 +4395,38 @@ export default defineToolbarApp({
       }
     });
     server.on(SECTION_DISCOVERY_RESULT_EVENT, (response: SectionDiscoveryResponse) => {
-      if (response.clientId !== clientId || response.requestId !== sectionDiscoveryRequestId)
+      if (response.clientId !== clientId) return;
+      const autoContainer = autoRegionRequests.get(response.requestId);
+      if (autoContainer) {
+        autoRegionRequests.delete(response.requestId);
+        if (!response.success || !response.candidates || !autoContainer.isConnected) return;
+        if (autoContainer.closest('[data-astro-edit-region], [data-astro-edit-sections]')) return;
+        const viable = response.candidates
+          .map((candidate) => ({ candidate, score: sectionCandidateScore(candidate) }))
+          .sort((left, right) => right.score - left.score)
+          .filter(({ candidate }) => candidateMatchesRenderedRegion(candidate, autoContainer));
+        const winner = viable[0];
+        // A unique, structurally verified match is required; a tie means the
+        // source is ambiguous and the container stays untouched.
+        if (!winner || (viable[1] && viable[1].score === winner.score)) return;
+        const children = [...autoContainer.children].filter(
+          (child): child is HTMLElement => child instanceof HTMLElement,
+        );
+        if (children.length !== winner.candidate.items.length) return;
+        autoRegionRules.push({
+          id: `auto-region-${crypto.randomUUID()}`,
+          route: window.location.pathname,
+          selector: selectorFor(autoContainer),
+          filePath: winner.candidate.filePath,
+          sourcePath: winner.candidate.sourcePath,
+          items: winner.candidate.items,
+        });
+        applySectionRegionPolicy(editabilityPolicy);
+        setupSectionControls();
+        setupTextBoundaries();
         return;
+      }
+      if (response.requestId !== sectionDiscoveryRequestId) return;
       setupBusy = false;
       sectionDiscoveryRequestId = undefined;
       if (!response.success || !response.candidates) {
@@ -4349,6 +4464,7 @@ export default defineToolbarApp({
         if (configReady) {
           applySectionRegionPolicy(editabilityPolicy);
           replaceQueue(safeParseQueue());
+          runZeroStepResolution();
         }
       },
       { signal: listenerController.signal },

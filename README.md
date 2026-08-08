@@ -141,9 +141,13 @@ next betas, roughly in order:
   string appears in several files (i18n locales, repeated CTAs).
 - **Client islands** — mapping text rendered by React/Vue/Svelte islands back
   to their component source.
-- **Design writes** — editing typography, spacing and colour where the owning
-  CSS or Astro style source can be proven safely; the Design tab currently
-  reports these read-only.
+- **Full design control** — Elementor/Divi-grade style editing rather than
+  today's read-only Design tab: typography (family, size, weight, line
+  height), spacing, colours, backgrounds, borders and shadows, edited on the
+  canvas and written back only where the owning CSS or Astro style source
+  can be proven safely.
+- **Light and dark mode** — theme switching for the editor panel, plus
+  light/dark variants in the bundled demos and planned starter themes.
 - **Structured data** — schema.org/JSON-LD editing alongside the existing SEO
   fields in the Page tab.
 - **Live re-inference** — automatically re-running zero-step resolution when

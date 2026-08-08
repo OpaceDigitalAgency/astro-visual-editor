@@ -2546,19 +2546,18 @@ export default defineToolbarApp({
       const block = candidate.closest<HTMLElement>('[data-astro-ve-section-active="true"]');
       const blockWasDraggable = block?.draggable === true;
       if (block) block.draggable = false;
-      document.querySelector('.astro-ve-element-controls')?.remove();
+      document
+        .querySelectorAll<HTMLElement>('.astro-ve-element-controls:not([data-pinned="true"])')
+        .forEach((bar) => bar.remove());
       candidate.dataset.astroVeInlineEditing = 'true';
       try {
         candidate.contentEditable = 'plaintext-only';
       } catch {
         candidate.contentEditable = 'true';
       }
-      candidate.focus();
-      const range = document.createRange();
-      range.selectNodeContents(candidate);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
+      // Keep the caret/word selection the double-click produced: builders
+      // place the caret where the user pointed, they do not select-all.
+      candidate.focus({ preventScroll: true });
       const controller = new AbortController();
       const finish = (restoreOriginal: boolean): void => {
         controller.abort();

@@ -370,7 +370,7 @@ export const pageSectionStyles = String.raw`
   [data-astro-ve-text-state="locked"] { outline-color: #e0a72f !important; outline-style: dashed !important; }
   [data-astro-ve-text-state="protected"] { outline-color: #e45b67 !important; outline-style: dashed !important; }
   [data-astro-ve-selected="true"] { position: relative !important; outline: 2px solid #e94b8a !important; outline-offset: 2px !important; }
-  [data-astro-ve-inline-editing="true"] { outline: 2px solid #f49bc0 !important; outline-offset: 3px !important; cursor: text !important; box-shadow: 0 0 0 6px rgba(233,75,138,.12) !important; }
+  [data-astro-ve-inline-editing="true"] { outline: 2px dashed #f49bc0 !important; outline-offset: 3px !important; cursor: text !important; caret-color: #e94b8a !important; background: rgba(233,75,138,.07) !important; box-shadow: 0 0 0 6px rgba(233,75,138,.1) !important; }
   [data-astro-ve-region-active="true"] { position: relative !important; outline: 1px dashed rgba(63,141,204,.45) !important; outline-offset: 6px !important; }
   [data-astro-ve-region-active="true"][data-astro-ve-hierarchy="row"] { outline: 1px dashed rgba(53,164,106,.45) !important; outline-offset: 3px !important; }
   [data-astro-ve-region-active="true"][data-astro-ve-selected-parent="true"] { outline-style: solid !important; }
@@ -384,6 +384,10 @@ export const pageSectionStyles = String.raw`
   [data-astro-ve-section-active="true"][data-astro-ve-protection="locked"] { outline: 1px dashed rgba(224,167,47,.75) !important; }
   [data-astro-ve-section-active="true"][data-astro-ve-protection="protected"] { outline: 1px dashed rgba(228,91,103,.75) !important; }
   [data-astro-ve-section-active="true"][data-astro-ve-selected="true"] { outline: 2px solid #e94b8a !important; outline-offset: -2px !important; }
+  /* Selection must beat the hover outline while the pointer is still over
+     the element, or the pink only appears after the mouse moves away. */
+  [data-astro-ve-section-active="true"][data-astro-ve-hierarchy][data-astro-ve-selected="true"],
+  [data-astro-ve-section-active="true"][data-astro-ve-selected="true"]:hover { outline: 2px solid #e94b8a !important; outline-offset: -2px !important; }
   .astro-ve-lock-chip { position: absolute !important; z-index: 2147482940 !important; display: inline-flex !important; align-items: center !important; gap: 4px !important; padding: 3px 7px !important; color: #211909 !important; background: #f0bd5b !important; border-radius: 3px !important; box-shadow: 0 2px 8px rgba(0,0,0,.28) !important; font: 800 9px/1.2 Inter,system-ui,sans-serif !important; letter-spacing: .05em !important; text-transform: uppercase !important; pointer-events: none !important; }
   .astro-ve-lock-chip[data-protection="protected"] { color: #fff !important; background: #8a3542 !important; }
   .astro-ve-lock-chip .ave-icon { width: 11px !important; height: 11px !important; fill: none !important; stroke: currentColor !important; stroke-width: 2.2 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }

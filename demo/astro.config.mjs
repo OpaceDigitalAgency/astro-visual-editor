@@ -37,6 +37,12 @@ export default defineConfig({
           path: '/fixtures/complex',
           description: 'A layout, components, JSON data and Content Collection fixture.',
         },
+        {
+          id: 'plain',
+          label: 'Plain (zero setup)',
+          path: '/fixtures/plain',
+          description: 'No annotations, no mappings, no policy: everything is inferred.',
+        },
       ],
     }),
   ],

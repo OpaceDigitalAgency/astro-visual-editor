@@ -132,7 +132,7 @@ export const toolbarStyles = String.raw`
   .inspector-actions .icon-button { color: #ffb5b5; background: #582c32; border-color: #82424a; }
   .toggle-selection-lock { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
   .toggle-selection-lock .ave-icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .changes-header { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px; padding: 8px; border-top: 1px solid rgba(255,255,255,.03); }
+  .changes-header { display: grid; grid-template-columns: minmax(0,1fr) auto auto auto; gap: 6px; padding: 8px; border-top: 1px solid rgba(255,255,255,.03); }
   .changes-toggle { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 11px; color: #fff; background: #34313c; border: 1px solid #56515f; border-radius: 5px; cursor: pointer; font-weight: 780; }
   .changes-toggle:hover, .changes-toggle:focus-visible { background: #403b48; outline: 2px solid var(--ave-focus); outline-offset: 1px; }
   .change-count { display: inline-grid; place-items: center; min-width: 25px; min-height: 25px; padding: 0 7px; color: #fff; background: var(--ave-builder); border-radius: 999px; font-size: 10px; font-variant-numeric: tabular-nums; }
@@ -140,7 +140,6 @@ export const toolbarStyles = String.raw`
   .changes-header .icon-button { color: #ddd9e2; background: #34313c; border-color: #56515f; }
   .ledger { min-height: 92px; overflow: auto; padding: 8px; overscroll-behavior: contain; scrollbar-gutter: stable; }
   .workbench:not([data-mode="review"]):not([data-mode="setup"]) .ledger,
-  .workbench:not([data-mode="review"]):not([data-mode="setup"]) .history-actions,
   .workbench:not([data-mode="review"]):not([data-mode="setup"]) .actions { display: none; }
   .workbench:not([data-mode="review"]):not([data-mode="setup"]) .changes-tray { align-self: end; grid-template-rows: auto; }
   .workbench[data-mode="text"][data-has-selection="true"] .changes-tray { align-self: stretch; grid-template-rows: minmax(0,1fr) auto; }
@@ -159,6 +158,8 @@ export const toolbarStyles = String.raw`
   .workbench[data-mode="review"] .changes-toggle { border-color: #7a8d9e; background: #34414d; }
   .empty { display: grid; place-items: center; min-height: 78px; padding: 13px; text-align: center; color: #858d95; border: 1px dashed #3b4147; border-radius: 10px; }
   .change { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; padding: 10px; margin-bottom: 7px; background: #1e2124; border: 1px solid #30353a; border-radius: 10px; }
+  .change[data-failed="true"] { border-color: #a84b5a; box-shadow: 0 0 0 1px #a84b5a; }
+  .change-failed-note { grid-column: 1 / -1; margin: 0 0 2px; padding: 7px 9px; color: #ffd6da; background: #3b2427; border-radius: 7px; font-size: 11px; line-height: 1.45; }
   .change > .icon-button { align-self: start; }
   .change-page { display: flex; align-items: baseline; gap: 7px; min-width: 0; margin-bottom: 7px; }
   .change-page strong { overflow: hidden; color: #f4f7fa; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
@@ -182,13 +183,13 @@ export const toolbarStyles = String.raw`
   .message { display: none; margin: 0 12px 10px; padding: 10px 12px; border-radius: 10px; font-size: 12px; }
   .message[data-show="true"] { display: block; }
   .message[data-kind="error"] { color: #ffd0d0; background: #3b2427; border: 1px solid #6f3940; }
+  .message[data-kind="error"]:has(+ .save-recovery:not([hidden])) { margin-bottom: 0; border-radius: 10px 10px 0 0; }
+  .history-global-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
   .message[data-kind="success"] { color: #c9f7de; background: #183128; border: 1px solid #2d624b; }
   .message[data-kind="warning"] { color: #ffe8ae; background: #352d18; border: 1px solid #66562b; }
-  .save-recovery { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: -2px 12px 12px; }
+  .save-recovery { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: -6px 12px 10px; padding: 8px; background: #2b2023; border: 1px solid #6f3940; border-top: 0; border-radius: 0 0 10px 10px; }
+  .save-recovery button { min-height: 38px; padding-inline: 10px; font-size: 12px; }
   .save-recovery[hidden] { display: none; }
-  .history-actions { display: flex; gap: 6px; padding: 0 8px 8px; }
-  .history-actions button { flex: 1; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
-  .history-actions .ave-icon { width: 16px; height: 16px; }
   .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 8px; border-top: 1px solid var(--ave-border); }
   .setup-actions { grid-row: 6; display: none; grid-template-columns: auto minmax(0,1fr); gap: 7px; padding: 8px; border-top: 1px solid var(--ave-border); }
   .setup-actions .reload-policy { grid-column: 1 / -1; }
@@ -210,7 +211,7 @@ export const toolbarStyles = String.raw`
   .secondary:hover:not(:disabled), .secondary:focus-visible { background: #3c3943; outline: 2px solid #9f99a8; outline-offset: 2px; }
   .danger { color: #ffc9c9; background: #352326; border: 1px solid #60363b; }
   button:disabled { cursor: not-allowed; opacity: .34; filter: grayscale(.45); }
-  dialog { width: min(600px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto; padding: 0; color: #f4f7fa; background: #24232a; border: 1px solid #5b5763; border-radius: 7px; box-shadow: 0 28px 90px rgba(0,0,0,.68); }
+  dialog { width: min(600px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto; padding: 0; color: #f4f7fa; background: #24232a; border: 1px solid #5b5763; border-radius: 7px; box-shadow: 0 28px 90px rgba(0,0,0,.68); font: 13px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
   dialog::backdrop { background: rgba(7,9,10,.72); backdrop-filter: blur(5px); }
   .dialog-body { padding: 20px; }
   .dialog-file { margin: 5px 0 16px; overflow-wrap: anywhere; color: #b8d0e2; font: 600 11px/1.45 ui-monospace, monospace; }

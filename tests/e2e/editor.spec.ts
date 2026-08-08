@@ -94,7 +94,7 @@ async function restoreFromHistory(page: import('@playwright/test').Page): Promis
   const restores = page
     .locator('astro-dev-toolbar')
     .locator('dialog')
-    .filter({ hasText: 'Saved changes' })
+    .filter({ hasText: 'History and restore' })
     .getByRole('button', { name: /Restore saved changes/ });
   await expect(restores.filter({ visible: true }).first()).toBeVisible();
   await restores
@@ -1212,16 +1212,21 @@ test('rewinds every save in the session with Restore session start', async ({ pa
     await freshTab.goto('/');
     const fresh = await enableEditor(freshTab);
     await fresh.workbench.getByRole('button', { name: /Open changes tray/ }).click();
-    await expect(
-      fresh.workbench.getByRole('button', { name: 'Restore session start' }),
-    ).toBeEnabled();
+    await fresh.workbench.getByRole('button', { name: 'History and restore' }).click();
+    const freshHistory = fresh.toolbar.locator('dialog').filter({ hasText: 'History and restore' });
+    await expect(freshHistory.getByRole('button', { name: 'Restore session start' })).toBeEnabled();
+    await freshHistory.getByRole('button', { name: 'Close' }).click();
     await freshTab.close();
 
     await page.waitForTimeout(1_000);
     await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
     current = await enableEditor(page);
     await current.workbench.getByRole('button', { name: /Open changes tray/ }).click();
-    const restoreButton = current.workbench.getByRole('button', {
+    await current.workbench.getByRole('button', { name: 'History and restore' }).click();
+    const historyDialog = current.toolbar
+      .locator('dialog')
+      .filter({ hasText: 'History and restore' });
+    const restoreButton = historyDialog.getByRole('button', {
       name: 'Restore session start',
     });
     await expect(restoreButton).toBeEnabled();
@@ -1289,5 +1294,57 @@ test('edits and rearranges a completely unannotated page with zero setup', async
     );
   } finally {
     await writeFile(plainSource, original);
+  }
+});
+
+test('recovers from a stale queued change with one click and flags it in the tray', async ({
+  page,
+}) => {
+  // Reproduces the owner-reported failure: changes queued, then the file
+  // changes underneath (another editor, git, an earlier save). The save must
+  // refuse honestly, mark exactly which change is stale, and 'Save the rest'
+  // must land every valid change in ONE click, however many are stale.
+  const original = await readFile(demoSource, 'utf8');
+  try {
+    const { toolbar, workbench } = await enableEditor(page);
+    await page.locator('[data-astro-edit-id="hero-title"]').dispatchEvent('click');
+    await queueSelectedText(toolbar, 'This edit will go stale');
+    await page.locator('[data-astro-edit-id="hero-lead"]').dispatchEvent('click');
+    await queueSelectedText(toolbar, 'This edit stays valid');
+    // The first change goes stale: its source text changes on disk.
+    await writeFile(
+      demoSource,
+      original.replace('Edit Astro where you can see it', 'Changed outside the editor'),
+    );
+    // The write triggers a full Vite reload (sometimes two); let it land
+    // completely before touching controls, or a late reload wipes the
+    // runtime failure state mid-assertion.
+    await page.waitForTimeout(2_500);
+    await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
+    await workbench
+      .getByRole('button', { name: 'Open changes tray, 2 queued changes' })
+      .dispatchEvent('click');
+    // The stale change is caught at preview time, so the failure UI appears
+    // without a confirm dialog.
+    await workbench.getByRole('button', { name: /Save and apply \(2\)/ }).dispatchEvent('click');
+    await expect(
+      workbench.getByText(/changed after you started|text changed after you started/u),
+    ).toBeVisible();
+    await expect(workbench.locator('.change[data-failed="true"]')).toBeVisible();
+    await expect(workbench.locator('.change-failed-note')).toContainText('file changed');
+    await workbench.getByRole('button', { name: 'Save the rest' }).click();
+    await expect.poll(async () => readFile(demoSource, 'utf8')).toContain('This edit stays valid');
+    // The stale change returns to the tray for review rather than vanishing —
+    // durable across the HMR reload the save itself triggers.
+    await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
+    await expect(
+      page
+        .locator('astro-dev-toolbar')
+        .locator('.workbench')
+        .getByRole('button', { name: 'Open changes tray, 1 queued change' })
+        .last(),
+    ).toBeVisible();
+  } finally {
+    await writeFile(demoSource, original);
   }
 });

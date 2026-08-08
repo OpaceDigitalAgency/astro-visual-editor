@@ -454,6 +454,7 @@ export default defineToolbarApp({
     let previewRequestId: string | undefined;
     let previewInFlight = false;
     let failedChangeId: string | undefined;
+    let saveRestActive = false;
     const deferredFailedChanges = new Map<string, EditorChange>(
       safeParseDeferredFailures().map((change) => [changeKey(change), change]),
     );
@@ -570,6 +571,8 @@ export default defineToolbarApp({
         <div class="changes-header">
           <button class="changes-toggle" type="button" aria-expanded="false"><span>Review changes</span><span class="change-count">0</span></button>
           <button class="icon-button undo" type="button" aria-label="Undo" title="Undo last change" disabled>${icon('undo')}</button>
+          <button class="icon-button redo" type="button" aria-label="Redo" title="Redo" disabled>${icon('redo')}</button>
+          <button class="icon-button show-history" type="button" aria-label="History and restore" title="History and restore">${icon('history')}</button>
         </div>
         <div class="ledger" aria-live="polite" aria-label="Queued changes"></div>
         <p class="message" role="status" aria-live="polite"></p>
@@ -577,15 +580,9 @@ export default defineToolbarApp({
           <button class="secondary keep-editing" type="button">Keep editing</button>
           <button class="primary save-rest" type="button">Save the rest</button>
         </div>
-        <div class="history-actions">
-          <button class="secondary redo" type="button" disabled>${icon('redo')}<span>Redo</span></button>
-          <button class="secondary show-history" type="button">${icon('history')}<span>History</span></button>
-        </div>
         <footer class="actions">
           <button class="primary commit" type="button" disabled>Save and apply</button>
           <button class="secondary clear" type="button">Discard changes</button>
-          <button class="secondary revert" type="button" disabled>Restore previous save</button>
-          <button class="danger restore-session" type="button" disabled>Restore session start</button>
         </footer>
       </section>
       <div class="setup-actions">
@@ -636,7 +633,7 @@ export default defineToolbarApp({
     confirmDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Confirm structural change</p><h2 id="ave-confirm-title">Delete this section?</h2><p id="ave-confirm-copy">The section will be removed from the preview and queued. You can undo before committing.</p><div class="dialog-actions"><button class="secondary cancel-delete" type="button">Keep section</button><button class="danger confirm-delete" type="button">Delete section</button></div></div>`;
 
     const historyDialog = createElement('dialog', { 'aria-labelledby': 'ave-history-title' });
-    historyDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Local recovery record</p><h2 id="ave-history-title">Saved changes</h2><p class="field-help">Only unchanged saved files can be restored. This record stays on this computer.</p><div class="history-list"></div><div class="dialog-actions"><button class="secondary close-history" type="button">Close</button></div></div>`;
+    historyDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Local recovery record</p><h2 id="ave-history-title">History and restore</h2><p class="field-help">Only unchanged saved files can be restored. This record stays on this computer.</p><div class="history-global-actions"><button class="secondary revert" type="button" disabled>Restore previous save</button><button class="danger restore-session" type="button" disabled>Restore session start</button></div><div class="history-list"></div><div class="dialog-actions"><button class="secondary close-history" type="button">Close</button></div></div>`;
 
     const diffDialog = createElement('dialog', {
       'aria-labelledby': 'ave-diff-title',
@@ -714,8 +711,9 @@ export default defineToolbarApp({
     const changeCount = panel.querySelector<HTMLElement>('.change-count')!;
     const commitButton = panel.querySelector<HTMLButtonElement>('.commit')!;
     const clearButton = panel.querySelector<HTMLButtonElement>('.clear')!;
-    const revertButton = panel.querySelector<HTMLButtonElement>('.revert')!;
-    const restoreSessionButton = panel.querySelector<HTMLButtonElement>('.restore-session')!;
+    const revertButton = historyDialog.querySelector<HTMLButtonElement>('.revert')!;
+    const restoreSessionButton =
+      historyDialog.querySelector<HTMLButtonElement>('.restore-session')!;
     const undoButton = panel.querySelector<HTMLButtonElement>('.undo')!;
     const redoButton = panel.querySelector<HTMLButtonElement>('.redo')!;
     const historyButton = panel.querySelector<HTMLButtonElement>('.show-history')!;
@@ -877,7 +875,9 @@ export default defineToolbarApp({
     function showSaveFailure(error?: string, changeId?: string): void {
       failedChangeId = changeId;
       showMessage(friendlySaveError(error), 'error');
-      saveRecovery.hidden = !changeId;
+      saveRecovery.hidden = !changeId || queue.size < 2;
+      if (mode !== 'review' && mode !== 'setup') setMode('review');
+      renderQueue();
       saveRestButton.hidden = queue.size < 2;
       keepEditingButton.focus();
     }
@@ -1793,6 +1793,13 @@ export default defineToolbarApp({
       } else {
         for (const [key, change] of queue) {
           const row = createElement('article', { class: 'change' });
+          if (change.id === failedChangeId) {
+            row.dataset.failed = 'true';
+            const failedNote = createElement('p', { class: 'change-failed-note' });
+            failedNote.textContent =
+              'The file changed after this was queued. Remove the change, or reopen the element to re-edit it.';
+            row.append(failedNote);
+          }
           const copy = createElement('div');
           const type = createElement('span', { class: 'change-type' });
           type.textContent =
@@ -3856,9 +3863,10 @@ export default defineToolbarApp({
         if (queue.size === 0) sessionStorage.removeItem(SESSION_QUEUE);
         lastReceiptId = response.receiptId;
         if (lastReceiptId) localStorage.setItem(SESSION_RECEIPT, lastReceiptId);
+        saveRestActive = false;
         if (queue.size > 0)
           showMessage(
-            `Saved ${response.changeCount ?? 0} other change${response.changeCount === 1 ? '' : 's'}. The change that needs attention is still here.`,
+            `Saved ${response.changeCount ?? 0} other change${response.changeCount === 1 ? '' : 's'}. ${queue.size === 1 ? 'The change that needs attention is still here.' : `${queue.size} changes that need attention are still here.`} The files changed after they were queued - remove them, or reopen the element to re-edit.`,
             'warning',
           );
         else
@@ -3870,6 +3878,21 @@ export default defineToolbarApp({
       } else {
         pendingRequestId = undefined;
         sessionStorage.removeItem(SESSION_PENDING);
+        // Saving-the-rest keeps going on its own: each newly identified
+        // stale change is set aside and the remainder retried, so the user
+        // clicks once instead of once per stale change.
+        if (saveRestActive && response.failedChangeId && queue.size >= 2) {
+          const entry = [...queue].find(([, change]) => change.id === response.failedChangeId);
+          if (entry) {
+            deferredFailedChanges.set(entry[0], entry[1]);
+            persistDeferredFailures();
+            queue.delete(entry[0]);
+            renderQueue();
+            sendSave();
+            return;
+          }
+        }
+        saveRestActive = false;
         for (const [key, change] of deferredFailedChanges) queue.set(key, change);
         deferredFailedChanges.clear();
         persistDeferredFailures();
@@ -4085,6 +4108,7 @@ export default defineToolbarApp({
     });
     saveRestButton.addEventListener('click', () => {
       if (!failedChangeId || queue.size < 2) return;
+      saveRestActive = true;
       const failedEntry = [...queue].find(([, change]) => change.id === failedChangeId);
       if (!failedEntry) return;
       deferredFailedChanges.set(failedEntry[0], failedEntry[1]);

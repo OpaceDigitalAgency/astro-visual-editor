@@ -80,4 +80,37 @@ describe('normalizeOptions', () => {
       '/fixtures/complex',
     ]);
   });
+
+  it('normalizes and validates locked-area messages', () => {
+    const options = normalizeOptions({
+      lockedAreaMessages: [
+        {
+          selector: '.service-body',
+          route: '/services*',
+          message: 'Service page content is generated from the migration data.',
+          action: 'It becomes editable after the content migration.',
+        },
+      ],
+    });
+    expect(toClientConfig(options).lockedAreaMessages).toEqual([
+      {
+        selector: '.service-body',
+        route: '/services*',
+        message: 'Service page content is generated from the migration data.',
+        action: 'It becomes editable after the content migration.',
+      },
+    ]);
+    expect(toClientConfig(normalizeOptions({})).lockedAreaMessages).toEqual([]);
+    expect(() =>
+      normalizeOptions({ lockedAreaMessages: [{ selector: ' ', message: 'Why.' }] }),
+    ).toThrow('invalid CSS selector');
+    expect(() =>
+      normalizeOptions({ lockedAreaMessages: [{ selector: '.a', message: '  ' }] }),
+    ).toThrow('needs a message');
+    expect(() =>
+      normalizeOptions({
+        lockedAreaMessages: [{ selector: '.a', route: 'https://x', message: 'Why.' }],
+      }),
+    ).toThrow('invalid route');
+  });
 });

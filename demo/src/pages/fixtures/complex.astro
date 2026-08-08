@@ -97,6 +97,15 @@ const dataSource = 'src/data/complex-page.json';
       </p>
     </section>
   </div>
+  <p
+    class="generated-note"
+    data-demo-generated-note
+    data-astro-edit-ignore
+    data-astro-edit-locked-reason="This line is assembled automatically when the page builds, so there is no single file the editor could safely change."
+    data-astro-edit-locked-action="Ask your developer to move this copy into a content file if it should be editable."
+  >
+    Generated at build time: three sources power this page.
+  </p>
 </DemoLayout>
 
 <style>
@@ -112,6 +121,11 @@ const dataSource = 'src/data/complex-page.json';
   .complex-builder-region,
   .complex-builder-section {
     position: relative;
+  }
+  .generated-note {
+    margin: 34px 0 0;
+    color: #8f96a3;
+    font-size: 0.85rem;
   }
   .collection {
     max-width: 760px;

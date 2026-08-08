@@ -195,10 +195,27 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await protectedText.dispatchEvent('pointerover');
   await expect(protectedText).toHaveAttribute('data-astro-ve-text-state', 'protected');
   await expect(protectedText).toHaveAttribute('data-astro-ve-text-label', 'Protected · Bold text');
+  // The hover toolbar explains the lock in the owner's words: the project's
+  // configured lockedAreaMessages entry for the commit card wins over the
+  // per-status default copy.
+  await expect(page.locator('.astro-ve-explainer')).toContainText(
+    'fixed as part of the demo chrome',
+  );
+  await expect(
+    page.locator('.astro-ve-element-controls').getByRole('button', {
+      name: 'Why can’t I edit this?',
+    }),
+  ).toBeEnabled();
   await protectedText.dispatchEvent('click');
   let inspector = await selectedTextInspector(toolbar);
   await expect(inspector.locator('.selection-state')).toContainText('Protected');
   await expect(inspector.locator('.selection-lock-card')).toContainText('Protected');
+  await expect(inspector.locator('.selection-lock-card')).toContainText(
+    'fixed as part of the demo chrome',
+  );
+  await expect(inspector.locator('.selection-lock-card .lock-action')).toContainText(
+    'demo/src/pages/index.astro',
+  );
   await expect(inspector.locator('.editable-text-setting')).toBeHidden();
   await expect(inspector.getByRole('button', { name: 'Lock' })).toBeHidden();
 
@@ -1053,4 +1070,53 @@ test('shows unlocked, owner-locked and source-protected states on the canvas', a
     results.violations.filter((item) => item.impact === 'critical' || item.impact === 'serious'),
   ).toEqual([]);
   await expect(workbench.getByRole('button', { name: 'Diagnostics' })).toBeHidden();
+});
+
+test('explains locked content in plain language and spotlights what is editable', async ({
+  page,
+}) => {
+  await page.goto('/fixtures/complex');
+  const { toolbar, workbench } = await enableEditor(page);
+
+  // A page-authored data-astro-edit-locked-reason wins over the per-status
+  // default copy and over configured lockedAreaMessages.
+  const generated = page.locator('[data-demo-generated-note]');
+  await generated.dispatchEvent('pointerover');
+  await expect(generated).toHaveAttribute('data-astro-ve-text-state', 'protected');
+  await expect(page.locator('.astro-ve-explainer')).toContainText(
+    'assembled automatically when the page builds',
+  );
+  await page
+    .locator('.astro-ve-element-controls')
+    .getByRole('button', { name: 'Why can’t I edit this?' })
+    .dispatchEvent('click');
+  const inspector = await selectedTextInspector(toolbar);
+  await expect(inspector.locator('.selection-lock-card')).toContainText(
+    'assembled automatically when the page builds',
+  );
+  await expect(inspector.locator('.selection-lock-card .lock-action')).toContainText(
+    'move this copy into a content file',
+  );
+
+  // The "What can I edit?" filter fades protected content and leaves editable
+  // content at full strength, then restores the page when switched off.
+  const filterToggle = workbench.getByRole('button', { name: 'Show what I can edit' });
+  await filterToggle.click();
+  await expect(page.locator('html')).toHaveAttribute('data-astro-ve-editable-filter', 'true');
+  await expect(filterToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(() => generated.evaluate((element) => Number(getComputedStyle(element).opacity)))
+    .toBeLessThan(0.5);
+  await expect
+    .poll(() =>
+      page
+        .locator('[data-demo-json-title]')
+        .evaluate((element) => Number(getComputedStyle(element).opacity)),
+    )
+    .toBe(1);
+  await filterToggle.click();
+  await expect(page.locator('html')).toHaveAttribute('data-astro-ve-editable-filter', 'false');
+  await expect
+    .poll(() => generated.evaluate((element) => Number(getComputedStyle(element).opacity)))
+    .toBe(1);
 });

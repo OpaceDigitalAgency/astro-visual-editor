@@ -95,6 +95,7 @@ const defaultConfig: ClientEditorConfig = {
     '[data-astro-ve-ui]',
   ],
   fileMappings: {},
+  lockedAreaMessages: [],
   selectorMappings: {},
   sectionTemplates: [],
   demoPages: [],
@@ -116,6 +117,8 @@ type IconName =
   | 'content'
   | 'delete'
   | 'drag'
+  | 'eye'
+  | 'help'
   | 'history'
   | 'lock'
   | 'minus'
@@ -471,7 +474,7 @@ export default defineToolbarApp({
         <div class="masthead-copy"><p class="eyebrow">Astro Visual Builder</p><h2 class="panel-title">Edit content</h2>
           <p class="status" data-state="warning"><span class="status-dot" aria-hidden="true"></span><span class="status-copy">Connecting to Astro…</span></p>
         </div>
-        <div class="masthead-actions"><button class="utility-button setup-toggle" type="button" aria-label="Developer diagnostics" title="Developer diagnostics" hidden>${icon('settings')}<span class="utility-label">Diagnostics</span></button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">${icon('minus')}</button></div>
+        <div class="masthead-actions"><button class="utility-button editable-filter-toggle" type="button" aria-pressed="false" aria-label="Show what I can edit" title="Highlight editable content and fade the rest">${icon('eye')}<span class="utility-label">What can I edit?</span></button><button class="utility-button setup-toggle" type="button" aria-label="Developer diagnostics" title="Developer diagnostics" hidden>${icon('settings')}<span class="utility-label">Diagnostics</span></button><button class="icon-button minimize" type="button" aria-label="Collapse editor" title="Collapse editor">${icon('minus')}</button></div>
       </header>
       <aside class="demo-context" hidden><span>Demo page</span><nav class="demo-surfaces" aria-label="Demo test pages"></nav></aside>
       <div class="mode-tabs" role="tablist" aria-label="Builder view">
@@ -498,7 +501,7 @@ export default defineToolbarApp({
             <button class="inspector-tab" type="button" role="tab" data-inspector-tab="advanced" aria-selected="false">Advanced</button>
           </div>
           <div class="inspector-panel" data-inspector-panel="content">
-            <div class="selection-lock-card" hidden><strong></strong><span></span></div>
+            <div class="selection-lock-card" hidden><strong></strong><span></span><span class="lock-action"></span></div>
             <details class="setting-group text-setting editable-text-setting" open>
               <summary>Text</summary>
               <div class="setting-body">
@@ -714,6 +717,7 @@ export default defineToolbarApp({
     const templateGrid = templateDialog.querySelector<HTMLElement>('.template-grid')!;
     const minimizeButton = panel.querySelector<HTMLButtonElement>('.minimize')!;
     const setupButton = panel.querySelector<HTMLButtonElement>('.setup-toggle')!;
+    const editableFilterButton = panel.querySelector<HTMLButtonElement>('.editable-filter-toggle')!;
     const leaveSetupButton = panel.querySelector<HTMLButtonElement>('.leave-setup')!;
     const reloadPolicyButton = panel.querySelector<HTMLButtonElement>('.reload-policy')!;
     const reviewPolicyButton = panel.querySelector<HTMLButtonElement>('.review-policy')!;
@@ -1993,13 +1997,10 @@ export default defineToolbarApp({
         addControl(controls, `Edit ${label}`, 'settings', () => openTextEditor(candidate));
       }
       if (protection.state === 'protected') {
-        const shield = addControl(
-          controls,
-          `${label} is source-protected`,
-          'shield',
-          () => undefined,
-        );
-        shield.disabled = true;
+        addControl(controls, 'Why can’t I edit this?', 'help', () => openTextEditor(candidate));
+        const explainer = createElement('span', { class: 'astro-ve-explainer' });
+        explainer.textContent = protection.reason;
+        controls.append(explainer);
       } else {
         addControl(
           controls,
@@ -2052,7 +2053,9 @@ export default defineToolbarApp({
       }
       document.body.append(controls);
       const rect = candidate.getBoundingClientRect();
-      const controlHeight = 34;
+      // Measure the rendered toolbar: the protected variant carries a wrapped
+      // explainer row, so a fixed 34px offset would overlap the content.
+      const controlHeight = Math.ceil(controls.getBoundingClientRect().height) || 34;
       const top =
         rect.top >= controlHeight + 8
           ? window.scrollY + rect.top - controlHeight
@@ -2124,6 +2127,7 @@ export default defineToolbarApp({
     function selectionProtection(candidate: HTMLElement): {
       state: 'unlocked' | 'locked' | 'protected';
       reason: string;
+      action?: string;
     } {
       const lock = userLockRule(candidate);
       if (lock)
@@ -2132,14 +2136,17 @@ export default defineToolbarApp({
           reason: 'Locked by the site owner. Unlock it here to edit or move it.',
         };
       if (isSourceProtected(candidate)) {
-        const item = candidate.matches('[data-section]')
-          ? undefined
-          : classifyElement(candidate, config, editabilityPolicy);
+        const status = candidate.matches('[data-section]')
+          ? 'unresolved'
+          : classifyElement(candidate, config, editabilityPolicy).status;
+        const explanation = lockExplanation(
+          { element: candidate, status: status === 'editable' ? 'excluded' : status },
+          config,
+        );
         return {
           state: 'protected',
-          reason:
-            item?.reason ??
-            'Protected because this section does not have a validated source-owned region.',
+          reason: explanation.summary,
+          action: explanation.action,
         };
       }
       return {
@@ -2174,11 +2181,14 @@ export default defineToolbarApp({
         inspectorTextarea.disabled = !editable;
         selectionLockCard.hidden = editable;
         selectionLockCard.querySelector('strong')!.textContent =
-          protection.state === 'locked' ? 'Locked' : 'Protected';
+          protection.state === 'locked' ? 'Locked' : 'Protected — not editable here';
         selectionLockCard.querySelector('span')!.textContent =
           protection.state === 'locked'
             ? 'This content cannot be edited until you unlock it.'
             : protection.reason;
+        const lockAction = selectionLockCard.querySelector<HTMLElement>('.lock-action')!;
+        lockAction.textContent = protection.state === 'protected' ? (protection.action ?? '') : '';
+        lockAction.hidden = !lockAction.textContent;
         selectionInspector
           .querySelectorAll<HTMLElement>('.text-setting')
           .forEach((setting) => (setting.hidden = !editable));
@@ -3324,6 +3334,8 @@ export default defineToolbarApp({
 
     function deactivate(): void {
       active = false;
+      delete document.documentElement.dataset.astroVeEditableFilter;
+      editableFilterButton.setAttribute('aria-pressed', 'false');
       stopSetupPagePicker(false);
       updateSetupDock();
       panel.dataset.open = 'false';
@@ -3532,6 +3544,18 @@ export default defineToolbarApp({
         tab.addEventListener('click', () => setMode(tab.dataset.mode as EditorMode)),
       );
     minimizeButton.addEventListener('click', () => setMinimized(true));
+    editableFilterButton.addEventListener('click', () => {
+      const enabled = document.documentElement.dataset.astroVeEditableFilter !== 'true';
+      document.documentElement.dataset.astroVeEditableFilter = String(enabled);
+      editableFilterButton.setAttribute('aria-pressed', String(enabled));
+      if (enabled) setupTextBoundaries();
+      showMessage(
+        enabled
+          ? 'Editable content stays in full colour; faded content cannot be edited here. Hover anything faded to see why.'
+          : 'Showing the page normally again.',
+        'success',
+      );
+    });
     setupButton.addEventListener('click', () =>
       mode === 'setup' ? leaveSetup() : setMode('setup'),
     );

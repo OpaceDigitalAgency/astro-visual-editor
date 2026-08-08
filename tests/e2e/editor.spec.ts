@@ -1120,3 +1120,56 @@ test('explains locked content in plain language and spotlights what is editable'
     .poll(() => generated.evaluate((element) => Number(getComputedStyle(element).opacity)))
     .toBe(1);
 });
+
+test('rewinds every save in the session with Restore session start', async ({ page }) => {
+  test.setTimeout(90_000);
+  const originalSource = await readFile(demoSource, 'utf8');
+  try {
+    let current = await enableEditor(page);
+    const lead = page.locator('[data-astro-edit-id="hero-lead"]');
+    await lead.click();
+    await queueSelectedText(current.toolbar, 'First session edit for the rewind test.');
+    await reviewAndCommit(current.toolbar, current.workbench);
+    await expect
+      .poll(async () => readFile(demoSource, 'utf8'))
+      .toContain('First session edit for the rewind test.');
+
+    // Astro replaces the document after the source write; re-acquire the
+    // toolbar and layer a second save on the same element.
+    await page.waitForTimeout(1_000);
+    await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
+    current = await enableEditor(page);
+    await page
+      .getByText('First session edit for the rewind test.', { exact: true })
+      .dispatchEvent('click');
+    await queueSelectedText(current.toolbar, 'Second session edit for the rewind test.');
+    await reviewAndCommit(current.toolbar, current.workbench);
+    await expect
+      .poll(async () => readFile(demoSource, 'utf8'))
+      .toContain('Second session edit for the rewind test.');
+
+    await page.waitForTimeout(1_000);
+    await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
+    current = await enableEditor(page);
+    await current.workbench.getByRole('button', { name: /Open changes tray/ }).click();
+    const restoreButton = current.workbench.getByRole('button', {
+      name: 'Restore session start',
+    });
+    await expect(restoreButton).toBeEnabled();
+    await restoreButton.click();
+    const confirmRestore = current.toolbar
+      .locator('dialog')
+      .filter({ hasText: 'Restore how this session started?' });
+    await expect(confirmRestore).toContainText('src/pages/index.astro');
+    await confirmRestore
+      .getByRole('button', { name: 'Restore session start' })
+      .dispatchEvent('click');
+
+    // Both saves are gone in one step: the file is byte-identical to the
+    // pre-session original, not merely missing the last edit.
+    await expect.poll(async () => readFile(demoSource, 'utf8')).toBe(originalSource);
+  } finally {
+    if ((await readFile(demoSource, 'utf8')) !== originalSource)
+      await writeFile(demoSource, originalSource);
+  }
+});

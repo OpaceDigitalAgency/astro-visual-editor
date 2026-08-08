@@ -190,6 +190,30 @@ export interface RevertResponse extends ClientMessage {
   error?: string;
 }
 
+export interface SessionStateRequest extends ClientMessage {
+  requestId: string;
+}
+
+export interface SessionStateResponse extends ClientMessage {
+  requestId: string;
+  /** True when this session has at least one saved change that can be rewound. */
+  available: boolean;
+  /** Project-relative files the restore would rewind. */
+  files: string[];
+}
+
+export interface SessionRestoreRequest extends ClientMessage {
+  requestId: string;
+}
+
+export interface SessionRestoreResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  /** Files rewound to their state before this session's first save. */
+  files?: string[];
+  error?: string;
+}
+
 export interface HistoryEntry {
   receiptId: string;
   createdAt: number;

@@ -8,6 +8,8 @@ import {
   parseReceiptRequest,
   parseRevertRequest,
   parseSaveRequest,
+  parseSessionRestoreRequest,
+  parseSessionStateRequest,
   parseSourceDiscoveryRequest,
   parseSectionDiscoveryRequest,
   parseSeoCapabilitiesRequest,
@@ -32,6 +34,10 @@ import {
   REVERT_RESULT_EVENT,
   SAVE_EVENT,
   SAVE_RESULT_EVENT,
+  SESSION_RESTORE_EVENT,
+  SESSION_RESTORE_RESULT_EVENT,
+  SESSION_STATE_EVENT,
+  SESSION_STATE_RESULT_EVENT,
   SOURCE_DISCOVERY_EVENT,
   SOURCE_DISCOVERY_RESULT_EVENT,
   SECTION_DISCOVERY_EVENT,
@@ -46,6 +52,8 @@ import type {
   ReceiptResponse,
   RevertResponse,
   SaveResponse,
+  SessionRestoreResponse,
+  SessionStateResponse,
   SourceDiscoveryResponse,
   SectionDiscoveryResponse,
   SeoCapabilitiesResponse,
@@ -346,6 +354,39 @@ export default function astroVisualEditor(
             };
           }
           toolbar.send(REVERT_RESULT_EVENT, response);
+        });
+
+        toolbar.on(SESSION_STATE_EVENT, async (raw: unknown) => {
+          let response: SessionStateResponse;
+          try {
+            const request = parseSessionStateRequest(raw);
+            const state = await manager.sessionState(request.clientId);
+            response = { ...request, available: state.available, files: state.files };
+          } catch {
+            return;
+          }
+          toolbar.send(SESSION_STATE_RESULT_EVENT, response);
+        });
+
+        toolbar.on(SESSION_RESTORE_EVENT, async (raw: unknown) => {
+          let response: SessionRestoreResponse;
+          try {
+            const request = parseSessionRestoreRequest(raw);
+            if (!writeEnabled) {
+              response = { ...request, success: false, error: remoteWarning };
+            } else {
+              response = await manager.restoreSession(request.clientId, request.requestId);
+            }
+          } catch (error) {
+            const candidate = raw as { clientId?: unknown; requestId?: unknown };
+            response = {
+              clientId: typeof candidate?.clientId === 'string' ? candidate.clientId : 'invalid',
+              requestId: typeof candidate?.requestId === 'string' ? candidate.requestId : 'invalid',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown session restore error.',
+            };
+          }
+          toolbar.send(SESSION_RESTORE_RESULT_EVENT, response);
         });
       },
     },

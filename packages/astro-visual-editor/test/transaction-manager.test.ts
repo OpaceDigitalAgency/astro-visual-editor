@@ -331,3 +331,71 @@ describe('TransactionManager', () => {
     expect(saved.evidence[1]!.value).toBe('Shared navigation');
   });
 });
+
+describe('TransactionManager session restore', () => {
+  const textChange = (id: string, oldText: string, newText: string) => ({
+    kind: 'text' as const,
+    id,
+    filePath: 'src/pages/index.astro',
+    route: '/',
+    oldText,
+    newText,
+  });
+
+  it('rewinds multiple saves on one file to the pre-session contents', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ave-session-'));
+    const src = join(root, 'src');
+    await mkdir(join(src, 'pages'), { recursive: true });
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(page, '<h1>Original</h1>');
+    const manager = new TransactionManager(root, src, normalizeOptions());
+    await manager.save({ clientId: 'tab', requestId: 'one', changes: [textChange('a', 'Original', 'Second')] });
+    await manager.save({ clientId: 'tab', requestId: 'two', changes: [textChange('b', 'Second', 'Third')] });
+    expect(await readFile(page, 'utf8')).toBe('<h1>Third</h1>');
+    expect((await manager.sessionState('tab')).available).toBe(true);
+    const restored = await manager.restoreSession('tab', 'restore');
+    expect(restored.success).toBe(true);
+    expect(restored.files).toEqual(['src/pages/index.astro']);
+    expect(await readFile(page, 'utf8')).toBe('<h1>Original</h1>');
+    expect((await manager.sessionState('tab')).available).toBe(false);
+    const again = await manager.restoreSession('tab', 'restore-again');
+    expect(again.success).toBe(false);
+  });
+
+  it('refuses when a file changed outside the editor and keeps sessions separate', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ave-session-'));
+    const src = join(root, 'src');
+    await mkdir(join(src, 'pages'), { recursive: true });
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(page, '<h1>Original</h1>');
+    const manager = new TransactionManager(root, src, normalizeOptions());
+    await manager.save({ clientId: 'tab', requestId: 'one', changes: [textChange('a', 'Original', 'Edited')] });
+    await writeFile(page, '<h1>Manual outside edit</h1>');
+    const refused = await manager.restoreSession('tab', 'restore');
+    expect(refused.success).toBe(false);
+    expect(refused.error).toContain('outside the editor');
+    expect(await readFile(page, 'utf8')).toBe('<h1>Manual outside edit</h1>');
+    expect((await manager.sessionState('other-tab')).available).toBe(false);
+    const otherTab = await manager.restoreSession('other-tab', 'restore');
+    expect(otherTab.success).toBe(false);
+  });
+
+  it('stays restorable after a last-commit revert and survives a restart', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ave-session-'));
+    const src = join(root, 'src');
+    await mkdir(join(src, 'pages'), { recursive: true });
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(page, '<h1>Original</h1>');
+    const manager = new TransactionManager(root, src, normalizeOptions());
+    await manager.save({ clientId: 'tab', requestId: 'one', changes: [textChange('a', 'Original', 'Second')] });
+    const second = await manager.save({ clientId: 'tab', requestId: 'two', changes: [textChange('b', 'Second', 'Third')] });
+    await manager.revert('tab', 'revert', second.receiptId!);
+    expect(await readFile(page, 'utf8')).toBe('<h1>Second</h1>');
+    // A fresh manager instance simulates a dev-server restart mid-session.
+    const restarted = new TransactionManager(root, src, normalizeOptions());
+    expect((await restarted.sessionState('tab')).available).toBe(true);
+    const restored = await restarted.restoreSession('tab', 'restore');
+    expect(restored.success).toBe(true);
+    expect(await readFile(page, 'utf8')).toBe('<h1>Original</h1>');
+  });
+});

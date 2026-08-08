@@ -200,6 +200,9 @@ export const toolbarStyles = String.raw`
   .workbench:not([data-mode="setup"]) .setup-actions { display: none; }
   .commit { grid-column: 1 / -1; }
   .clear, .revert { width: 100%; }
+  .restore-session { grid-column: 1 / -1; width: 100%; }
+  .session-restore-files { display: grid; gap: 4px; margin: 14px 0 0; padding: 0 0 0 18px; color: #b8d0e2; font: 600 11px/1.5 ui-monospace, monospace; }
+  .session-restore-files:empty { display: none; }
   .primary, .secondary, .danger { min-height: 44px; padding-inline: 14px; border-radius: 5px; font-weight: 780; cursor: pointer; }
   .primary { color: #fff; background: var(--ave-builder); border: 1px solid #8650ca; }
   .primary:hover:not(:disabled), .primary:focus-visible { background: #7b3bc5; outline: 2px solid #d9bdf7; outline-offset: 2px; }

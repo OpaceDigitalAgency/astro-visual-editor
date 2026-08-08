@@ -38,6 +38,10 @@ import {
   REVERT_RESULT_EVENT,
   SAVE_EVENT,
   SAVE_RESULT_EVENT,
+  SESSION_RESTORE_EVENT,
+  SESSION_RESTORE_RESULT_EVENT,
+  SESSION_STATE_EVENT,
+  SESSION_STATE_RESULT_EVENT,
   SOURCE_DISCOVERY_EVENT,
   SOURCE_DISCOVERY_RESULT_EVENT,
   SECTION_DISCOVERY_EVENT,
@@ -62,6 +66,8 @@ import type {
   SectionsEditorChange,
   SeoCapabilitiesResponse,
   SeoField,
+  SessionRestoreResponse,
+  SessionStateResponse,
   SeoFieldCapability,
   SeoValues,
   SaveResponse,
@@ -427,6 +433,8 @@ export default defineToolbarApp({
     let receiptPollId: number | undefined;
     let pendingRequestId = sessionStorage.getItem(SESSION_PENDING) ?? undefined;
     let lastReceiptId = sessionStorage.getItem(SESSION_RECEIPT) ?? undefined;
+    let sessionRestoreAvailable = false;
+    let sessionRestoreFiles: string[] = [];
     let savedHistory: HistoryEntry[] = [];
     let previewRequestId: string | undefined;
     let previewInFlight = false;
@@ -562,6 +570,7 @@ export default defineToolbarApp({
           <button class="primary commit" type="button" disabled>Save and apply</button>
           <button class="secondary clear" type="button">Discard changes</button>
           <button class="secondary revert" type="button" disabled>Restore previous save</button>
+          <button class="danger restore-session" type="button" disabled>Restore session start</button>
         </footer>
       </section>
       <div class="setup-actions">
@@ -650,6 +659,12 @@ export default defineToolbarApp({
     });
     permissionDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Text editing</p><h2 id="ave-permission-title">Choose what can be edited</h2><p id="ave-permission-help" class="field-help permission-copy"></p><details class="technical-details"><summary>Technical details</summary><p class="dialog-file permission-source"></p></details><div class="dialog-actions permission-actions"><button class="secondary cancel-permission" type="button">Cancel</button></div></div>`;
 
+    const sessionRestoreDialog = createElement('dialog', {
+      'aria-labelledby': 'ave-session-restore-title',
+      'aria-describedby': 'ave-session-restore-help',
+    });
+    sessionRestoreDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Undo this session</p><h2 id="ave-session-restore-title">Restore how this session started?</h2><p id="ave-session-restore-help" class="field-help">Every file saved during this session goes back to how it was before your first save. The restore is refused if anything was changed outside this editor, so other work is never lost.</p><ul class="session-restore-files"></ul><div class="dialog-actions"><button class="secondary cancel-session-restore" type="button">Keep my changes</button><button class="danger confirm-session-restore" type="button">Restore session start</button></div></div>`;
+
     canvas.append(
       style,
       panel,
@@ -666,6 +681,7 @@ export default defineToolbarApp({
       regionDialog,
       regionSourceDialog,
       permissionDialog,
+      sessionRestoreDialog,
     );
 
     const ledger = panel.querySelector<HTMLElement>('.ledger')!;
@@ -684,6 +700,7 @@ export default defineToolbarApp({
     const commitButton = panel.querySelector<HTMLButtonElement>('.commit')!;
     const clearButton = panel.querySelector<HTMLButtonElement>('.clear')!;
     const revertButton = panel.querySelector<HTMLButtonElement>('.revert')!;
+    const restoreSessionButton = panel.querySelector<HTMLButtonElement>('.restore-session')!;
     const undoButton = panel.querySelector<HTMLButtonElement>('.undo')!;
     const redoButton = panel.querySelector<HTMLButtonElement>('.redo')!;
     const historyButton = panel.querySelector<HTMLButtonElement>('.show-history')!;
@@ -1792,6 +1809,8 @@ export default defineToolbarApp({
       undoButton.disabled = !history.canUndo || saveInFlight;
       redoButton.disabled = !history.canRedo || saveInFlight;
       revertButton.disabled = !lastReceiptId || saveInFlight || !config.writeEnabled;
+      restoreSessionButton.disabled =
+        !sessionRestoreAvailable || saveInFlight || !config.writeEnabled;
       pickerReview.textContent = queue.size ? `Review ${queue.size}` : 'Expand';
       pickerReview.title = queue.size
         ? `Expand editor and review ${queue.size} queued change${queue.size === 1 ? '' : 's'}`
@@ -3443,6 +3462,33 @@ export default defineToolbarApp({
       server.send(REVERT_EVENT, { clientId, requestId, receiptId: lastReceiptId });
     }
 
+    function requestSessionState(): void {
+      server.send(SESSION_STATE_EVENT, { clientId, requestId: crypto.randomUUID() });
+    }
+
+    function openSessionRestoreDialog(): void {
+      if (!sessionRestoreAvailable || saveInFlight || !config.writeEnabled) return;
+      const list = sessionRestoreDialog.querySelector<HTMLElement>('.session-restore-files')!;
+      list.innerHTML = '';
+      for (const file of sessionRestoreFiles) {
+        const item = document.createElement('li');
+        item.textContent = file;
+        list.append(item);
+      }
+      sessionRestoreDialog.showModal();
+      sessionRestoreDialog
+        .querySelector<HTMLButtonElement>('.cancel-session-restore')
+        ?.focus();
+    }
+
+    function requestSessionRestore(): void {
+      if (sessionRestoreDialog.open) sessionRestoreDialog.close();
+      if (!sessionRestoreAvailable || saveInFlight || !config.writeEnabled) return;
+      saveInFlight = true;
+      renderQueue();
+      server.send(SESSION_RESTORE_EVENT, { clientId, requestId: crypto.randomUUID() });
+    }
+
     function handleSaveResponse(response: SaveResponse): void {
       if (response.clientId !== clientId || response.requestId !== pendingRequestId) return;
       window.clearTimeout(timeoutId);
@@ -3467,9 +3513,10 @@ export default defineToolbarApp({
           );
         else
           showMessage(
-            `Written ${response.changeCount ?? 0} change${response.changeCount === 1 ? '' : 's'} to source.`,
+            `Written ${response.changeCount ?? 0} change${response.changeCount === 1 ? '' : 's'} to source. Change of heart? Use Restore previous save, or Restore session start to rewind everything.`,
             'success',
           );
+        requestSessionState();
       } else {
         pendingRequestId = undefined;
         sessionStorage.removeItem(SESSION_PENDING);
@@ -3693,6 +3740,13 @@ export default defineToolbarApp({
       renderQueue();
     });
     revertButton.addEventListener('click', requestRevert);
+    restoreSessionButton.addEventListener('click', openSessionRestoreDialog);
+    sessionRestoreDialog
+      .querySelector<HTMLButtonElement>('.cancel-session-restore')!
+      .addEventListener('click', () => sessionRestoreDialog.close('cancel'));
+    sessionRestoreDialog
+      .querySelector<HTMLButtonElement>('.confirm-session-restore')!
+      .addEventListener('click', requestSessionRestore);
     reloadPolicyButton.addEventListener('click', () => {
       setupBusy = true;
       editabilityRequestId = crypto.randomUUID();
@@ -3822,6 +3876,7 @@ export default defineToolbarApp({
           'success',
         );
         server.send(HISTORY_EVENT, { clientId, requestId: crypto.randomUUID() });
+        requestSessionState();
       } else showMessage(response.error ?? 'Revert was refused.', 'error');
       renderQueue();
     });
@@ -3829,6 +3884,31 @@ export default defineToolbarApp({
       if (response.clientId !== clientId) return;
       savedHistory = response.entries;
       renderHistory();
+    });
+    server.on(SESSION_STATE_RESULT_EVENT, (response: SessionStateResponse) => {
+      if (response.clientId !== clientId) return;
+      sessionRestoreAvailable = response.available;
+      sessionRestoreFiles = response.files;
+      renderQueue();
+    });
+    server.on(SESSION_RESTORE_RESULT_EVENT, (response: SessionRestoreResponse) => {
+      if (response.clientId !== clientId) return;
+      saveInFlight = false;
+      if (response.success) {
+        sessionRestoreAvailable = false;
+        sessionRestoreFiles = [];
+        lastReceiptId = undefined;
+        sessionStorage.removeItem(SESSION_RECEIPT);
+        showMessage(
+          `Restored ${response.files?.length ?? 0} file${response.files?.length === 1 ? '' : 's'} to how this session started.`,
+          'success',
+        );
+        server.send(HISTORY_EVENT, { clientId, requestId: crypto.randomUUID() });
+      } else {
+        showMessage(response.error ?? 'Session restore was refused.', 'error');
+        requestSessionState();
+      }
+      renderQueue();
     });
     server.on(EDITABILITY_POLICY_RESULT_EVENT, (response: EditabilityPolicyResponse) => {
       if (response.clientId !== clientId || response.requestId !== editabilityRequestId) return;
@@ -3978,6 +4058,7 @@ export default defineToolbarApp({
     const announceReady = (): void => {
       if (panel.isConnected)
         server.send(READY_EVENT, { clientId, route: window.location.pathname });
+        requestSessionState();
     };
     if (configReady) replaceQueue(safeParseQueue());
     announceReady();

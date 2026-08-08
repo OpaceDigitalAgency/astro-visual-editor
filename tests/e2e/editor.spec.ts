@@ -539,7 +539,11 @@ test('previews which side a dragged block will land on', async ({ page }) => {
       delete el.dataset.astroVeDropEdge;
       return seen;
     };
-    return { resting: getComputedStyle(el).boxShadow, before: read('before'), after: read('after') };
+    return {
+      resting: getComputedStyle(el).boxShadow,
+      before: read('before'),
+      after: read('after'),
+    };
   });
 
   // The drop target must visibly change, in the accent colour, not the resting grey.
@@ -563,8 +567,10 @@ test('clears drop feedback when a drag leaves and when it ends', async ({ page }
   await summary.scrollIntoViewIfNeeded();
   await page.evaluate(() => window.scrollBy(0, -260));
   await summary.hover();
+  // Hovering a text block yields the merged toolbar, which carries the
+  // block's drag handle alongside the text controls.
   const handle = page
-    .locator('.astro-ve-section-controls[data-section-id="hero-summary"]')
+    .locator('.astro-ve-element-controls')
     .getByRole('button', { name: 'Drag Summary to reorder' });
   await expect(handle).toBeVisible();
 
@@ -576,9 +582,7 @@ test('clears drop feedback when a drag leaves and when it ends', async ({ page }
   await page.mouse.up();
 
   await expect
-    .poll(async () =>
-      page.locator('[data-astro-ve-drag-over], [data-astro-ve-drop-edge]').count(),
-    )
+    .poll(async () => page.locator('[data-astro-ve-drag-over], [data-astro-ve-drop-edge]').count())
     .toBe(0);
 });
 
@@ -606,10 +610,9 @@ test('reorders nested hero blocks and saves two structural changes consecutively
       page.locator('.astro-ve-section-label').filter({ hasText: 'BLOCK · Primary action' }),
     ).toHaveCount(1);
 
-    let actionControls = page.locator('.astro-ve-section-controls[data-section-id="hero-action"]');
     await page.locator('[data-section="hero-action"]').hover();
-    await actionControls.getByRole('button', { name: 'Drag Primary action to reorder' }).click();
-    await actionControls
+    const mergedControls = page.locator('.astro-ve-element-controls');
+    await mergedControls
       .getByRole('button', { name: 'Move Primary action up' })
       .evaluate((button: HTMLButtonElement) => button.click());
     await expect(
@@ -629,10 +632,8 @@ test('reorders nested hero blocks and saves two structural changes consecutively
 
     await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
     current = await enableEditor(page);
-    actionControls = page.locator('.astro-ve-section-controls[data-section-id="hero-action"]');
     await page.locator('[data-section="hero-action"]').hover();
-    await actionControls.getByRole('button', { name: 'Drag Primary action to reorder' }).click();
-    await actionControls
+    await mergedControls
       .getByRole('button', { name: 'Move Primary action down' })
       .evaluate((button: HTMLButtonElement) => button.click());
     await current.workbench

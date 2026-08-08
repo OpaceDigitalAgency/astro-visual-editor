@@ -2008,6 +2008,44 @@ export default defineToolbarApp({
           },
         );
       }
+      // When this text is the content of a reorderable block, fold the
+      // block's structural actions into the same toolbar — one toolbar per
+      // pointed-at thing, never a competing second bar.
+      const block = candidate.closest<HTMLElement>('[data-astro-ve-section-active="true"]');
+      const blockRegion = block ? editableRegion(block) : null;
+      if (block && blockRegion && selectionProtection(block).state === 'unlocked') {
+        const blockLabel = sectionControlLabel(block);
+        addControl(controls, `Move ${blockLabel} up`, 'chevron-up', () => moveSection(block, -1));
+        const drag = addControl(controls, `Drag ${blockLabel} to reorder`, 'drag', () =>
+          revealSectionControls(block),
+        );
+        drag.classList.add('astro-ve-drag-handle');
+        drag.draggable = true;
+        drag.addEventListener('dragstart', (event) => {
+          draggedSection = block;
+          block.dataset.astroVeDragging = 'true';
+          event.dataTransfer?.setData('text/plain', block.dataset.section ?? '');
+          if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+        });
+        drag.addEventListener('dragend', () => {
+          delete block.dataset.astroVeDragging;
+          draggedSection = null;
+          document
+            .querySelectorAll('[data-astro-ve-drag-over], [data-astro-ve-drop-edge]')
+            .forEach((node) => {
+              node.removeAttribute('data-astro-ve-drag-over');
+              node.removeAttribute('data-astro-ve-drop-edge');
+            });
+        });
+        addControl(controls, `Move ${blockLabel} down`, 'chevron-down', () =>
+          moveSection(block, 1),
+        );
+        addControl(controls, `Delete block ${blockLabel}`, 'delete', () => {
+          deleteTarget = block;
+          confirmDialog.showModal();
+          confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
+        });
+      }
       document.body.append(controls);
       const rect = candidate.getBoundingClientRect();
       const controlHeight = 34;
@@ -2327,8 +2365,8 @@ export default defineToolbarApp({
       if (!active || mode === 'review' || mode === 'seo' || mode === 'setup' || textDialog.open)
         return;
       if (event.target instanceof Element && event.target.closest('[data-astro-ve-ui]')) return;
-      updateSectionHover(event.target);
       const candidate = textCandidate(event.target);
+      updateSectionHover(event.target, candidate);
       if (candidate === hovered) return;
       restoreHighlight();
       hovered = candidate;
@@ -2341,23 +2379,30 @@ export default defineToolbarApp({
       }
     }
 
-    /** Reveal exactly one section name tag for the pointed-at hierarchy level. */
-    function updateSectionHover(target: EventTarget | null): void {
+    /** Reveal exactly one section name tag for the pointed-at hierarchy level.
+     *  When hovered text carries its own merged toolbar for this block
+     *  (textOverlay), keep the hover outline but skip the competing tag. */
+    function updateSectionHover(
+      target: EventTarget | null,
+      textOverlay?: HTMLElement | null,
+    ): void {
       const section =
         target instanceof Element
           ? target.closest<HTMLElement>('[data-astro-ve-section-active="true"]')
           : null;
+      const suppressTag = Boolean(textOverlay && section && section.contains(textOverlay));
       document.querySelectorAll<HTMLElement>('[data-astro-ve-hover="true"]').forEach((previous) => {
         if (previous !== section) delete previous.dataset.astroVeHover;
       });
       document
         .querySelectorAll<HTMLElement>('.astro-ve-section-controls[data-peek="true"]')
         .forEach((controls) => {
-          if (!section || controls.dataset.sectionId !== section.dataset.section)
+          if (!section || suppressTag || controls.dataset.sectionId !== section.dataset.section)
             delete controls.dataset.peek;
         });
       if (!section || section.dataset.astroVeSelected === 'true') return;
       section.dataset.astroVeHover = 'true';
+      if (suppressTag) return;
       const region = editableRegion(section);
       region?.querySelectorAll<HTMLElement>('.astro-ve-section-controls').forEach((controls) => {
         if (

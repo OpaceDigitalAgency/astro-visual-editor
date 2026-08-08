@@ -1,4 +1,6 @@
 ---
+import { createHash } from 'node:crypto';
+
 interface Item {
   label: string;
   value: string;
@@ -10,6 +12,10 @@ interface Props {
 
 const { items } = Astro.props;
 const source = 'src/data/complex-page.json';
+// Matches the server's structured-array sourceKey so each rendered card can
+// be reordered back into the owning JSON array.
+const cardKey = (item: Item): string =>
+  createHash('sha256').update(JSON.stringify(item)).digest('hex').slice(0, 20);
 ---
 
 <section
@@ -27,10 +33,21 @@ const source = 'src/data/complex-page.json';
       One rendered page, several deliberate owners
     </h2>
   </div>
-  <div class="grid" data-section="evidence-cards" data-astro-edit-label="Evidence cards">
+  <div
+    class="grid"
+    data-section="evidence-cards"
+    data-astro-edit-label="Evidence cards"
+    data-astro-edit-region="complex-evidence-cards"
+    data-astro-edit-file={source}
+    data-astro-edit-path="json:array:evidence"
+  >
     {
       items.map((item, index) => (
-        <article>
+        <article
+          data-section={`evidence-card-${index}`}
+          data-astro-edit-label={item.label}
+          data-astro-edit-source-key={cardKey(item)}
+        >
           <strong
             data-astro-edit-file={source}
             data-astro-edit-path={`evidence.${index}.label`}

@@ -51,7 +51,8 @@ function isEditorChange(value: unknown): value is EditorChange {
       typeof value.newText === 'string' &&
       value.newText.length <= 100_000 &&
       (value.selector === undefined || typeof value.selector === 'string') &&
-      (value.sourcePath === undefined || typeof value.sourcePath === 'string')
+      (value.sourcePath === undefined || typeof value.sourcePath === 'string') &&
+      (value.elementUid === undefined || isString(value.elementUid, 200))
     );
   }
 

@@ -2179,11 +2179,21 @@ export default defineToolbarApp({
           addControl(controls, `Move ${blockLabel} down`, 'chevron-down', () =>
             moveSection(block, 1),
           );
-          addControl(controls, `Delete block ${blockLabel}`, 'delete', () => {
-            deleteTarget = block;
-            confirmDialog.showModal();
-            confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
-          });
+          // Deleting from a text's toolbar removes the whole block, which
+          // surprises users when the block holds more than this text (a
+          // heading AND a paragraph). Offer it here only when this text IS
+          // the block's content; otherwise deletion lives on the block's own
+          // toolbar, where the confirm dialog names what goes.
+          const blockChildren = [...block.children].filter(
+            (child) => child instanceof HTMLElement && !child.matches('[data-astro-ve-ui]'),
+          );
+          const soleContent =
+            block === candidate || (blockChildren.length === 1 && blockChildren[0] === candidate);
+          if (soleContent) {
+            addControl(controls, `Delete block ${blockLabel}`, 'delete', () =>
+              confirmDeleteSection(block, blockLabel),
+            );
+          }
         }
       }
       document.body.append(controls);
@@ -2782,8 +2792,31 @@ export default defineToolbarApp({
       const selector = selectorFor(editing);
       const resolution = sourceResolutionFor(editing, config, editabilityPolicy);
       const filePath = resolution.filePath;
-      const key = `text:${filePath}:${selector}`;
-      const existing = queue.get(key);
+      let key = `text:${filePath}:${selector}`;
+      let existing = queue.get(key);
+      // Structural edits renumber selectors, so the same element can hash to
+      // a new key mid-session. A session-scoped identity stamped on the
+      // element itself keeps every re-edit updating the same queued change.
+      if (!editing.dataset.astroVeUid) editing.dataset.astroVeUid = crypto.randomUUID();
+      const elementUid = editing.dataset.astroVeUid;
+      if (!existing) {
+        for (const [priorKey, change] of queue) {
+          if (change.kind !== 'text' || change.filePath !== filePath) continue;
+          let resolved: Element | null = null;
+          if (change.selector) {
+            try {
+              resolved = document.querySelector(change.selector);
+            } catch {
+              resolved = null;
+            }
+          }
+          if (change.elementUid === elementUid || resolved === editing) {
+            key = priorKey;
+            existing = change;
+            break;
+          }
+        }
+      }
       if (!existing && queue.size >= config.maxChanges) {
         showMessage(
           `The queue limit is ${config.maxChanges} changes. Remove or commit a change first.`,
@@ -2815,6 +2848,7 @@ export default defineToolbarApp({
             oldText,
             newText,
             sourcePath: resolution.sourcePath,
+            elementUid,
           };
           queue.set(key, change);
         }
@@ -2934,6 +2968,15 @@ export default defineToolbarApp({
       });
       setupSectionControls();
       setupTextBoundaries();
+    }
+
+    function confirmDeleteSection(target: HTMLElement, label: string): void {
+      deleteTarget = target;
+      confirmDialog.querySelector('#ave-confirm-title')!.textContent = `Delete “${label}”?`;
+      confirmDialog.querySelector('#ave-confirm-copy')!.textContent =
+        `“${label}” will be removed from the preview and queued. You can undo before committing.`;
+      confirmDialog.showModal();
+      confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
     }
 
     function addControl(
@@ -3280,11 +3323,9 @@ export default defineToolbarApp({
             addControl(controls, `Move ${label} down`, 'chevron-down', () =>
               moveSection(section, 1),
             );
-            addControl(controls, `Delete section ${label}`, 'delete', () => {
-              deleteTarget = section;
-              confirmDialog.showModal();
-              confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
-            });
+            addControl(controls, `Delete section ${label}`, 'delete', () =>
+              confirmDeleteSection(section, label),
+            );
           }
           region.append(controls);
           positionSectionControls(section, controls);

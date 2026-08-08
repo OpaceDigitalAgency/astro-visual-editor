@@ -62,6 +62,9 @@ export interface TextEditorChange extends BaseEditorChange {
   kind: 'text';
   oldText: string;
   newText: string;
+  /** Session-scoped element identity so re-edits update in place even when
+   *  structural changes renumber every selector on the page. */
+  elementUid?: string;
   selector?: string;
   /** Required for JSON/YAML and recommended for frontmatter, e.g. hero.title. */
   sourcePath?: string;

@@ -1348,3 +1348,53 @@ test('recovers from a stale queued change with one click and flags it in the tra
     await writeFile(demoSource, original);
   }
 });
+
+test('keeps one queued entry per element across structural renumbering', async ({ page }) => {
+  // Deleting a sibling renumbers selectors; re-editing the same element must
+  // update its existing queued change, never add a stale duplicate.
+  const plainSource = fileURLToPath(
+    new URL('../../demo/src/pages/fixtures/plain.astro', import.meta.url),
+  );
+  const original = await readFile(plainSource, 'utf8');
+  try {
+    await page.goto('/fixtures/plain').catch(() => page.goto('/fixtures/plain'));
+    const { toolbar, workbench } = await enableEditor(page);
+    const heading = page.locator('main > section > h1');
+    await expect
+      .poll(async () => heading.getAttribute('data-astro-ve-protection'), { timeout: 10_000 })
+      .toBe('unlocked');
+
+    const listItem = page.locator('main li').first();
+    await listItem.dispatchEvent('click');
+    const inspector = toolbar.locator('.selection-inspector');
+    await expect(inspector).toBeVisible();
+    await inspector.locator('textarea').fill('Fast static builds, edited');
+    await page.waitForTimeout(450);
+
+    // Structural change renumbers everything on the page.
+    const second = page.locator('main > section').nth(1);
+    await second.dispatchEvent('click');
+    await page
+      .locator('.astro-ve-section-controls[data-visible="true"]')
+      .getByRole('button', { name: /Delete section/ })
+      .evaluate((button: HTMLButtonElement) => button.click());
+    await toolbar.getByRole('button', { name: 'Delete section' }).click();
+
+    // Re-edit the SAME element: still exactly one text entry for it.
+    await listItem.dispatchEvent('click');
+    await expect(inspector).toBeVisible();
+    await inspector.locator('textarea').fill('Fast static builds, edited twice');
+    await page.waitForTimeout(450);
+    await workbench.getByRole('button', { name: 'Open changes tray, 2 queued changes' }).click();
+    await expect(workbench.locator('.change')).toHaveCount(2);
+
+    await workbench.getByRole('button', { name: /Save and apply \(2\)/ }).dispatchEvent('click');
+    const review = toolbar.getByRole('dialog', { name: 'Save and apply' });
+    await review.getByRole('button', { name: 'Save and apply' }).dispatchEvent('click');
+    await expect
+      .poll(async () => readFile(plainSource, 'utf8'))
+      .toContain('Fast static builds, edited twice');
+  } finally {
+    await writeFile(plainSource, original);
+  }
+});

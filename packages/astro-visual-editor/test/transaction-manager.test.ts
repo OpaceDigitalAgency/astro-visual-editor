@@ -349,8 +349,16 @@ describe('TransactionManager session restore', () => {
     const page = join(src, 'pages', 'index.astro');
     await writeFile(page, '<h1>Original</h1>');
     const manager = new TransactionManager(root, src, normalizeOptions());
-    await manager.save({ clientId: 'tab', requestId: 'one', changes: [textChange('a', 'Original', 'Second')] });
-    await manager.save({ clientId: 'tab', requestId: 'two', changes: [textChange('b', 'Second', 'Third')] });
+    await manager.save({
+      clientId: 'tab',
+      requestId: 'one',
+      changes: [textChange('a', 'Original', 'Second')],
+    });
+    await manager.save({
+      clientId: 'tab',
+      requestId: 'two',
+      changes: [textChange('b', 'Second', 'Third')],
+    });
     expect(await readFile(page, 'utf8')).toBe('<h1>Third</h1>');
     expect((await manager.sessionState('tab')).available).toBe(true);
     const restored = await manager.restoreSession('tab', 'restore');
@@ -369,7 +377,11 @@ describe('TransactionManager session restore', () => {
     const page = join(src, 'pages', 'index.astro');
     await writeFile(page, '<h1>Original</h1>');
     const manager = new TransactionManager(root, src, normalizeOptions());
-    await manager.save({ clientId: 'tab', requestId: 'one', changes: [textChange('a', 'Original', 'Edited')] });
+    await manager.save({
+      clientId: 'tab',
+      requestId: 'one',
+      changes: [textChange('a', 'Original', 'Edited')],
+    });
     await writeFile(page, '<h1>Manual outside edit</h1>');
     const refused = await manager.restoreSession('tab', 'restore');
     expect(refused.success).toBe(false);
@@ -387,8 +399,16 @@ describe('TransactionManager session restore', () => {
     const page = join(src, 'pages', 'index.astro');
     await writeFile(page, '<h1>Original</h1>');
     const manager = new TransactionManager(root, src, normalizeOptions());
-    await manager.save({ clientId: 'tab', requestId: 'one', changes: [textChange('a', 'Original', 'Second')] });
-    const second = await manager.save({ clientId: 'tab', requestId: 'two', changes: [textChange('b', 'Second', 'Third')] });
+    await manager.save({
+      clientId: 'tab',
+      requestId: 'one',
+      changes: [textChange('a', 'Original', 'Second')],
+    });
+    const second = await manager.save({
+      clientId: 'tab',
+      requestId: 'two',
+      changes: [textChange('b', 'Second', 'Third')],
+    });
     await manager.revert('tab', 'revert', second.receiptId!);
     expect(await readFile(page, 'utf8')).toBe('<h1>Second</h1>');
     // A fresh manager instance simulates a dev-server restart mid-session.

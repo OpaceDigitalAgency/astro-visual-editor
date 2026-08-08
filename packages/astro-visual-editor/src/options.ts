@@ -190,7 +190,10 @@ function validateLockedAreaMessages(messages: LockedAreaMessage[]): void {
     if (!entry.message?.trim()) {
       throw new Error(`lockedAreaMessages entry for “${entry.selector}” needs a message.`);
     }
-    if (entry.route !== undefined && (!entry.route.startsWith('/') || entry.route.includes('://'))) {
+    if (
+      entry.route !== undefined &&
+      (!entry.route.startsWith('/') || entry.route.includes('://'))
+    ) {
       throw new Error(`lockedAreaMessages entry for “${entry.selector}” has an invalid route.`);
     }
   }

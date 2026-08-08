@@ -439,9 +439,7 @@ export default defineToolbarApp({
     let receiptPollId: number | undefined;
     let pendingRequestId = sessionStorage.getItem(SESSION_PENDING) ?? undefined;
     let lastReceiptId =
-      localStorage.getItem(SESSION_RECEIPT) ??
-      sessionStorage.getItem(SESSION_RECEIPT) ??
-      undefined;
+      localStorage.getItem(SESSION_RECEIPT) ?? sessionStorage.getItem(SESSION_RECEIPT) ?? undefined;
     let sessionRestoreAvailable = false;
     let sessionRestoreFiles: string[] = [];
     let savedHistory: HistoryEntry[] = [];
@@ -2058,7 +2056,9 @@ export default defineToolbarApp({
       if (pinned && protection.state === 'unlocked') {
         addControl(controls, `Edit ${label}`, 'settings', () => openTextEditor(candidate));
       }
-      if (pinned && protection.state === 'protected') {
+      if (protection.state === 'protected') {
+        // Protected content cannot be edited, so its "why" belongs on the
+        // hover tag as well as the pinned bar.
         addControl(controls, 'Why can’t I edit this?', 'help', () => openTextEditor(candidate));
         const explainer = createElement('span', { class: 'astro-ve-explainer' });
         explainer.textContent = protection.reason;
@@ -3767,9 +3767,7 @@ export default defineToolbarApp({
         list.append(item);
       }
       sessionRestoreDialog.showModal();
-      sessionRestoreDialog
-        .querySelector<HTMLButtonElement>('.cancel-session-restore')
-        ?.focus();
+      sessionRestoreDialog.querySelector<HTMLButtonElement>('.cancel-session-restore')?.focus();
     }
 
     function requestSessionRestore(): void {
@@ -4367,7 +4365,7 @@ export default defineToolbarApp({
     const announceReady = (): void => {
       if (panel.isConnected)
         server.send(READY_EVENT, { clientId, route: window.location.pathname });
-        requestSessionState();
+      requestSessionState();
     };
     if (configReady) replaceQueue(safeParseQueue());
     announceReady();

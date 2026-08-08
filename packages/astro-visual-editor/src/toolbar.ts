@@ -413,6 +413,9 @@ export default defineToolbarApp({
     let textQueueTimer: number | undefined;
     let dockSettleTimer: number | undefined;
     let resizeTimer: number | undefined;
+    // Astro's dev toolbar closes the active app on Escape KEYUP; when the
+    // editor consumes an Escape keydown it must swallow the paired keyup too.
+    let swallowEscapeKeyup = false;
     let selectedKind: 'text' | 'section' | null = null;
     let draggedSection: HTMLElement | null = null;
     let addTarget: { section: HTMLElement; placement: 'before' | 'after' } | null = null;
@@ -2582,19 +2585,25 @@ export default defineToolbarApp({
         { signal: controller.signal },
       );
       candidate.addEventListener('blur', () => finish(false), { signal: controller.signal });
-      candidate.addEventListener(
+      // Window-capture so handled keys are consumed before Astro's dev
+      // toolbar can act on them (it treats Escape as "close the app").
+      window.addEventListener(
         'keydown',
         (event) => {
+          if (candidate.dataset.astroVeInlineEditing !== 'true') return;
           if (event.key === 'Escape') {
             event.preventDefault();
+            event.stopPropagation();
+            swallowEscapeKeyup = true;
             finish(true);
             candidate.blur();
           } else if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
+            event.stopPropagation();
             candidate.blur();
           }
         },
-        { signal: controller.signal },
+        { capture: true, signal: controller.signal },
       );
     }
 
@@ -3693,6 +3702,8 @@ export default defineToolbarApp({
         // the element's own handler can revert the text.
         if (editing.dataset.astroVeInlineEditing === 'true') return;
         event.preventDefault();
+        event.stopPropagation();
+        swallowEscapeKeyup = true;
         clearSelection();
         return;
       }
@@ -4146,10 +4157,22 @@ export default defineToolbarApp({
       renderQueue();
     });
 
-    document.addEventListener('keydown', onDocumentKeydown, {
+    // Window-capture runs before Astro's own document-level handlers, so the
+    // editor can own Escape (Astro otherwise closes the whole app).
+    window.addEventListener('keydown', onDocumentKeydown, {
       capture: true,
       signal: listenerController.signal,
     });
+    window.addEventListener(
+      'keyup',
+      (event) => {
+        if (event.key === 'Escape' && swallowEscapeKeyup) {
+          swallowEscapeKeyup = false;
+          event.stopPropagation();
+        }
+      },
+      { capture: true, signal: listenerController.signal },
+    );
     document.addEventListener('astro:before-swap', persist, { signal: listenerController.signal });
     document.addEventListener(
       'astro:page-load',

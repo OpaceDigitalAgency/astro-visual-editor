@@ -992,6 +992,30 @@ test('supports mobile pick mode, keyboard section controls and WCAG-critical sta
   await context.close();
 });
 
+test('double-click edits text in place; Escape restores, Enter keeps and queues', async ({
+  page,
+}) => {
+  const { workbench } = await enableEditor(page);
+  const lead = page.locator('[data-astro-edit-id="hero-lead"]');
+  const original = (await lead.textContent())!.trim();
+
+  await lead.dblclick();
+  await expect(lead).toHaveAttribute('contenteditable', /plaintext-only|true/u);
+  await page.keyboard.type('ZZZ ');
+  await page.keyboard.press('Escape');
+  await expect(lead).toHaveText(original);
+  await expect.poll(() => lead.evaluate((el) => el.isContentEditable)).toBe(false);
+
+  await lead.dblclick();
+  await page.keyboard.type('Fresh ');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => lead.evaluate((el) => el.isContentEditable)).toBe(false);
+  await expect(lead).toContainText('Fresh');
+  await workbench.getByRole('button', { name: 'Open changes tray, 1 queued change' }).click();
+  await workbench.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(lead).toHaveText(original);
+});
+
 test('shows unlocked, owner-locked and source-protected states on the canvas', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 980 });
   const { toolbar, workbench } = await enableEditor(page);

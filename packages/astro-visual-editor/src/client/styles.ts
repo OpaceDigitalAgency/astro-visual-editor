@@ -370,6 +370,7 @@ export const pageSectionStyles = String.raw`
   [data-astro-ve-text-state="locked"] { outline-color: #e0a72f !important; outline-style: dashed !important; }
   [data-astro-ve-text-state="protected"] { outline-color: #e45b67 !important; outline-style: dashed !important; }
   [data-astro-ve-selected="true"] { position: relative !important; outline: 2px solid #e94b8a !important; outline-offset: 2px !important; }
+  [data-astro-ve-inline-editing="true"] { outline: 2px solid #f49bc0 !important; outline-offset: 3px !important; cursor: text !important; box-shadow: 0 0 0 6px rgba(233,75,138,.12) !important; }
   [data-astro-ve-region-active="true"] { position: relative !important; outline: 1px dashed rgba(63,141,204,.45) !important; outline-offset: 6px !important; }
   [data-astro-ve-region-active="true"][data-astro-ve-hierarchy="row"] { outline: 1px dashed rgba(53,164,106,.45) !important; outline-offset: 3px !important; }
   [data-astro-ve-region-active="true"][data-astro-ve-selected-parent="true"] { outline-style: solid !important; }

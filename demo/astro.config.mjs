@@ -1,9 +1,11 @@
+import sitemap from '@astrojs/sitemap';
 import { defineConfig } from 'astro/config';
 import visualEditor from '@opacedev/astro-visual-editor';
 
 export default defineConfig({
   site: 'http://localhost:4321',
   integrations: [
+    sitemap(),
     visualEditor({
       editabilityRole: 'owner',
       fileMappings: {

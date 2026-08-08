@@ -411,6 +411,8 @@ export default defineToolbarApp({
     let editing: HTMLElement | null = null;
     let editingOriginalText = '';
     let textQueueTimer: number | undefined;
+    let dockSettleTimer: number | undefined;
+    let resizeTimer: number | undefined;
     let selectedKind: 'text' | 'section' | null = null;
     let draggedSection: HTMLElement | null = null;
     let addTarget: { section: HTMLElement; placement: 'before' | 'after' } | null = null;
@@ -1418,6 +1420,13 @@ export default defineToolbarApp({
         active && !minimized && mode !== 'setup',
       );
       document.documentElement.dataset.astroVeSetupDocked = String(active && mode === 'setup');
+      // Docking shifts and reflows the whole page over a .18s transition;
+      // refresh overlay geometry once the layout has settled.
+      if (dockSettleTimer !== undefined) clearTimeout(dockSettleTimer);
+      dockSettleTimer = window.setTimeout(() => {
+        dockSettleTimer = undefined;
+        if (active) repositionAllSectionControls();
+      }, 240);
     }
 
     function policyRuleId(effect: EditabilityEffect, scope: EditabilityRuleScope): string {
@@ -1966,6 +1975,10 @@ export default defineToolbarApp({
 
     function showElementControls(candidate: HTMLElement): void {
       document.querySelector('.astro-ve-element-controls')?.remove();
+      // A selected element already shows its single full toolbar; never
+      // stack a second bar on top of it.
+      const owningBlock = candidate.closest<HTMLElement>('[data-astro-ve-section-active="true"]');
+      if (candidate === editing || owningBlock?.dataset.astroVeSelected === 'true') return;
       const protection = selectionProtection(candidate);
       const label = elementControlLabel(candidate);
       const controls = createElement('div', {
@@ -2410,8 +2423,10 @@ export default defineToolbarApp({
           controls.parentElement === region &&
           controls.dataset.sectionId === section.dataset.section &&
           controls.dataset.visible !== 'true'
-        )
+        ) {
           controls.dataset.peek = 'true';
+          positionSectionControls(section, controls);
+        }
       });
     }
 
@@ -2476,6 +2491,80 @@ export default defineToolbarApp({
       }
     }
 
+    /** Divi/Elementor expectation: double-click edits the text in place. The
+     *  panel stays in sync because the inline element feeds the same queue. */
+    function onPageDblClick(event: MouseEvent): void {
+      if (!active || mode === 'review' || mode === 'seo' || mode === 'setup' || textDialog.open)
+        return;
+      if (
+        event.target instanceof Element &&
+        (event.target.closest('[data-astro-ve-ui]') || event.target.closest('astro-dev-toolbar'))
+      )
+        return;
+      if (matchMedia('(max-width: 640px)').matches) return;
+      const candidate = textCandidate(event.target);
+      if (!candidate || selectionProtection(candidate).state !== 'unlocked') return;
+      event.preventDefault();
+      event.stopPropagation();
+      startInlineEdit(candidate);
+    }
+
+    function startInlineEdit(candidate: HTMLElement): void {
+      if (editing !== candidate) openTextEditor(candidate);
+      if (candidate.dataset.astroVeInlineEditing === 'true') return;
+      const block = candidate.closest<HTMLElement>('[data-astro-ve-section-active="true"]');
+      const blockWasDraggable = block?.draggable === true;
+      if (block) block.draggable = false;
+      document.querySelector('.astro-ve-element-controls')?.remove();
+      candidate.dataset.astroVeInlineEditing = 'true';
+      try {
+        candidate.contentEditable = 'plaintext-only';
+      } catch {
+        candidate.contentEditable = 'true';
+      }
+      candidate.focus();
+      const range = document.createRange();
+      range.selectNodeContents(candidate);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      const controller = new AbortController();
+      const finish = (restoreOriginal: boolean): void => {
+        controller.abort();
+        if (restoreOriginal) candidate.textContent = editingOriginalText;
+        candidate.removeAttribute('contenteditable');
+        delete candidate.dataset.astroVeInlineEditing;
+        if (block && blockWasDraggable) block.draggable = true;
+        inspectorTextarea.value = candidate.textContent?.trim() ?? '';
+        scheduleTextQueue(inspectorTextarea);
+        flushPendingText();
+      };
+      candidate.addEventListener(
+        'input',
+        () => {
+          inspectorTextarea.value = candidate.textContent ?? '';
+          inspectorPreview.textContent = compactLabel(inspectorTextarea.value);
+          scheduleTextQueue(inspectorTextarea);
+        },
+        { signal: controller.signal },
+      );
+      candidate.addEventListener('blur', () => finish(false), { signal: controller.signal });
+      candidate.addEventListener(
+        'keydown',
+        (event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            finish(true);
+            candidate.blur();
+          } else if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            candidate.blur();
+          }
+        },
+        { signal: controller.signal },
+      );
+    }
+
     function queueText(options: { closeEditor?: boolean; announce?: boolean } = {}): void {
       if (!editing) return;
       if (selectionProtection(editing).state !== 'unlocked') return;
@@ -2538,7 +2627,9 @@ export default defineToolbarApp({
     function scheduleTextQueue(input: HTMLTextAreaElement): void {
       if (!editing || selectedKind !== 'text' || selectionProtection(editing).state !== 'unlocked')
         return;
-      editing.textContent = input.value;
+      // During inline editing the element itself is the input; rewriting its
+      // text here would reset the user's caret mid-word.
+      if (editing.dataset.astroVeInlineEditing !== 'true') editing.textContent = input.value;
       inspectorPreview.textContent = compactLabel(input.value);
       if (textQueueTimer !== undefined) clearTimeout(textQueueTimer);
       textQueueTimer = window.setTimeout(() => queueText(), 320);
@@ -2663,6 +2754,68 @@ export default defineToolbarApp({
       return button;
     }
 
+    /**
+     * Anchor a toolbar to its section's top edge, above the content, flipping
+     * inside when the region — or the document itself — leaves no room above.
+     * Positions are computed from live geometry at reveal time, never cached:
+     * enabling the editor docks the panel and reflows the page, so any
+     * position stored at setup goes stale the moment the layout settles.
+     */
+    function positionSectionControls(section: HTMLElement, controls: HTMLElement): void {
+      const region = controls.parentElement;
+      if (!(region instanceof HTMLElement)) return;
+      const nested = controls.dataset.hierarchyLevel === 'block';
+      const regionRect = region.getBoundingClientRect();
+      const sectionRect = section.getBoundingClientRect();
+      const sectionTop = sectionRect.top - regionRect.top + region.scrollTop;
+      const controlHeight = 38;
+      const documentTop = regionRect.top + window.scrollY + sectionTop;
+      const roomAbove = Math.min(sectionTop, documentTop);
+      const top = roomAbove >= controlHeight ? sectionTop - controlHeight : sectionTop + 6;
+      controls.style.setProperty('top', `${top}px`, 'important');
+      if (nested) {
+        controls.style.setProperty('left', 'auto', 'important');
+        controls.style.setProperty(
+          'right',
+          `${regionRect.right - sectionRect.right + 6}px`,
+          'important',
+        );
+      } else {
+        controls.style.setProperty('right', 'auto', 'important');
+        controls.style.setProperty(
+          'left',
+          `${sectionRect.left - regionRect.left + region.scrollLeft + 6}px`,
+          'important',
+        );
+      }
+    }
+
+    function positionLockChip(section: HTMLElement, chip: HTMLElement): void {
+      const region = chip.parentElement;
+      if (!(region instanceof HTMLElement)) return;
+      const regionRect = region.getBoundingClientRect();
+      const sectionRect = section.getBoundingClientRect();
+      chip.style.setProperty(
+        'top',
+        `${sectionRect.top - regionRect.top + region.scrollTop + 6}px`,
+        'important',
+      );
+      chip.style.setProperty('right', `${regionRect.right - sectionRect.right + 6}px`, 'important');
+    }
+
+    /** Refresh every overlay position from live geometry (resize, dock settle). */
+    function repositionAllSectionControls(): void {
+      document
+        .querySelectorAll<HTMLElement>('.astro-ve-section-controls, .astro-ve-lock-chip')
+        .forEach((overlay) => {
+          const id = overlay.dataset.sectionId;
+          const section = id ? sectionNodes.get(id) : undefined;
+          if (!section || !section.isConnected) return;
+          if (overlay.classList.contains('astro-ve-lock-chip')) positionLockChip(section, overlay);
+          else positionSectionControls(section, overlay);
+        });
+    }
+
     function revealSectionControls(section: HTMLElement): void {
       const region = editableRegion(section);
       if (!region) return;
@@ -2676,6 +2829,7 @@ export default defineToolbarApp({
         ) {
           delete toolbar.dataset.peek;
           toolbar.dataset.visible = 'true';
+          positionSectionControls(section, toolbar);
         }
       });
     }
@@ -2802,6 +2956,10 @@ export default defineToolbarApp({
             section.removeAttribute('tabindex');
             delete section.dataset.astroVeAddedTabindex;
           }
+          if (section.dataset.astroVeAddedDraggable === 'true') {
+            section.removeAttribute('draggable');
+            delete section.dataset.astroVeAddedDraggable;
+          }
         });
       document.querySelectorAll<HTMLElement>('[data-astro-ve-region-active]').forEach((region) => {
         region.removeAttribute('data-astro-ve-region-active');
@@ -2922,46 +3080,52 @@ export default defineToolbarApp({
             });
           }
           region.append(controls);
-          const regionRect = region.getBoundingClientRect();
-          const sectionRect = section.getBoundingClientRect();
-          const sectionTop = sectionRect.top - regionRect.top + region.scrollTop;
-          // Anchor the toolbar to the section's top edge, above the content.
-          // Flip inside when the region — or the document itself — leaves no
-          // room above, so a section at the very top of the page keeps its
-          // toolbar reachable.
-          const controlHeight = 38;
-          const documentTop = regionRect.top + window.scrollY + sectionTop;
-          const roomAbove = Math.min(sectionTop, documentTop);
-          const top = roomAbove >= controlHeight ? sectionTop - controlHeight : sectionTop + 6;
-          controls.style.setProperty('top', `${top}px`, 'important');
-          if (nestedRegion) {
-            controls.style.setProperty(
-              'right',
-              `${regionRect.right - sectionRect.right + 6}px`,
-              'important',
-            );
-          } else {
-            controls.style.setProperty(
-              'left',
-              `${sectionRect.left - regionRect.left + region.scrollLeft + 6}px`,
-              'important',
-            );
-          }
+          positionSectionControls(section, controls);
           if (protection.state !== 'unlocked') {
             const chip = createElement('span', {
               class: 'astro-ve-lock-chip',
               'data-astro-ve-ui': 'true',
+              'data-section-id': id,
               'data-protection': protection.state,
               'aria-hidden': 'true',
             });
             chip.innerHTML = `${icon(protection.state === 'locked' ? 'lock' : 'shield')}<span>${protection.state === 'locked' ? 'Locked' : 'Protected'}</span>`;
-            chip.style.setProperty('top', `${sectionTop + 6}px`, 'important');
-            chip.style.setProperty(
-              'right',
-              `${regionRect.right - sectionRect.right + 6}px`,
-              'important',
-            );
             region.append(chip);
+            positionLockChip(section, chip);
+          }
+          if (protection.state === 'unlocked') {
+            // Press-and-hold anywhere on the block starts a drag, matching
+            // the Divi/Elementor expectation; the handle remains for
+            // discoverability and keyboard flows.
+            section.draggable = true;
+            section.dataset.astroVeAddedDraggable = 'true';
+            section.addEventListener(
+              'dragstart',
+              (event) => {
+                if (draggedSection) return;
+                if (event.target instanceof Element && event.target.closest('[data-astro-ve-ui]'))
+                  return;
+                draggedSection = section;
+                section.dataset.astroVeDragging = 'true';
+                event.dataTransfer?.setData('text/plain', id);
+                if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+              },
+              { signal: sectionListenerController.signal },
+            );
+            section.addEventListener(
+              'dragend',
+              () => {
+                delete section.dataset.astroVeDragging;
+                draggedSection = null;
+                document
+                  .querySelectorAll('[data-astro-ve-drag-over], [data-astro-ve-drop-edge]')
+                  .forEach((node) => {
+                    node.removeAttribute('data-astro-ve-drag-over');
+                    node.removeAttribute('data-astro-ve-drop-edge');
+                  });
+              },
+              { signal: sectionListenerController.signal },
+            );
           }
           const showControls = () => {
             revealSectionControls(section);
@@ -3315,6 +3479,21 @@ export default defineToolbarApp({
         capture: true,
         signal: listenerController.signal,
       });
+      document.addEventListener('dblclick', onPageDblClick, {
+        capture: true,
+        signal: listenerController.signal,
+      });
+      window.addEventListener(
+        'resize',
+        () => {
+          if (resizeTimer !== undefined) clearTimeout(resizeTimer);
+          resizeTimer = window.setTimeout(() => {
+            resizeTimer = undefined;
+            if (active) repositionAllSectionControls();
+          }, 150);
+        },
+        { signal: listenerController.signal },
+      );
       setupSectionControls();
       setupTextBoundaries();
     }
@@ -3341,6 +3520,10 @@ export default defineToolbarApp({
           if (section.dataset.astroVeAddedTabindex === 'true') {
             section.removeAttribute('tabindex');
             delete section.dataset.astroVeAddedTabindex;
+          }
+          if (section.dataset.astroVeAddedDraggable === 'true') {
+            section.removeAttribute('draggable');
+            delete section.dataset.astroVeAddedDraggable;
           }
         });
       document.querySelectorAll<HTMLElement>('[data-astro-ve-region-active]').forEach((region) => {

@@ -273,7 +273,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
     .boundingBox())!;
   expect(firstControlsBox.width).toBeLessThanOrEqual(430);
   // Progressive chrome: controls stay hidden until the section is hovered.
-  await page.locator('[data-section="preview"]').hover();
+  await page.locator('[data-section="preview"]').dispatchEvent('pointerover');
   const source = page.getByRole('button', { name: 'Drag Preview to reorder' });
   await expect(source).toHaveAttribute('title', 'Drag Preview to reorder');
   await expect(source).toHaveAttribute('data-tooltip', 'Drag Preview to reorder');
@@ -315,7 +315,7 @@ test('previews text, undo/redo, section drag/drop, templates, deletion and SEO',
   await workbench.getByRole('tab', { name: 'Builder' }).click();
 
   const commitControls = page.locator('.astro-ve-section-controls[data-section-id="commit"]');
-  await page.locator('[data-section="commit"]').hover();
+  await page.locator('[data-section="commit"]').dispatchEvent('pointerover');
   await commitControls.getByRole('button', { name: 'Drag Commit to reorder' }).click();
   await commitControls.getByRole('button', { name: 'Delete section Commit' }).click();
   await toolbar.getByRole('button', { name: 'Delete section', exact: true }).click();
@@ -1113,7 +1113,7 @@ test('shows unlocked, owner-locked and source-protected states on the canvas', a
   const editableSection = page.locator('[data-section="preview"]');
   await expect(editableSection).toHaveAttribute('data-astro-ve-protection', 'unlocked');
   const sectionControls = page.locator('.astro-ve-section-controls[data-section-id="preview"]');
-  await editableSection.hover();
+  await editableSection.dispatchEvent('pointerover');
   await sectionControls.getByRole('button', { name: 'Drag Preview to reorder' }).click();
   await expect(
     sectionControls.getByRole('button', { name: 'Open settings for Preview' }),

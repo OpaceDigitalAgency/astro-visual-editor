@@ -25,6 +25,6 @@ jobs:
       - run: npm ci
       - run: npm run test:ci
       - if: matrix.node-version == '24'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
       - if: matrix.node-version == '24'
         run: npm run test:e2e

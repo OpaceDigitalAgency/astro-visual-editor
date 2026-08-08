@@ -15,11 +15,13 @@ The current public beta is `0.1.0-beta.4`. It is published through npm trusted
 GitHub OIDC with provenance and has passed a clean Astro 7.1.6 registry install
 and production build.
 
-The Beta 6 candidate adds a direct Divi/Elementor-style canvas: all discovered
-elements and declared sections are visible immediately, with contextual
-settings, lock/unlock and safe structural controls. The current public package
-remains Beta 4 until the candidate passes owner acceptance and the protected
-release workflow.
+The Beta 6 candidate adds a direct Divi/Elementor-style editing model: a Page
+structure tree enumerating every group, row, section and block with its lock
+state, a quiet rendered canvas that reveals one labelled toolbar per
+pointed-at element, safe drag-and-drop with a landing-edge preview, JSON/YAML
+array reordering, and full SEO field editing with per-field source
+capability checks. The current public package remains Beta 4 until the
+candidate passes owner acceptance and the protected release workflow.
 
 It uses Astro's native Dev Toolbar and `astro:server:setup` communication. It
 does not ship an editor client or write endpoint in production.

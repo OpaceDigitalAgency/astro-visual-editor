@@ -8,19 +8,38 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Added persistent, source-aware canvas boundaries for every discovered text
-  element and declared section as soon as the visual editor is enabled.
-- Added Divi-style contextual element and section toolbars with edit/settings,
-  lock/unlock and source-protection states. Section toolbars also expose move,
-  drag and delete when the validated source region supports those operations.
+- Added a progressive-disclosure canvas: at rest the page shows only faint
+  source-aware hierarchy boundaries and persistent Locked/Protected corner
+  chips; hovering reveals one name tag for the pointed-at level; selecting
+  shows a single full toolbar anchored above the element's edge.
+- Added a **Page structure** navigator tree to the Builder panel showing every
+  group, row, section and block with its lock state. Clicking an item selects
+  and scrolls to it on the page, and unlocked items carry move up/down
+  controls, so whole pages can be rearranged from the tree alone.
+- Added one merged toolbar per pointed-at element: text that forms a
+  reorderable block exposes edit, lock, move, drag and delete together, so a
+  block never needs a second competing control bar.
+- Added a landing-edge drop preview: while dragging, an accent bar on the drop
+  target's top or bottom edge shows which side the block will land on.
+- Added structured-array blocks to the composed demo: the three evidence cards
+  are individually reorderable and commit as a clean JSON array reorder.
+- Added reorder-safe mixed batches: reordering a JSON/YAML array and editing
+  text inside the same array now saves in one atomic batch — queued edit paths
+  are remapped through the reorder's permutation server-side.
+- Added inspector navigation: a persistent **Back to page structure** control,
+  and clicking empty canvas deselects back to the tree.
+- Added full SEO editing on the composed fixture: the demo layout accepts and
+  renders keywords, canonical, Open Graph and robots, so every field in the
+  Page form resolves to a literal prop and stays editable.
 - Added deliberate locked and unlocked text and section examples to both demo
   routes, plus an immutable source-protected example on the simple route.
 - Added an explicit source-owned four-section region to the composed fixture so
   complex structure editing is available immediately rather than requiring a
   setup journey.
-- Added a persistent three-level canvas grammar: blue named groups, teal named
-  sections and neutral content elements, with explicit Editable, Locked and
-  Protected text badges that never rely on an icon or colour alone.
+- Added a three-level canvas grammar: blue groups, green rows, teal sections
+  and neutral blocks, with Editable, Locked and Protected states written as
+  text so they never rely on an icon or colour alone. Locked and Protected
+  chips stay visible at rest; other labels appear on hover and selection.
 - Added regression coverage for adding two identical section templates and
   editing each new paragraph independently in the same atomic save.
 - Added nested row/block regions to the complex fixture, including a movable
@@ -40,9 +59,10 @@ The project follows [Semantic Versioning](https://semver.org/).
   matching contextual inspector automatically; Page remains separate.
 - Kept advanced policy, source-discovery and syntax-aware validation machinery
   internally, while removing Editor Setup from the ordinary editing surface.
-- Made every source-owned group, row, section and block visible and meaningfully
-  named at activation. Drag dots persist; clicking them expands the matching
-  settings, lock, move and delete actions without covering text selection.
+- Made every source-owned group, row, section and block enumerable at
+  activation through the Page structure tree, while the rendered page stays
+  visually quiet until hovered — toolbars anchor above an element's edge and
+  never cover the content being edited.
 - Reduced contextual toolbars to familiar compact icons and moved add-before
   and add-after into the section inspector, preserving those capabilities
   without allowing a toolbar to overlap an adjacent column.

@@ -38,8 +38,12 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 ## What it does
 
 - Click rendered text and preview a replacement in place.
-- See every discovered text element and declared section as soon as the editor
-  opens; hover to reveal its labelled action bar.
+- See the whole page hierarchy — groups, rows, sections and blocks with their
+  lock states — in a **Page structure** tree, Elementor-style: click to select
+  and scroll to any item, or reorder it with the tree's own move controls.
+- Keep the rendered page clean while editing: faint boundaries at rest, one
+  labelled action bar on hover, one full toolbar on the selected element, and
+  a landing-edge preview that shows which side a dragged block will drop on.
 - Click an element or section directly. Use one-click **Lock** and **Unlock**
   without opening a separate permission screen.
 - Edit title, description, keywords, canonical URL, Open Graph fields and

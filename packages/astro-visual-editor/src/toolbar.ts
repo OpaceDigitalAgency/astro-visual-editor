@@ -1973,18 +1973,30 @@ export default defineToolbarApp({
       }
     }
 
-    function showElementControls(candidate: HTMLElement): void {
-      document.querySelector('.astro-ve-element-controls')?.remove();
-      // A selected element already shows its single full toolbar; never
-      // stack a second bar on top of it.
+    /**
+     * One canvas toolbar policy: hovering shows a compact tag (name, state
+     * and a drag handle) so the page stays readable and adjacent bars cannot
+     * pile up; the full action bar exists only for the selected element and
+     * stays pinned until deselection. Transient tags are removed the moment
+     * the pointer leaves; the pinned bar is removed on selection change.
+     */
+    function showElementControls(candidate: HTMLElement, pinned = false): void {
+      document.querySelectorAll<HTMLElement>('.astro-ve-element-controls').forEach((bar) => {
+        if (pinned || bar.dataset.pinned !== 'true') bar.remove();
+      });
       const owningBlock = candidate.closest<HTMLElement>('[data-astro-ve-section-active="true"]');
-      if (candidate === editing || owningBlock?.dataset.astroVeSelected === 'true') return;
+      if (!pinned) {
+        // A selected element already shows its single pinned toolbar; never
+        // stack a second bar on top of it.
+        if (candidate === editing || owningBlock?.dataset.astroVeSelected === 'true') return;
+      }
       const protection = selectionProtection(candidate);
       const label = elementControlLabel(candidate);
       const controls = createElement('div', {
         class: 'astro-ve-element-controls',
         'data-astro-ve-ui': 'true',
         'data-protection': protection.state,
+        ...(pinned ? { 'data-pinned': 'true' } : {}),
         role: 'toolbar',
         'aria-label': `Controls for ${label}`,
       });
@@ -1999,10 +2011,10 @@ export default defineToolbarApp({
             ? 'Locked'
             : 'Protected';
       controls.append(state);
-      if (protection.state === 'unlocked') {
+      if (pinned && protection.state === 'unlocked') {
         addControl(controls, `Edit ${label}`, 'settings', () => openTextEditor(candidate));
       }
-      if (protection.state === 'protected') {
+      if (pinned && protection.state === 'protected') {
         const shield = addControl(
           controls,
           `${label} is source-protected`,
@@ -2010,7 +2022,7 @@ export default defineToolbarApp({
           () => undefined,
         );
         shield.disabled = true;
-      } else {
+      } else if (pinned) {
         addControl(
           controls,
           `${protection.state === 'locked' ? 'Unlock' : 'Lock'} ${label}`,
@@ -2024,14 +2036,18 @@ export default defineToolbarApp({
       }
       // When this text is the content of a reorderable block, fold the
       // block's structural actions into the same toolbar — one toolbar per
-      // pointed-at thing, never a competing second bar.
-      const block = candidate.closest<HTMLElement>('[data-astro-ve-section-active="true"]');
+      // pointed-at thing, never a competing second bar. The hover tag keeps
+      // only the drag handle; move and delete join it once selected.
+      const block = owningBlock;
       const blockRegion = block ? editableRegion(block) : null;
       if (block && blockRegion && selectionProtection(block).state === 'unlocked') {
         const blockLabel = sectionControlLabel(block);
-        addControl(controls, `Move ${blockLabel} up`, 'chevron-up', () => moveSection(block, -1));
+        if (pinned)
+          addControl(controls, `Move ${blockLabel} up`, 'chevron-up', () => moveSection(block, -1));
+        // A click (not a drag) on the handle selects the block, so the dots
+        // always answer "which box is this" even without dragging.
         const drag = addControl(controls, `Drag ${blockLabel} to reorder`, 'drag', () =>
-          revealSectionControls(block),
+          pinned ? revealSectionControls(block) : openSectionInspector(block),
         );
         drag.classList.add('astro-ve-drag-handle');
         drag.draggable = true;
@@ -2051,14 +2067,16 @@ export default defineToolbarApp({
               node.removeAttribute('data-astro-ve-drop-edge');
             });
         });
-        addControl(controls, `Move ${blockLabel} down`, 'chevron-down', () =>
-          moveSection(block, 1),
-        );
-        addControl(controls, `Delete block ${blockLabel}`, 'delete', () => {
-          deleteTarget = block;
-          confirmDialog.showModal();
-          confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
-        });
+        if (pinned) {
+          addControl(controls, `Move ${blockLabel} down`, 'chevron-down', () =>
+            moveSection(block, 1),
+          );
+          addControl(controls, `Delete block ${blockLabel}`, 'delete', () => {
+            deleteTarget = block;
+            confirmDialog.showModal();
+            confirmDialog.querySelector<HTMLButtonElement>('.cancel-delete')?.focus();
+          });
+        }
       }
       document.body.append(controls);
       const rect = candidate.getBoundingClientRect();
@@ -2100,6 +2118,9 @@ export default defineToolbarApp({
       flushPendingText();
       editing?.removeAttribute('data-astro-ve-selected');
       editing?.removeAttribute('data-astro-ve-protection');
+      document
+        .querySelectorAll<HTMLElement>('.astro-ve-element-controls')
+        .forEach((bar) => bar.remove());
       markSelectedParent(null);
       document
         .querySelectorAll<HTMLElement>('.astro-ve-section-controls[data-visible="true"]')
@@ -2313,6 +2334,7 @@ export default defineToolbarApp({
       populateComputedSettings(candidate);
       renderSelectionState(candidate);
       setInspectorTab('content');
+      showElementControls(candidate, true);
       if (!inspectorTextarea.disabled) {
         inspectorTextarea.focus();
         inspectorTextarea.select();
@@ -2327,6 +2349,9 @@ export default defineToolbarApp({
       selectedKind = 'section';
       editing.dataset.astroVeSelected = 'true';
       delete section.dataset.astroVeHover;
+      document
+        .querySelectorAll<HTMLElement>('.astro-ve-element-controls')
+        .forEach((bar) => bar.remove());
       markSelectedParent(section);
       revealSectionControls(section);
       const label = sectionControlLabel(section);
@@ -2384,6 +2409,12 @@ export default defineToolbarApp({
       if (candidate === hovered) return;
       restoreHighlight();
       hovered = candidate;
+      if (!hovered) {
+        // Pointer left all text: transient tags must never linger.
+        document
+          .querySelectorAll<HTMLElement>('.astro-ve-element-controls:not([data-pinned="true"])')
+          .forEach((bar) => bar.remove());
+      }
       if (hovered) {
         const protection = selectionProtection(hovered);
         hovered.dataset.astroVeTextState = protection.state;

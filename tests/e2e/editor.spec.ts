@@ -629,8 +629,9 @@ test('reorders nested hero blocks and saves two structural changes consecutively
       page.locator('.astro-ve-section-label').filter({ hasText: 'BLOCK · Primary action' }),
     ).toHaveCount(1);
 
-    await page.locator('[data-section="hero-action"]').hover();
-    const mergedControls = page.locator('.astro-ve-element-controls');
+    // Selecting pins the full toolbar; hover shows only the compact tag.
+    await page.locator('[data-section="hero-action"]').dispatchEvent('click');
+    const mergedControls = page.locator('.astro-ve-element-controls[data-pinned="true"]');
     await mergedControls
       .getByRole('button', { name: 'Move Primary action up' })
       .evaluate((button: HTMLButtonElement) => button.click());
@@ -651,7 +652,7 @@ test('reorders nested hero blocks and saves two structural changes consecutively
 
     await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
     current = await enableEditor(page);
-    await page.locator('[data-section="hero-action"]').hover();
+    await page.locator('[data-section="hero-action"]').dispatchEvent('click');
     await mergedControls
       .getByRole('button', { name: 'Move Primary action down' })
       .evaluate((button: HTMLButtonElement) => button.click());
@@ -1003,9 +1004,10 @@ test('shows unlocked, owner-locked and source-protected states on the canvas', a
   await editable.hover();
   const elementControls = page.locator('.astro-ve-element-controls');
   await expect(elementControls).toBeVisible();
-  await expect(elementControls.getByRole('button', { name: /^Edit Heading ·/ })).toBeVisible();
-  await expect(elementControls.getByRole('button', { name: /^Lock Heading ·/ })).toBeVisible();
   await editable.click();
+  const pinnedControls = page.locator('.astro-ve-element-controls[data-pinned="true"]');
+  await expect(pinnedControls.getByRole('button', { name: /^Edit Heading ·/ })).toBeVisible();
+  await expect(pinnedControls.getByRole('button', { name: /^Lock Heading ·/ })).toBeVisible();
   let inspector = await selectedTextInspector(toolbar);
   await expect(inspector.locator('.selection-state')).toContainText('Unlocked');
   await expect(inspector.getByRole('button', { name: 'Lock' })).toBeVisible();

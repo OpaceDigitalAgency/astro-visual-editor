@@ -2769,11 +2769,12 @@ export default defineToolbarApp({
       const sectionRect = section.getBoundingClientRect();
       const sectionTop = sectionRect.top - regionRect.top + region.scrollTop;
       const controlHeight = 38;
-      // Only the document's own top edge truly constrains placement — an
-      // absolutely positioned toolbar may sit above its region's top, so a
-      // block at the top of a nested row still gets its bar above the box.
       const documentTop = regionRect.top + window.scrollY + sectionTop;
-      const top = documentTop >= controlHeight ? sectionTop - controlHeight : sectionTop + 6;
+      // Nested blocks may take the space above their row (still inside the
+      // parent section), so a card's toolbar never covers its first line.
+      // Top-level sections keep the conservative in-region clamp.
+      const roomAbove = nested ? documentTop : Math.min(sectionTop, documentTop);
+      const top = roomAbove >= controlHeight ? sectionTop - controlHeight : sectionTop + 6;
       controls.style.setProperty('top', `${top}px`, 'important');
       if (nested) {
         controls.style.setProperty('left', 'auto', 'important');

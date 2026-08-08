@@ -349,11 +349,10 @@ test('switches to the composed fixture and safely writes JSON plus collection fr
     await complexWorkbench.getByRole('tab', { name: 'Page' }).click();
     const seoDialog = toolbar.locator('dialog').filter({ hasText: 'Edit SEO' });
     await expect(seoDialog).toContainText('src/pages/fixtures/complex.astro');
-    // This route delegates its head to a layout that only receives title and
-    // description, so the remaining fields must be locked rather than queued
-    // into a save the adapter cannot apply.
-    await expect(seoDialog.locator('[name="keywords"]')).toBeDisabled();
-    await expect(seoDialog).toContainText('has no “keywords” prop');
+    // This route delegates its head to a layout that accepts every SEO prop,
+    // so all fields resolve to literal props and stay editable. (The locked
+    // delegated-field path is covered by the seo-capabilities unit tests.)
+    await expect(seoDialog.locator('[name="keywords"]')).toBeEnabled();
     await expect(seoDialog.locator('[name="title"]')).toBeEnabled();
     await seoDialog.locator('[name="title"]').fill('Complex fixture, reviewed');
     await seoDialog

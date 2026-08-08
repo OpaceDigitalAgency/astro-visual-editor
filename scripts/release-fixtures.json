@@ -7,7 +7,7 @@
     "demo/src/content/case-studies/harbour.md": "50b57a09f2691f3ea07465ab7506bd9456a7bde5f636996fdba640eb73c420ec",
     "demo/src/data/complex-page.json": "e63a9bec45bd0231521f77c78c8e24e35a9bd04374b2602dd6e69107be16da39",
     "demo/src/layouts/DemoLayout.astro": "f99c53eb35aea92c93cbd16ac4bc59a28d0abfaf0658a1072fb94b039a7e9e75",
-    "demo/src/pages/fixtures/complex.astro": "809c210479faf8ff13a71b5e8f4a5d90b295053858dce1a353bcc232b8e5b28b",
+    "demo/src/pages/fixtures/complex.astro": "4eb28f5a76e56b6046e2222a8d98f4a0d18d10ae29edbda74f3ed721fe644837",
     "demo/src/pages/fixtures/article.astro": "e11687bbf53f3b78824290105a02e533e4f96c784947ec0c48e7d45e4ebb0bfa",
     "demo/src/pages/index.astro": "1ebeea2dd8b7e5ff8fd198028e07bfa67555e712305039008e4935acf91c61db"
   }

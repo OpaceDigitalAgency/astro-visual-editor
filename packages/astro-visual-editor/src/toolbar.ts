@@ -3,6 +3,7 @@ import { ChangeHistory, changeKey } from './client/history.js';
 import {
   classifyElement,
   inventoryPage,
+  lockExplanation,
   matchingPolicyRule,
   policyAllowSelectors,
   type InventoryItem,
@@ -135,6 +136,8 @@ function icon(name: IconName): string {
     content: '<path d="M5 6h14M5 10h14M5 14h9M5 18h7"/>',
     delete: '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/>',
     drag: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>',
+    eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.6 2.6 0 0 1 4.9 1.1c0 1.7-2.5 2.1-2.5 3.6M12 17.2v.1"/>',
     history: '<path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v4l3 2"/>',
     lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/>',
     minus: '<path d="M6 12h12"/>',

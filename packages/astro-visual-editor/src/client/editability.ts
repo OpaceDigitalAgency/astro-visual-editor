@@ -136,6 +136,83 @@ export function classifyElement(
   };
 }
 
+export interface LockExplanation {
+  /** One plain-language sentence saying why this content cannot be edited here. */
+  summary: string;
+  /** One plain-language sentence saying what would make it editable. */
+  action: string;
+  /** True when the summary came from the page or project rather than a default. */
+  custom: boolean;
+}
+
+const defaultExplanations: Record<Exclude<InventoryStatus, 'editable'>, LockExplanation> = {
+  unresolved: {
+    summary:
+      'This text is generated automatically when the site is built, so the editor cannot trace it back to a file it can safely change.',
+    action:
+      'To make it editable, ask your developer to connect this area to its content file — a one-line label in the template.',
+    custom: false,
+  },
+  unsafe: {
+    summary:
+      'This text has other content inside it (such as a link or an icon), so editing it as one piece could break the page.',
+    action:
+      'A developer can change it in the source file, or mark it as safe to edit by splitting it into simpler pieces.',
+    custom: false,
+  },
+  excluded: {
+    summary: 'Editing is switched off for this area.',
+    action:
+      'If it should be editable, it can be allowed from the setup screen or by changing the project configuration.',
+    custom: false,
+  },
+};
+
+function routeMatches(route: string | undefined, pathname: string): boolean {
+  if (!route) return true;
+  if (route.endsWith('*')) return pathname.startsWith(route.slice(0, -1));
+  return route === pathname || `${route}/` === pathname || route === `${pathname}/`;
+}
+
+/**
+ * Owner-facing explanation for a non-editable element. Priority: an explicit
+ * `data-astro-edit-locked-reason` on the element or an ancestor, then the
+ * project's `lockedAreaMessages` configuration, then a per-status default.
+ */
+export function lockExplanation(
+  item: Pick<InventoryItem, 'element' | 'status'>,
+  config: ClientEditorConfig,
+  pathname = window.location.pathname,
+): LockExplanation {
+  if (item.status === 'editable') {
+    return { summary: 'This content is editable.', action: '', custom: false };
+  }
+  const fallback = defaultExplanations[item.status];
+  const annotated = item.element.closest<HTMLElement>('[data-astro-edit-locked-reason]');
+  const attributeReason = annotated?.getAttribute('data-astro-edit-locked-reason')?.trim();
+  if (attributeReason) {
+    return {
+      summary: attributeReason,
+      action: annotated?.getAttribute('data-astro-edit-locked-action')?.trim() || fallback.action,
+      custom: true,
+    };
+  }
+  for (const entry of config.lockedAreaMessages) {
+    if (!routeMatches(entry.route, pathname)) continue;
+    try {
+      if (!item.element.closest(entry.selector)) continue;
+    } catch {
+      continue;
+    }
+    return {
+      summary: entry.message,
+      action: entry.action?.trim() || fallback.action,
+      custom: true,
+    };
+  }
+  return fallback;
+}
+
 export function policyAllowSelectors(policy: EditabilityPolicy): string[] {
   return policy.rules.filter((rule) => rule.effect === 'allow').map((rule) => rule.selector);
 }

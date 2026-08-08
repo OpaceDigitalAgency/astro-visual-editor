@@ -96,6 +96,18 @@ export interface SectionsEditorChange extends BaseEditorChange {
 
 export type EditorChange = TextEditorChange | SeoEditorChange | SectionsEditorChange;
 
+/** Plain-language explanation shown to editors on content the tool cannot edit. */
+export interface LockedAreaMessage {
+  /** CSS selector for the locked area; matched with closest(), so it may target an ancestor. */
+  selector: string;
+  /** Optional route filter, e.g. "/services". A trailing * matches route prefixes. */
+  route?: string;
+  /** Owner-facing sentence explaining why this content is not editable here. */
+  message: string;
+  /** Optional owner-facing sentence explaining what would make it editable. */
+  action?: string;
+}
+
 export interface ClientEditorConfig {
   editableSelectors: string[];
   excludeSelectors: string[];
@@ -103,6 +115,7 @@ export interface ClientEditorConfig {
   selectorMappings: Record<string, string>;
   sectionTemplates: ClientSectionTemplate[];
   demoPages: DemoPage[];
+  lockedAreaMessages: LockedAreaMessage[];
   maxChanges: number;
   maxTextLength: number;
   requestTimeoutMs: number;

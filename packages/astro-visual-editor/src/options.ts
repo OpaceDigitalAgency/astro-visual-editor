@@ -2,6 +2,7 @@ import type {
   ClientEditorConfig,
   DemoPage,
   EditableFileExtension,
+  LockedAreaMessage,
   SectionTemplate,
 } from './shared/types.js';
 
@@ -15,6 +16,8 @@ export interface AstroVisualEditorOptions {
   sectionTemplates?: SectionTemplate[];
   /** Optional local routes exposed as a compact switcher for a project's test fixture. */
   demoPages?: DemoPage[];
+  /** Plain-language explanations shown on content the editor cannot edit. */
+  lockedAreaMessages?: LockedAreaMessage[];
   maxChanges?: number;
   maxTextLength?: number;
   maxRequestBytes?: number;
@@ -41,6 +44,7 @@ export interface NormalizedOptions {
   allowedExtensions: EditableFileExtension[];
   sectionTemplates: SectionTemplate[];
   demoPages: DemoPage[];
+  lockedAreaMessages: LockedAreaMessage[];
   maxChanges: number;
   maxTextLength: number;
   maxRequestBytes: number;
@@ -129,6 +133,7 @@ const defaults: NormalizedOptions = {
   allowedExtensions: ['.astro', '.md', '.mdx', '.json', '.jsonc', '.yaml', '.yml'],
   sectionTemplates: defaultTemplates,
   demoPages: [],
+  lockedAreaMessages: [],
   maxChanges: 100,
   maxTextLength: 10_000,
   maxRequestBytes: 1_000_000,
@@ -175,6 +180,20 @@ function validateTemplates(templates: SectionTemplate[]): void {
   }
 }
 
+function validateLockedAreaMessages(messages: LockedAreaMessage[]): void {
+  for (const entry of messages) {
+    if (!entry.selector?.trim() || /[\0\r\n]/u.test(entry.selector)) {
+      throw new Error('lockedAreaMessages contains an invalid CSS selector.');
+    }
+    if (!entry.message?.trim()) {
+      throw new Error(`lockedAreaMessages entry for “${entry.selector}” needs a message.`);
+    }
+    if (entry.route !== undefined && (!entry.route.startsWith('/') || entry.route.includes('://'))) {
+      throw new Error(`lockedAreaMessages entry for “${entry.selector}” has an invalid route.`);
+    }
+  }
+}
+
 function validateDemoPages(pages: DemoPage[]): void {
   const ids = new Set<string>();
   const paths = new Set<string>();
@@ -211,6 +230,7 @@ export function normalizeOptions(options: AstroVisualEditorOptions = {}): Normal
       ? options.sectionTemplates.map((template) => ({ ...template }))
       : defaults.sectionTemplates.map((template) => ({ ...template })),
     demoPages: options.demoPages?.map((page) => ({ ...page })) ?? [],
+    lockedAreaMessages: options.lockedAreaMessages?.map((entry) => ({ ...entry })) ?? [],
     maxChanges: positiveInteger(options.maxChanges, defaults.maxChanges),
     maxTextLength: positiveInteger(options.maxTextLength, defaults.maxTextLength),
     maxRequestBytes: positiveInteger(options.maxRequestBytes, defaults.maxRequestBytes),
@@ -231,6 +251,7 @@ export function normalizeOptions(options: AstroVisualEditorOptions = {}): Normal
   validateRelativeMappings('selectorMappings', normalized.selectorMappings);
   validateTemplates(normalized.sectionTemplates);
   validateDemoPages(normalized.demoPages);
+  validateLockedAreaMessages(normalized.lockedAreaMessages);
   if (!['owner', 'editor'].includes(normalized.editabilityRole)) {
     throw new Error('editabilityRole must be owner or editor.');
   }
@@ -259,6 +280,7 @@ export function toClientConfig(
     selectorMappings: options.selectorMappings,
     sectionTemplates: options.sectionTemplates,
     demoPages: options.demoPages,
+    lockedAreaMessages: options.lockedAreaMessages,
     maxChanges: options.maxChanges,
     maxTextLength: options.maxTextLength,
     requestTimeoutMs: options.requestTimeoutMs,

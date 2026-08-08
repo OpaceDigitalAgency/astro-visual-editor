@@ -17,6 +17,16 @@ const source = 'src/data/complex-page.json';
   data-astro-edit-file="src/components/SourceHero.astro"
   data-astro-edit-label="Hero content"
 >
+  <p
+    class="eyebrow"
+    data-section="hero-eyebrow"
+    data-astro-edit-label="Eyebrow"
+    data-astro-edit-file={source}
+    data-astro-edit-path="hero.eyebrow"
+    data-astro-edit-origin="a direct JSON import"
+  >
+    {eyebrow}
+  </p>
   <h1
     id="complex-title"
     data-section="hero-heading"

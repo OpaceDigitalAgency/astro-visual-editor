@@ -12,11 +12,11 @@ const dataSource = 'src/data/complex-page.json';
 
 <DemoLayout
   title="Complex source fixture"
-  description="Test source-aware editing across Astro layouts, components and structured content.dfdsf"
+  description="Test source-aware editing across Astro layouts, components and structured content."
   keywords="astro, visual editor, structured content, source-aware editing"
   canonical="http://localhost:4321/fixtures/complex"
   ogTitle="Complex source fixture, an Astro Visual Editor demo"
-  ogDescription="A layout, components, JSON data and a Content Collection, all editable with a full source trail.fsdf"
+  ogDescription="A layout, components, JSON data and a Content Collection, all editable with a full source trail."
   robots="index, follow"
 >
   <div
@@ -47,6 +47,13 @@ const dataSource = 'src/data/complex-page.json';
         {content.shared.notice}
       </p>
     </div>
+    <div
+      class="complex-builder-section"
+      data-section="complex-evidence"
+      data-astro-edit-label="Evidence cards"
+    >
+      <EvidenceGrid items={content.evidence} />
+    </div>
     <section
       class="collection complex-builder-section"
       data-section="complex-collection"
@@ -55,6 +62,9 @@ const dataSource = 'src/data/complex-page.json';
       data-astro-edit-file="src/pages/fixtures/complex.astro"
       aria-labelledby="collection-title"
     >
+      <p class="kicker" data-section="collection-kicker" data-astro-edit-label="Kicker">
+        Content Collection
+      </p>
       <h2
         id="collection-title"
         data-section="collection-heading"
@@ -66,9 +76,6 @@ const dataSource = 'src/data/complex-page.json';
       >
         {caseStudy.data.title}
       </h2>
-      <p class="kicker" data-section="collection-kicker" data-astro-edit-label="Kicker">
-        Content Collection
-      </p>
       <p
         data-section="collection-summary"
         data-astro-edit-label="Summary"
@@ -89,13 +96,6 @@ const dataSource = 'src/data/complex-page.json';
         {caseStudy.data.client}
       </p>
     </section>
-    <div
-      class="complex-builder-section"
-      data-section="complex-evidence"
-      data-astro-edit-label="Evidence cards"
-    >
-      <EvidenceGrid items={content.evidence} />
-    </div>
   </div>
   <p
     class="generated-note"

@@ -37,7 +37,12 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 
 ## What it does
 
-- Click rendered text and preview a replacement in place.
+- Work with zero setup on conventional Astro sites: enable the editor on an
+  unannotated page and text with a single literal source occurrence becomes
+  editable immediately, while safe structural matches become live
+  drag-reorderable sections — no labels, no mappings, no policy required.
+- Click rendered text and preview a replacement in place, or double-click to
+  type directly on the page (Enter keeps it, Escape restores the original).
 - See the whole page hierarchy — groups, rows, sections and blocks with their
   lock states — in a **Page structure** tree, Elementor-style: click to select
   and scroll to any item, or reorder it with the tree's own move controls.
@@ -124,6 +129,36 @@ This package provides:
   enabled.
 
 It adds no production route, editor client or public write endpoint.
+
+## Roadmap and requests
+
+Zero-step editing covers conventional Astro pages today. Planned for the
+next betas, roughly in order:
+
+- **Dynamic and collection routes** — inferring the owning content file for
+  `[slug]` pages and Content Collections without any mapping.
+- **Repeated-text disambiguation** — safe automatic resolution when the same
+  string appears in several files (i18n locales, repeated CTAs).
+- **Client islands** — mapping text rendered by React/Vue/Svelte islands back
+  to their component source.
+- **Design writes** — editing typography, spacing and colour where the owning
+  CSS or Astro style source can be proven safely; the Design tab currently
+  reports these read-only.
+- **Structured data** — schema.org/JSON-LD editing alongside the existing SEO
+  fields in the Page tab.
+- **Live re-inference** — automatically re-running zero-step resolution when
+  HMR introduces new content mid-session.
+- **Images and assets** — replacing images from the canvas with source-safe
+  asset handling.
+
+Want one of these sooner, or something we have not planned?
+
+[![Request a change](https://img.shields.io/badge/Request%20a%20change-%E2%86%92-6c2eb9?style=for-the-badge)](https://github.com/OpaceDigitalAgency/astro-visual-editor/issues/new/choose)
+
+Bug reports and questions are welcome in
+[GitHub Issues](https://github.com/OpaceDigitalAgency/astro-visual-editor/issues);
+[SUPPORT.md](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/SUPPORT.md)
+lists every support route.
 
 ## Install
 

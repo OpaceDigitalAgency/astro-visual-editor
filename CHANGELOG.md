@@ -4,9 +4,41 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
-## 0.1.0-beta.6 - 2026-08-07
+## 0.1.0-beta.6 - 2026-08-08
 
 ### Added
+
+- Added zero-step editing on unannotated Astro sites: enabling the editor on a
+  page with no annotations, no route mappings and no policy automatically
+  resolves text (every discovered element is batch-searched in one bounded
+  source scan; a text with exactly one literal occurrence becomes editable
+  immediately) and automatically infers structure (a unique, structurally
+  verified section-discovery match becomes a live reorderable region).
+  Ambiguity keeps the confirm dialogs, unmatched content stays honestly
+  protected, and save-time validation still re-verifies every write.
+- Added double-click in-place text editing with an explicit caret at the
+  pointed-at character, Enter to keep, Escape to restore the original — and
+  the editor owns Escape end to end, so cancelling an edit no longer closes
+  the whole app. Verified on WebKit (Safari's engine) as well as Chromium.
+- Added press-and-hold drag anywhere on an unlocked block, alongside the
+  existing handle, move buttons and keyboard controls.
+- Added plain-language lock explanations: protected content shows "Why can't
+  I edit this?" with the real reason on its hover tag and toolbar, and page
+  authors can supply custom messages per area via `lockedAreaMessages`.
+- Added an editable-only filter toggle that dims everything the current page
+  cannot edit.
+- Added durable session restore: every file saved in a session can be rewound
+  to its pre-session state, across page reloads, closed tabs and restarts.
+- Added converging save recovery: when queued changes go stale because files
+  changed underneath them, the failing change is flagged in the tray with a
+  plain reason, and one click of "Save the rest" writes every valid change
+  while setting the stale ones aside for review.
+- Added stable change identity: re-editing the same element always updates
+  its existing queued change, even after structural edits renumber every
+  selector on the page.
+- Added a zero-setup demo page ("Plain") to the demo switcher, plus
+  @astrojs/sitemap and prefilled SEO values so the demo represents a
+  standard, best-practice Astro site.
 
 - Added a progressive-disclosure canvas: at rest the page shows only faint
   source-aware hierarchy boundaries and persistent Locked/Protected corner

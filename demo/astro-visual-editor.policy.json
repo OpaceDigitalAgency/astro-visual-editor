@@ -28,6 +28,13 @@
       "scope": "element",
       "route": "/fixtures/complex",
       "selector": "[data-section=\"complex-shared\"]"
+    },
+    {
+      "id": "deny-element-8f709aee-4b45-45e5-bce9-f6e5ea6a577a",
+      "effect": "deny",
+      "scope": "element",
+      "route": "/fixtures/complex",
+      "selector": "div[data-section=\"evidence-heading\"] > p.kicker"
     }
   ]
 }

@@ -11,17 +11,16 @@ A development-only visual editor for Astro with text editing, SEO fields,
 section templates, real drag-and-drop, a reviewable change ledger and validated
 source transactions.
 
-The current public beta is `0.1.0-beta.4`. It is published through npm trusted
-GitHub OIDC with provenance and has passed a clean Astro 7.1.6 registry install
-and production build.
-
-The Beta 6 candidate adds a direct Divi/Elementor-style editing model: a Page
-structure tree enumerating every group, row, section and block with its lock
-state, a quiet rendered canvas that reveals one labelled toolbar per
-pointed-at element, safe drag-and-drop with a landing-edge preview, JSON/YAML
-array reordering, and full SEO field editing with per-field source
-capability checks. The current public package remains Beta 4 until the
-candidate passes owner acceptance and the protected release workflow.
+Beta 6 introduces zero-step editing — enable the editor on an unannotated
+Astro page and unique literal text becomes editable immediately while safe
+structural matches become live drag-reorderable sections — alongside a
+Divi/Elementor-style editing model: a Page structure tree enumerating every
+group, row, section and block with its lock state, a quiet rendered canvas
+with one labelled toolbar per pointed-at element, double-click in-place text
+editing, drag-and-drop with a landing-edge preview, JSON/YAML array
+reordering, plain-language lock explanations, durable session restore and
+full SEO field editing with per-field source capability checks. Published
+through npm trusted GitHub OIDC with provenance.
 
 It uses Astro's native Dev Toolbar and `astro:server:setup` communication. It
 does not ship an editor client or write endpoint in production.
@@ -34,6 +33,36 @@ Built by [Opace Astro developers](https://opace.agency/services/web-design/astro
 | Page    | Edit title, description, keywords, canonical, Open Graph and robots     |
 | Changes | Inspect mixed changes, undo/redo, save once and conflict-check restores |
 | Locks   | Lock or unlock an element/section directly on the rendered page         |
+
+## Roadmap and requests
+
+Zero-step editing covers conventional Astro pages today. Planned for the
+next betas, roughly in order:
+
+- **Dynamic and collection routes** — inferring the owning content file for
+  `[slug]` pages and Content Collections without any mapping.
+- **Repeated-text disambiguation** — safe automatic resolution when the same
+  string appears in several files (i18n locales, repeated CTAs).
+- **Client islands** — mapping text rendered by React/Vue/Svelte islands back
+  to their component source.
+- **Design writes** — editing typography, spacing and colour where the owning
+  CSS or Astro style source can be proven safely; the Design tab currently
+  reports these read-only.
+- **Structured data** — schema.org/JSON-LD editing alongside the existing SEO
+  fields in the Page tab.
+- **Live re-inference** — automatically re-running zero-step resolution when
+  HMR introduces new content mid-session.
+- **Images and assets** — replacing images from the canvas with source-safe
+  asset handling.
+
+Want one of these sooner, or something we have not planned?
+
+[![Request a change](https://img.shields.io/badge/Request%20a%20change-%E2%86%92-6c2eb9?style=for-the-badge)](https://github.com/OpaceDigitalAgency/astro-visual-editor/issues/new/choose)
+
+Bug reports and questions are welcome in
+[GitHub Issues](https://github.com/OpaceDigitalAgency/astro-visual-editor/issues);
+[SUPPORT.md](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/SUPPORT.md)
+lists every support route.
 
 ## Install
 

@@ -1,15 +1,15 @@
 {
   "description": "Canonical demo files that localhost acceptance testing may change. Regenerate only after an intentional fixture change.",
   "files": {
-    "demo/astro-visual-editor.policy.json": "65f3ae2116c535e2010c753d9a7ddfc01ac9d2d7d5fc32324e31e53ee620c011",
+    "demo/astro-visual-editor.policy.json": "93ea486412c8cf87d0729629e81a1611f3a14b32d8c72f7595d7b45d1690b0dd",
     "demo/src/components/EvidenceGrid.astro": "352110b2f9c140d8e5aa16d09abc8dda8dc138bac3df58e7920f0ed3c305ab75",
-    "demo/src/components/SourceHero.astro": "ad5e8dccd1287cf9d4b3ed633f9e2d391122616db814e90066fe6e83ce187fd6",
+    "demo/src/components/SourceHero.astro": "115bf77673e40526812113e8deb6f816109aecf895e1927ff135220396a720b7",
     "demo/src/content/case-studies/harbour.md": "50b57a09f2691f3ea07465ab7506bd9456a7bde5f636996fdba640eb73c420ec",
-    "demo/src/data/complex-page.json": "e63a9bec45bd0231521f77c78c8e24e35a9bd04374b2602dd6e69107be16da39",
+    "demo/src/data/complex-page.json": "ac24e54d256d24fbecb2741594c61b5059d58cb2b4bcbae04312c3352407073b",
     "demo/src/layouts/DemoLayout.astro": "f99c53eb35aea92c93cbd16ac4bc59a28d0abfaf0658a1072fb94b039a7e9e75",
-    "demo/src/pages/fixtures/complex.astro": "60210fee742c6d17f2e817482e6e87a926a3ddbc15179039ab5c3d13c8641b9d",
+    "demo/src/pages/fixtures/complex.astro": "2f907f841646ce5b86db21fadb52066666a44de5548d4bb4ff8bb54cf1425517",
     "demo/src/pages/fixtures/article.astro": "e11687bbf53f3b78824290105a02e533e4f96c784947ec0c48e7d45e4ebb0bfa",
     "demo/src/pages/index.astro": "1ebeea2dd8b7e5ff8fd198028e07bfa67555e712305039008e4935acf91c61db",
-    "demo/src/pages/fixtures/plain.astro": "bf03f14c0f9f9255dd375bc0748682fbb151724cea24b4db745ac9badb07987d"
+    "demo/src/pages/fixtures/plain.astro": "678eb35c6dcc5b7ee0591b94b622012466c78a9722e4dd13477e64db3e726798"
   }
 }

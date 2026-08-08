@@ -1,0 +1,103 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  keywords: string;
+  canonical: string;
+  ogTitle: string;
+  ogDescription: string;
+  robots: string;
+}
+
+const { title, description, keywords, canonical, ogTitle, ogDescription, robots } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {keywords && <meta name="keywords" content={keywords} />}
+    {canonical && <link rel="canonical" href={canonical} />}
+    {ogTitle && <meta property="og:title" content={ogTitle} />}
+    {ogDescription && <meta property="og:description" content={ogDescription} />}
+    {robots && <meta name="robots" content={robots} />}
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        color: #f7f5f2;
+        background: #101214;
+      }
+      main {
+        width: min(1100px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 54px 0 94px;
+      }
+      header,
+      footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 18px max(20px, calc((100vw - 1100px) / 2));
+        border-color: #30353a;
+      }
+      header {
+        border-bottom: 1px solid #30353a;
+      }
+      footer {
+        border-top: 1px solid #30353a;
+        color: #aeb4bb;
+        font-size: 14px;
+      }
+      .brand {
+        color: #ff9f69;
+        font:
+          800 12px/1 ui-monospace,
+          monospace;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      nav {
+        display: flex;
+        gap: 14px;
+        color: #c5cad0;
+        font-size: 14px;
+      }
+      @media (max-width: 680px) {
+        main {
+          width: min(100% - 28px, 1100px);
+          padding-top: 30px;
+        }
+        header {
+          align-items: flex-start;
+        }
+        nav {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <p class="brand" data-astro-edit-file="src/layouts/DemoLayout.astro">Astro Visual Editor</p>
+      <nav aria-label="Fixture navigation">
+        <span data-astro-edit-file="src/layouts/DemoLayout.astro">Overview</span>
+        <span data-astro-edit-file="src/layouts/DemoLayout.astro">Source map</span>
+        <span data-astro-editable data-astro-edit-file="src/layouts/DemoLayout.astro">Recovery</span
+        >
+      </nav>
+    </header>
+    <main><slot /></main>
+    <footer>
+      <span data-astro-edit-file="src/layouts/DemoLayout.astro">Development-only test fixture</span>
+      <span data-astro-edit-file="src/layouts/DemoLayout.astro">Source-aware editing</span>
+    </footer>
+  </body>
+</html>

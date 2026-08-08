@@ -1,0 +1,161 @@
+---
+import { getCollection } from 'astro:content';
+import EvidenceGrid from '../../components/EvidenceGrid.astro';
+import SourceHero from '../../components/SourceHero.astro';
+import DemoLayout from '../../layouts/DemoLayout.astro';
+import content from '../../data/complex-page.json';
+
+const [caseStudy] = await getCollection('caseStudies');
+const collectionSource = 'src/content/case-studies/harbour.md';
+const dataSource = 'src/data/complex-page.json';
+---
+
+<DemoLayout
+  title="Complex source fixture"
+  description="Test source-aware editing across Astro layouts, components and structured content."
+  keywords="astro, visual editor, structured content, source-aware editing"
+  canonical="http://localhost:4321/fixtures/complex"
+  ogTitle="Complex source fixture, an Astro Visual Editor demo"
+  ogDescription="A layout, components, JSON data and a Content Collection, all editable with a full source trail."
+  robots="index, follow"
+>
+  <div
+    class="complex-builder-region"
+    data-astro-edit-region="complex-sections"
+    data-astro-edit-file="src/pages/fixtures/complex.astro"
+    data-astro-edit-label="Complex page content"
+  >
+    <div class="complex-builder-section" data-section="complex-hero" data-astro-edit-label="Hero">
+      <SourceHero {...content.hero} />
+    </div>
+    <div
+      class="complex-builder-section"
+      data-section="complex-shared"
+      data-astro-edit-label="Release note"
+      data-astro-edit-region="complex-release-blocks"
+      data-astro-edit-file="src/pages/fixtures/complex.astro"
+    >
+      <p
+        class="shared-note"
+        data-section="release-note-copy"
+        data-astro-edit-label="Notice"
+        data-astro-edit-file={dataSource}
+        data-astro-edit-path="shared.notice"
+        data-astro-edit-origin="a direct JSON import"
+        data-astro-edit-shared-routes="/,/fixtures/complex"
+      >
+        {content.shared.notice}
+      </p>
+    </div>
+    <div
+      class="complex-builder-section"
+      data-section="complex-evidence"
+      data-astro-edit-label="Evidence cards"
+    >
+      <EvidenceGrid items={content.evidence} />
+    </div>
+    <section
+      class="collection complex-builder-section"
+      data-section="complex-collection"
+      data-astro-edit-label="Content collection"
+      data-astro-edit-region="complex-collection-blocks"
+      data-astro-edit-file="src/pages/fixtures/complex.astro"
+      aria-labelledby="collection-title"
+    >
+      <p class="kicker" data-section="collection-kicker" data-astro-edit-label="Kicker">
+        Content Collection
+      </p>
+      <h2
+        id="collection-title"
+        data-section="collection-heading"
+        data-astro-edit-label="Heading"
+        data-demo-collection-title
+        data-astro-edit-file={collectionSource}
+        data-astro-edit-path="frontmatter.title"
+        data-astro-edit-origin="a Content Collection field"
+      >
+        {caseStudy.data.title}
+      </h2>
+      <p
+        data-section="collection-summary"
+        data-astro-edit-label="Summary"
+        data-astro-edit-file={collectionSource}
+        data-astro-edit-path="frontmatter.summary"
+        data-astro-edit-origin="a Content Collection field"
+      >
+        {caseStudy.data.summary}
+      </p>
+      <p
+        class="client"
+        data-section="collection-client"
+        data-astro-edit-label="Client"
+        data-astro-edit-file={collectionSource}
+        data-astro-edit-path="frontmatter.client"
+        data-astro-edit-origin="a Content Collection field"
+      >
+        {caseStudy.data.client}
+      </p>
+    </section>
+  </div>
+  <p
+    class="generated-note"
+    data-demo-generated-note
+    data-astro-edit-ignore
+    data-astro-edit-locked-reason="This line is assembled automatically when the page builds, so there is no single file the editor could safely change."
+    data-astro-edit-locked-action="Ask your developer to move this copy into a content file if it should be editable."
+  >
+    Generated at build time: three sources power this page.
+  </p>
+</DemoLayout>
+
+<style>
+  .shared-note {
+    margin: 25px 0 0;
+    padding: 13px 15px;
+    color: #f8dfaa;
+    background: #302818;
+    border: 1px solid #65522b;
+    border-radius: 11px;
+    line-height: 1.5;
+  }
+  .complex-builder-region,
+  .complex-builder-section {
+    position: relative;
+  }
+  .generated-note {
+    margin: 34px 0 0;
+    color: #8f96a3;
+    font-size: 0.85rem;
+  }
+  .collection {
+    max-width: 760px;
+    padding: 56px 0;
+  }
+  .kicker {
+    color: #ff9f69;
+    font:
+      800 11px/1.2 ui-monospace,
+      monospace;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .collection h2 {
+    margin: 12px 0;
+    font-size: clamp(2rem, 5vw, 4rem);
+    line-height: 0.95;
+    letter-spacing: -0.06em;
+  }
+  .collection p {
+    color: #c8cdd2;
+    font-size: 1.1rem;
+    line-height: 1.65;
+  }
+  .collection .client {
+    color: #ffad82;
+    font:
+      800 12px/1.2 ui-monospace,
+      monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+</style>

@@ -8,6 +8,11 @@ import {
   parseReceiptRequest,
   parseRevertRequest,
   parseSaveRequest,
+  parseSessionRestoreRequest,
+  parseSessionStateRequest,
+  parseSourceDiscoveryRequest,
+  parseSectionDiscoveryRequest,
+  parseSeoCapabilitiesRequest,
 } from './shared/protocol.js';
 import {
   APP_ID,
@@ -29,6 +34,16 @@ import {
   REVERT_RESULT_EVENT,
   SAVE_EVENT,
   SAVE_RESULT_EVENT,
+  SESSION_RESTORE_EVENT,
+  SESSION_RESTORE_RESULT_EVENT,
+  SESSION_STATE_EVENT,
+  SESSION_STATE_RESULT_EVENT,
+  SOURCE_DISCOVERY_EVENT,
+  SOURCE_DISCOVERY_RESULT_EVENT,
+  SECTION_DISCOVERY_EVENT,
+  SECTION_DISCOVERY_RESULT_EVENT,
+  SEO_CAPABILITIES_EVENT,
+  SEO_CAPABILITIES_RESULT_EVENT,
 } from './shared/events.js';
 import type {
   EditabilityPolicyResponse,
@@ -37,9 +52,15 @@ import type {
   ReceiptResponse,
   RevertResponse,
   SaveResponse,
+  SessionRestoreResponse,
+  SessionStateResponse,
+  SourceDiscoveryResponse,
+  SectionDiscoveryResponse,
+  SeoCapabilitiesResponse,
 } from './shared/types.js';
 import { EditabilityPolicyManager } from './server/editability-policy.js';
 import { TransactionManager } from './server/transaction-manager.js';
+import { discoverSectionRegions, discoverSources } from './server/source-discovery.js';
 
 export type { AstroVisualEditorOptions } from './options.js';
 export type { EditorChange, SectionTemplate, SeoValues } from './shared/types.js';
@@ -97,7 +118,7 @@ export default function astroVisualEditor(
         // the manager in the integration closure so idempotency receipts and
         // the safe-revert history survive page-source HMR.
         transactionManager ??= new TransactionManager(projectRoot, sourceRoot, options);
-        editabilityPolicyManager ??= new EditabilityPolicyManager(projectRoot, options);
+        editabilityPolicyManager ??= new EditabilityPolicyManager(projectRoot, options, sourceRoot);
         const manager = transactionManager;
         const policyManager = editabilityPolicyManager;
         const sendConfig = () =>
@@ -129,6 +150,54 @@ export default function astroVisualEditor(
           } catch {
             return;
           }
+        });
+
+        toolbar.on(SOURCE_DISCOVERY_EVENT, async (raw: unknown) => {
+          let response: SourceDiscoveryResponse;
+          try {
+            const request = parseSourceDiscoveryRequest(raw, options.maxRequestBytes);
+            response = canManageEditability
+              ? await discoverSources(projectRoot, sourceRoot, request, options)
+              : {
+                  clientId: request.clientId,
+                  requestId: request.requestId,
+                  success: false,
+                  error: 'Only a local owner can search and confirm source mappings.',
+                };
+          } catch (error) {
+            const candidate = raw as { clientId?: unknown; requestId?: unknown };
+            response = {
+              clientId: typeof candidate?.clientId === 'string' ? candidate.clientId : 'invalid',
+              requestId: typeof candidate?.requestId === 'string' ? candidate.requestId : 'invalid',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown source discovery error.',
+            };
+          }
+          toolbar.send(SOURCE_DISCOVERY_RESULT_EVENT, response);
+        });
+
+        toolbar.on(SECTION_DISCOVERY_EVENT, async (raw: unknown) => {
+          let response: SectionDiscoveryResponse;
+          try {
+            const request = parseSectionDiscoveryRequest(raw, options.maxRequestBytes);
+            response = canManageEditability
+              ? await discoverSectionRegions(projectRoot, sourceRoot, request, options)
+              : {
+                  clientId: request.clientId,
+                  requestId: request.requestId,
+                  success: false,
+                  error: 'Only a local owner can search and confirm section mappings.',
+                };
+          } catch (error) {
+            const candidate = raw as { clientId?: unknown; requestId?: unknown };
+            response = {
+              clientId: typeof candidate?.clientId === 'string' ? candidate.clientId : 'invalid',
+              requestId: typeof candidate?.requestId === 'string' ? candidate.requestId : 'invalid',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown section discovery error.',
+            };
+          }
+          toolbar.send(SECTION_DISCOVERY_RESULT_EVENT, response);
         });
 
         toolbar.on(EDITABILITY_PREVIEW_EVENT, async (raw: unknown) => {
@@ -165,6 +234,22 @@ export default function astroVisualEditor(
           if (response.success) logger.info(`Updated ${options.editabilityPolicyFile}.`);
           else logger.warn(`Editability policy rejected: ${response.error}`);
           toolbar.send(EDITABILITY_SAVE_RESULT_EVENT, response);
+        });
+
+        toolbar.on(SEO_CAPABILITIES_EVENT, async (raw: unknown) => {
+          let response: SeoCapabilitiesResponse;
+          try {
+            response = await manager.seoCapabilities(parseSeoCapabilitiesRequest(raw));
+          } catch (error) {
+            const candidate = raw as { clientId?: unknown; requestId?: unknown };
+            response = {
+              clientId: typeof candidate?.clientId === 'string' ? candidate.clientId : 'invalid',
+              requestId: typeof candidate?.requestId === 'string' ? candidate.requestId : 'invalid',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown SEO capabilities error.',
+            };
+          }
+          toolbar.send(SEO_CAPABILITIES_RESULT_EVENT, response);
         });
 
         toolbar.on(PREVIEW_EVENT, async (raw: unknown) => {
@@ -269,6 +354,39 @@ export default function astroVisualEditor(
             };
           }
           toolbar.send(REVERT_RESULT_EVENT, response);
+        });
+
+        toolbar.on(SESSION_STATE_EVENT, async (raw: unknown) => {
+          let response: SessionStateResponse;
+          try {
+            const request = parseSessionStateRequest(raw);
+            const state = await manager.sessionState(request.clientId);
+            response = { ...request, available: state.available, files: state.files };
+          } catch {
+            return;
+          }
+          toolbar.send(SESSION_STATE_RESULT_EVENT, response);
+        });
+
+        toolbar.on(SESSION_RESTORE_EVENT, async (raw: unknown) => {
+          let response: SessionRestoreResponse;
+          try {
+            const request = parseSessionRestoreRequest(raw);
+            if (!writeEnabled) {
+              response = { ...request, success: false, error: remoteWarning };
+            } else {
+              response = await manager.restoreSession(request.clientId, request.requestId);
+            }
+          } catch (error) {
+            const candidate = raw as { clientId?: unknown; requestId?: unknown };
+            response = {
+              clientId: typeof candidate?.clientId === 'string' ? candidate.clientId : 'invalid',
+              requestId: typeof candidate?.requestId === 'string' ? candidate.requestId : 'invalid',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown session restore error.',
+            };
+          }
+          toolbar.send(SESSION_RESTORE_RESULT_EVENT, response);
         });
       },
     },

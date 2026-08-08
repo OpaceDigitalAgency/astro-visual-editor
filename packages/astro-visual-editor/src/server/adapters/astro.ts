@@ -5,6 +5,7 @@ import type {
   SectionsEditorChange,
   SeoEditorChange,
   SeoField,
+  SeoFieldCapability,
   TextEditorChange,
 } from '../../shared/types.js';
 import {
@@ -14,15 +15,24 @@ import {
   type SourceRange,
   uniqueRange,
 } from './shared.js';
+import { createHash } from 'node:crypto';
 
 interface PositionPoint {
   offset: number;
+}
+interface AstroAttribute {
+  name: string;
+  value?: string;
+  kind?: string;
+  /** Raw source text of the value, including its quotes, when quoted. */
+  raw?: string;
+  position?: { start: PositionPoint };
 }
 interface AstroNode {
   type: string;
   name?: string;
   value?: string;
-  attributes?: Array<{ name: string; value?: string; kind?: string }>;
+  attributes?: AstroAttribute[];
   children?: AstroNode[];
   position?: { start: PositionPoint; end?: PositionPoint };
 }
@@ -44,15 +54,68 @@ function attribute(node: AstroNode, name: string): string | undefined {
 
 function elementSource(source: string, node: AstroNode): string {
   if (!node.position) throw new Error('Astro compiler did not provide source positions.');
-  return source.slice(node.position.start.offset, nodeEndOffset(source, node));
+  return source.slice(nodeStartOffset(source, node), nodeEndOffset(source, node));
 }
 
 function nodeEndOffset(source: string, node: AstroNode): number {
   if (!node.position) throw new Error('Astro compiler did not provide a source start position.');
-  if (node.position.end) return node.position.end.offset;
-  const end = source.indexOf('>', node.position.start.offset);
-  if (end === -1) throw new Error(`Cannot locate the end of <${node.name ?? node.type}>.`);
-  return end + 1;
+  if (node.position.end) {
+    const end = node.position.end.offset;
+    if (node.type === 'element' && node.name) {
+      const raw = source.slice(node.position.start.offset, end);
+      if (raw.includes(`</${node.name}`) && !raw.trimEnd().endsWith('>')) {
+        const closingBracket = source.indexOf('>', end);
+        const nextTag = source.indexOf('<', end);
+        if (closingBracket !== -1 && (nextTag === -1 || closingBracket < nextTag)) {
+          return closingBracket + 1;
+        }
+      }
+    }
+    if (node.type === 'component' || node.type === 'custom-element') {
+      const raw = source.slice(node.position.start.offset, end);
+      if (!raw.includes(`</${node.name ?? ''}`)) {
+        const selfClosing = source.indexOf('/>', node.position.start.offset);
+        const nextTag = source.indexOf('<', node.position.start.offset + 1);
+        if (selfClosing !== -1 && (nextTag === -1 || selfClosing < nextTag)) {
+          return selfClosing + 2;
+        }
+      }
+    }
+    // The compiler currently reports self-closing component positions before
+    // the final `>`, while normal element ranges are end-exclusive.
+    return source[end] === '>' ? end + 1 : end;
+  }
+  // Void elements carry no end position. Scan for the closing bracket while
+  // skipping quoted attribute values so a `>` inside content="a > b" cannot
+  // truncate the element.
+  let quote = '';
+  for (let index = nodeStartOffset(source, node); index < source.length; index += 1) {
+    const character = source[index]!;
+    if (quote) {
+      if (character === quote) quote = '';
+      continue;
+    }
+    if (character === '"' || character === "'") quote = character;
+    else if (character === '>') return index + 1;
+  }
+  throw new Error(`Cannot locate the end of <${node.name ?? node.type}>.`);
+}
+
+/**
+ * The Astro compiler reports void elements such as `<meta>` at their tag name
+ * rather than at the opening bracket. Replacing from the reported offset would
+ * leave the original `<` behind, so recover the true element start.
+ */
+function nodeStartOffset(source: string, node: AstroNode): number {
+  const start = node.position?.start.offset;
+  if (start === undefined)
+    throw new Error('Astro compiler did not provide a source start position.');
+  if (source[start] === '<') return start;
+  const bracket = source.lastIndexOf('<', start);
+  if (bracket === -1 || source.slice(bracket + 1, start) !== '') {
+    throw new Error(`Cannot locate the start of <${node.name ?? node.type}>.`);
+  }
+  return bracket;
 }
 
 async function parseAstro(source: string): Promise<AstroNode> {
@@ -69,10 +132,11 @@ function normalizedLiteralRange(
   ast: AstroNode,
   renderedText: string,
   label: string,
+  root: AstroNode = ast,
 ): SourceRange {
   const target = normalizedText(renderedText);
   const matches: SourceRange[] = [];
-  walk(ast, (node) => {
+  walk(root, (node) => {
     if (node.type !== 'text' || !node.position?.end) return;
     const raw = source.slice(node.position.start.offset, node.position.end.offset);
     if (normalizedText(raw) !== target) return;
@@ -91,6 +155,56 @@ function normalizedLiteralRange(
     throw new Error(`Original text is ambiguous for ${label}. Add a structured source path.`);
   }
   return matches[0]!;
+}
+
+function sectionScopedRoot(ast: AstroNode, selector?: string): AstroNode | undefined {
+  if (!selector) return undefined;
+  const match = /\[data-section=(?:"([^"]+)"|'([^']+)')\]/u.exec(selector);
+  const sectionId = match?.[1] ?? match?.[2];
+  if (!sectionId) return undefined;
+  const matches: AstroNode[] = [];
+  walk(ast, (node) => {
+    if (attribute(node, 'data-section') === sectionId) matches.push(node);
+  });
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function mappedLiteralRange(
+  source: string,
+  ast: AstroNode,
+  sourcePath: string,
+  renderedText: string,
+  label: string,
+): SourceRange | undefined {
+  const match = /^astro:text:(\d+)$/u.exec(sourcePath);
+  if (!match) return undefined;
+  const offset = Number(match[1]);
+  let located: SourceRange | undefined;
+  walk(ast, (node) => {
+    if (located || node.type !== 'text' || !node.position?.end) return;
+    if (node.position.start.offset !== offset) return;
+    const raw = source.slice(node.position.start.offset, node.position.end.offset);
+    if (normalizedText(raw) !== normalizedText(renderedText)) {
+      throw new Error(
+        `The confirmed Astro source mapping is stale for ${label}. Run source discovery again.`,
+      );
+    }
+    const leading = raw.search(/\S/u);
+    const trailing = raw.search(/\s*$/u);
+    if (leading === -1) return;
+    located = {
+      start: node.position.start.offset + leading,
+      end: node.position.start.offset + trailing,
+      replacement: '',
+      label,
+    };
+  });
+  if (!located) {
+    throw new Error(
+      `The confirmed Astro source mapping was not found for ${label}. Run source discovery again.`,
+    );
+  }
+  return located;
 }
 
 export async function validateAstro(source: string, filename: string): Promise<void> {
@@ -120,9 +234,21 @@ export async function applyAstroText(
 ): Promise<string> {
   const ast = await parseAstro(source);
   const label = `${change.filePath} (${change.selector ?? 'text'})`;
-  const range = source.includes(change.oldText)
-    ? uniqueRange(source, change.oldText, label)
-    : normalizedLiteralRange(source, ast, change.oldText, label);
+  let range = change.sourcePath
+    ? mappedLiteralRange(source, ast, change.sourcePath, change.oldText, label)
+    : undefined;
+  if (!range) {
+    try {
+      // Match parsed Astro text nodes first so the same words inside attributes,
+      // comments or scripts cannot make a visible literal falsely ambiguous.
+      const scopedRoot = sectionScopedRoot(ast, change.selector);
+      range = normalizedLiteralRange(source, ast, change.oldText, label, scopedRoot ?? ast);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('ambiguous')) throw error;
+      // Complete quoted values are the only supported non-literal fallback.
+      range = uniqueRange(source, change.oldText, label);
+    }
+  }
   let isLiteralText = false;
   walk(ast, (node) => {
     if (
@@ -206,6 +332,175 @@ function seoMarkup(field: SeoField, value: string): string {
   }
 }
 
+const seoFieldOrder: readonly SeoField[] = [
+  'title',
+  'description',
+  'keywords',
+  'canonical',
+  'ogTitle',
+  'ogDescription',
+  'robots',
+];
+
+const delegatedSeoProps: Record<SeoField, string> = {
+  title: 'title',
+  description: 'description',
+  keywords: 'keywords',
+  canonical: 'canonical',
+  ogTitle: 'ogTitle',
+  ogDescription: 'ogDescription',
+  robots: 'robots',
+};
+
+const delegatedSeoLabels: Record<SeoField, string> = {
+  title: 'page title',
+  description: 'search description',
+  keywords: 'keywords',
+  canonical: 'canonical URL',
+  ogTitle: 'social sharing title',
+  ogDescription: 'social sharing description',
+  robots: 'search visibility',
+};
+
+interface LiteralSeoProp {
+  /** Offset of the first character inside the opening quote. */
+  start: number;
+  end: number;
+  quote: string;
+  /** Decoded attribute value as the Astro compiler reports it. */
+  value: string;
+}
+
+/**
+ * Locates every quoted `name="value"` prop with this name on a component or
+ * custom element. Matching is by prop name only so that a value that has
+ * drifted from the rendered page can be reported as a stale edit instead of a
+ * missing prop.
+ */
+function literalSeoProps(source: string, ast: AstroNode, propName: string): LiteralSeoProp[] {
+  const found: LiteralSeoProp[] = [];
+  walk(ast, (node) => {
+    if (!node.position || !['component', 'custom-element'].includes(node.type)) return;
+    for (const item of node.attributes ?? []) {
+      if (item.name !== propName || item.kind !== 'quoted') continue;
+      const nameStart = item.position?.start.offset;
+      const raw = item.raw;
+      if (nameStart === undefined || raw === undefined || raw.length < 2) continue;
+      const quote = raw[0]!;
+      if (quote !== '"' && quote !== "'") continue;
+      const opening = source.slice(nameStart, nodeEndOffset(source, node));
+      const assignment = /^[^\s=/>]+\s*=\s*/u.exec(opening);
+      if (!assignment || !opening.startsWith(raw, assignment[0].length)) continue;
+      const start = nameStart + assignment[0].length + 1;
+      found.push({ start, end: start + raw.length - 2, quote, value: item.value ?? '' });
+    }
+  });
+  return found;
+}
+
+function escapeSeoPropValue(value: string, quote: string): string {
+  const escaped = escapeHtmlAttribute(value);
+  return quote === "'" ? escaped.replaceAll("'", '&#39;') : escaped;
+}
+
+function literalSeoPropRange(
+  source: string,
+  ast: AstroNode,
+  field: SeoField,
+  value: string,
+  replacement: string,
+  filePath: string,
+): SourceRange {
+  const propName = delegatedSeoProps[field];
+  const matches = literalSeoProps(source, ast, propName);
+  if (matches.length === 0)
+    throw new Error(
+      `This page delegates its SEO, but ${delegatedSeoLabels[field]} is not a literal “${propName}” prop in ${filePath}.`,
+    );
+  if (matches.length > 1)
+    throw new Error(
+      `More than one literal “${propName}” prop matches ${delegatedSeoLabels[field]} in ${filePath}.`,
+    );
+  const match = matches[0]!;
+  if (match.value !== value)
+    throw new Error(`SEO field changed before commit in ${filePath}: ${field}.`);
+  return {
+    start: match.start,
+    end: match.end,
+    replacement: escapeSeoPropValue(replacement, match.quote),
+    label: `SEO ${delegatedSeoLabels[field]} prop in ${filePath}`,
+  };
+}
+
+function isLiteralSeoNode(node: AstroNode, field: SeoField): boolean {
+  if (field === 'title') return (node.children ?? []).every((child) => child.type === 'text');
+  const name = field === 'canonical' ? 'href' : 'content';
+  return node.attributes?.find((item) => item.name === name)?.kind === 'quoted';
+}
+
+/**
+ * Reports, per SEO field, whether this page has a source location the adapter
+ * can safely rewrite, and the literal value it will compare against. Pages that
+ * delegate their head to a layout can only edit props that already exist, so
+ * the toolbar uses this to disable the rest instead of failing a whole batch.
+ */
+export async function describeAstroSeoCapabilities(
+  source: string,
+  filePath: string,
+): Promise<Record<SeoField, SeoFieldCapability>> {
+  const ast = await parseAstro(source);
+  let head: AstroNode | undefined;
+  const existing = new Map<SeoField, AstroNode[]>();
+  walk(ast, (node) => {
+    if (node.type === 'element' && node.name === 'head') head ??= node;
+    const field = classifySeoNode(node);
+    if (field) existing.set(field, [...(existing.get(field) ?? []), node]);
+  });
+
+  const fields = {} as Record<SeoField, SeoFieldCapability>;
+  for (const field of seoFieldOrder) {
+    const label = delegatedSeoLabels[field];
+    if (head?.position?.end) {
+      const nodes = existing.get(field) ?? [];
+      if (nodes.length > 1) {
+        fields[field] = {
+          editable: false,
+          value: '',
+          reason: `${filePath} declares ${label} more than once, so it cannot be edited safely here.`,
+        };
+      } else if (nodes.length === 0) {
+        fields[field] = { editable: true, value: '' };
+      } else if (isLiteralSeoNode(nodes[0]!, field)) {
+        fields[field] = { editable: true, value: currentSeoValue(nodes[0]!, field) };
+      } else {
+        fields[field] = {
+          editable: false,
+          value: '',
+          reason: `${label} is rendered from an expression in ${filePath}. Edit it where its value comes from.`,
+        };
+      }
+      continue;
+    }
+    const matches = literalSeoProps(source, ast, delegatedSeoProps[field]);
+    if (matches.length === 1) {
+      fields[field] = { editable: true, value: matches[0]!.value };
+    } else if (matches.length > 1) {
+      fields[field] = {
+        editable: false,
+        value: '',
+        reason: `${filePath} passes more than one “${delegatedSeoProps[field]}” prop, so ${label} cannot be edited safely here.`,
+      };
+    } else {
+      fields[field] = {
+        editable: false,
+        value: '',
+        reason: `${filePath} passes its page metadata to a layout and has no “${delegatedSeoProps[field]}” prop, so ${label} cannot be edited from this page.`,
+      };
+    }
+  }
+  return fields;
+}
+
 export async function applyAstroSeo(source: string, change: SeoEditorChange): Promise<string> {
   const ast = await parseAstro(source);
   let head: AstroNode | undefined;
@@ -219,8 +514,26 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
       existing.set(field, node);
     }
   });
-  if (!head?.position?.end)
-    throw new Error(`No literal <head> element found in ${change.filePath}.`);
+  const changedFields = (Object.keys(change.after) as SeoField[]).filter(
+    (field) => change.after[field] !== change.before[field],
+  );
+  if (!head?.position?.end) {
+    const output = applyRanges(
+      source,
+      changedFields.map((field) =>
+        literalSeoPropRange(
+          source,
+          ast,
+          field,
+          change.before[field],
+          change.after[field],
+          change.filePath,
+        ),
+      ),
+    );
+    await validateAstro(output, change.filePath);
+    return output;
+  }
 
   const ranges: SourceRange[] = [];
   const inserts: string[] = [];
@@ -228,6 +541,11 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
     if (change.after[field] === change.before[field]) continue;
     const node = existing.get(field);
     if (node) {
+      if (!isLiteralSeoNode(node, field)) {
+        throw new Error(
+          `${delegatedSeoLabels[field]} is rendered from an expression in ${change.filePath}. Edit it where its value comes from.`,
+        );
+      }
       const current = currentSeoValue(node, field);
       const comparableCanonical = field !== 'canonical' || /^https?:\/\//u.test(current);
       if (comparableCanonical && current !== change.before[field]) {
@@ -237,9 +555,18 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
       throw new Error(`SEO field disappeared before commit in ${change.filePath}: ${field}.`);
     }
     if (node?.position) {
+      let start = nodeStartOffset(source, node);
+      let end = nodeEndOffset(source, node);
+      if (!change.after[field]) {
+        // Remove the whole line so deleting a field leaves no blank remnant.
+        while (start > 0 && (source[start - 1] === ' ' || source[start - 1] === '\t')) start -= 1;
+        if (source[end] === '\r') end += 1;
+        if (source[end] === '\n') end += 1;
+        else start = nodeStartOffset(source, node);
+      }
       ranges.push({
-        start: node.position.start.offset,
-        end: nodeEndOffset(source, node),
+        start,
+        end,
         replacement: change.after[field] ? seoMarkup(field, change.after[field]) : '',
         label: `SEO ${field}`,
       });
@@ -253,7 +580,10 @@ export async function applyAstroSeo(source: string, change: SeoEditorChange): Pr
     const current = source.slice(range.start, range.end);
     const indentMatch = current.match(/\n([ \t]+)\S/u);
     const indent = indentMatch?.[1] ?? '  ';
-    range.start = range.end;
+    // Insert before the whitespace that closes the head so the existing
+    // indentation of `</head>` survives.
+    range.start = range.end - (current.length - current.trimEnd().length);
+    range.end = range.start;
     range.replacement = `\n${indent}${inserts.join(`\n${indent}`)}`;
     range.label = 'SEO insertions';
     ranges.push(range);
@@ -301,7 +631,36 @@ function renderTemplate(template: SectionTemplate, id: string): string {
   return markup;
 }
 
-export async function applyAstroSections(
+function significantChildren(node: AstroNode): AstroNode[] {
+  return (node.children ?? []).filter(
+    (child) =>
+      Boolean(child.position) &&
+      ['element', 'component', 'custom-element', 'fragment'].includes(child.type) &&
+      !['style', 'script'].includes(child.name ?? ''),
+  );
+}
+
+function sourceKey(source: string, node: AstroNode): string {
+  return createHash('sha256').update(elementSource(source, node)).digest('hex').slice(0, 20);
+}
+
+function mappedChildrenContainer(ast: AstroNode, sourcePath: string): AstroNode {
+  const match = /^astro:children:([a-z-]+):([A-Za-z0-9_.:-]+):(\d+)$/u.exec(sourcePath);
+  if (!match) throw new Error('The section source mapping is invalid.');
+  const [, type, name, occurrenceText] = match;
+  const occurrence = Number(occurrenceText);
+  const matches: AstroNode[] = [];
+  walk(ast, (node) => {
+    if (node.type === type && (node.name ?? node.type) === name) matches.push(node);
+  });
+  const container = matches[occurrence];
+  if (!container) {
+    throw new Error('The confirmed section source mapping is stale. Run section discovery again.');
+  }
+  return container;
+}
+
+async function applyMappedAstroChildren(
   source: string,
   change: SectionsEditorChange,
   templates: SectionTemplate[],
@@ -309,13 +668,73 @@ export async function applyAstroSections(
   assertUniqueSectionIds(change.before, 'Previous section state');
   assertUniqueSectionIds(change.after, 'Next section state');
   const ast = await parseAstro(source);
+  const container = mappedChildrenContainer(ast, change.sourcePath!);
+  const children = significantChildren(container);
+  if (children.length < 2)
+    throw new Error('A mapped section region must contain at least two items.');
+  const currentKeys = children.map((node) => sourceKey(source, node));
+  const beforeKeys = change.before.map((item) => item.sourceKey);
+  if (beforeKeys.some((key) => !key) || currentKeys.join('\0') !== beforeKeys.join('\0')) {
+    throw new Error(
+      'The mapped section source changed before commit. Run section discovery again.',
+    );
+  }
+  const sourceByKey = new Map(
+    children.map((node) => [sourceKey(source, node), elementSource(source, node)]),
+  );
+  const templateById = new Map(templates.map((template) => [template.id, template]));
+  const ordered = change.after.map((descriptor) => {
+    const existing = descriptor.sourceKey ? sourceByKey.get(descriptor.sourceKey) : undefined;
+    if (existing) return existing;
+    const template = descriptor.templateId ? templateById.get(descriptor.templateId) : undefined;
+    if (!template) throw new Error(`Unknown source item or template for section ${descriptor.id}.`);
+    return renderTemplate(template, descriptor.id);
+  });
+  const first = children[0]!.position!;
+  const last = children.at(-1)!;
+  const lastEnd = nodeEndOffset(source, last);
+  const between = source.slice(first.start.offset, lastEnd);
+  const withoutChildren = children.reduce(
+    (value, node) => value.replace(elementSource(source, node), ''),
+    between,
+  );
+  if (withoutChildren.trim()) {
+    throw new Error('The mapped Astro children are not contiguous; reordering was refused.');
+  }
+  const gap = between.match(/>([\s\r\n]+)</u)?.[1] ?? '\n';
+  const next = applyRanges(source, [
+    {
+      start: first.start.offset,
+      end: lastEnd,
+      replacement: ordered.join(gap),
+      label: `mapped section region ${change.regionId}`,
+    },
+  ]);
+  await validateAstro(next, change.filePath);
+  return next;
+}
+
+export async function applyAstroSections(
+  source: string,
+  change: SectionsEditorChange,
+  templates: SectionTemplate[],
+): Promise<string> {
+  if (change.sourcePath?.startsWith('astro:children:')) {
+    return applyMappedAstroChildren(source, change, templates);
+  }
+  assertUniqueSectionIds(change.before, 'Previous section state');
+  assertUniqueSectionIds(change.after, 'Next section state');
+  const ast = await parseAstro(source);
   const region = findRegion(ast, change.regionId);
   const sections = directSections(region);
   const current = sections.map((node) => ({ id: attribute(node, 'data-section')! }));
-  if (
-    current.map((item) => item.id).join('\0') !== change.before.map((item) => item.id).join('\0')
-  ) {
-    throw new Error(`Section order changed before commit in region "${change.regionId}".`);
+  const currentIds = current.map((item) => item.id);
+  const beforeIds = change.before.map((item) => item.id);
+  if ([...currentIds].sort().join('\0') !== [...beforeIds].sort().join('\0')) {
+    throw new Error(
+      `Sections were added or removed in region "${change.regionId}" before this save. ` +
+        'Your changes remain local; refresh the page before trying again.',
+    );
   }
   if (sections.length === 0)
     throw new Error('An editable section region must start with at least one section.');
@@ -346,7 +765,10 @@ export async function applyAstroSections(
         'Keep editable sections contiguous so reordering cannot discard content.',
     );
   }
-  const gap = between.match(/<\/section>([\s\r\n]+)<section/u)?.[1] ?? '\n';
+  const gap =
+    sections.length > 1
+      ? source.slice(nodeEndOffset(source, sections[0]!), sections[1]!.position!.start.offset)
+      : '\n';
   const range: SourceRange = {
     start: first.start.offset,
     end: last.end.offset,

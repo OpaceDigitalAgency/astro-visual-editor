@@ -11,6 +11,14 @@ export interface SectionTemplate {
 
 export type ClientSectionTemplate = SectionTemplate;
 
+/** Optional local routes shown by a project's demonstration configuration. */
+export interface DemoPage {
+  id: string;
+  label: string;
+  path: string;
+  description: string;
+}
+
 export type EditabilityEffect = 'allow' | 'deny';
 export type EditabilityRuleScope = 'element' | 'selector';
 
@@ -27,6 +35,21 @@ export interface EditabilityRule {
 export interface EditabilityPolicy {
   version: 1;
   rules: EditabilityRule[];
+  regions?: SectionRegionRule[];
+}
+
+export interface SectionRegionItem {
+  id: string;
+  sourceKey: string;
+}
+
+export interface SectionRegionRule {
+  id: string;
+  route: string;
+  selector: string;
+  filePath: string;
+  sourcePath: string;
+  items: SectionRegionItem[];
 }
 
 export interface BaseEditorChange {
@@ -39,6 +62,9 @@ export interface TextEditorChange extends BaseEditorChange {
   kind: 'text';
   oldText: string;
   newText: string;
+  /** Session-scoped element identity so re-edits update in place even when
+   *  structural changes renumber every selector on the page. */
+  elementUid?: string;
   selector?: string;
   /** Required for JSON/YAML and recommended for frontmatter, e.g. hero.title. */
   sourcePath?: string;
@@ -57,17 +83,33 @@ export interface SeoEditorChange extends BaseEditorChange {
 
 export interface SectionDescriptor {
   id: string;
+  /** Human-readable rendered label used only in the review UI. */
+  label?: string;
   templateId?: string;
+  sourceKey?: string;
 }
 
 export interface SectionsEditorChange extends BaseEditorChange {
   kind: 'sections';
   regionId: string;
+  sourcePath?: string;
   before: SectionDescriptor[];
   after: SectionDescriptor[];
 }
 
 export type EditorChange = TextEditorChange | SeoEditorChange | SectionsEditorChange;
+
+/** Plain-language explanation shown to editors on content the tool cannot edit. */
+export interface LockedAreaMessage {
+  /** CSS selector for the locked area; matched with closest(), so it may target an ancestor. */
+  selector: string;
+  /** Optional route filter, e.g. "/services". A trailing * matches route prefixes. */
+  route?: string;
+  /** Owner-facing sentence explaining why this content is not editable here. */
+  message: string;
+  /** Optional owner-facing sentence explaining what would make it editable. */
+  action?: string;
+}
 
 export interface ClientEditorConfig {
   editableSelectors: string[];
@@ -75,6 +117,8 @@ export interface ClientEditorConfig {
   fileMappings: Record<string, string>;
   selectorMappings: Record<string, string>;
   sectionTemplates: ClientSectionTemplate[];
+  demoPages: DemoPage[];
+  lockedAreaMessages: LockedAreaMessage[];
   maxChanges: number;
   maxTextLength: number;
   requestTimeoutMs: number;
@@ -113,6 +157,7 @@ export interface PreviewResponse extends ClientMessage {
   success: boolean;
   diffs?: FileDiff[];
   error?: string;
+  failedChangeId?: string;
 }
 
 export interface SaveResponse extends ClientMessage {
@@ -122,6 +167,7 @@ export interface SaveResponse extends ClientMessage {
   changeCount?: number;
   receiptId?: string;
   error?: string;
+  failedChangeId?: string;
 }
 
 export interface ReceiptRequest extends ClientMessage {
@@ -143,6 +189,30 @@ export interface RevertResponse extends ClientMessage {
   requestId: string;
   receiptId: string;
   success: boolean;
+  files?: string[];
+  error?: string;
+}
+
+export interface SessionStateRequest extends ClientMessage {
+  requestId: string;
+}
+
+export interface SessionStateResponse extends ClientMessage {
+  requestId: string;
+  /** True when this session has at least one saved change that can be rewound. */
+  available: boolean;
+  /** Project-relative files the restore would rewind. */
+  files: string[];
+}
+
+export interface SessionRestoreRequest extends ClientMessage {
+  requestId: string;
+}
+
+export interface SessionRestoreResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  /** Files rewound to their state before this session's first save. */
   files?: string[];
   error?: string;
 }
@@ -177,6 +247,92 @@ export interface EditabilityPolicyResponse extends ClientMessage {
   policyFile?: string;
   canManage?: boolean;
   diff?: FileDiff;
+  error?: string;
+}
+
+export interface SourceDiscoveryRequest extends ClientMessage {
+  requestId: string;
+  route: string;
+  selector: string;
+  text: string;
+  hintedFilePath?: string;
+  /** Zero-step resolution: many texts resolved in one bounded source scan. */
+  batch?: Array<{ selector: string; text: string }>;
+}
+
+export type SourceCandidateFormat = 'astro' | 'markdown' | 'json' | 'yaml';
+
+export interface SourceCandidate {
+  id: string;
+  filePath: string;
+  sourcePath?: string;
+  format: SourceCandidateFormat;
+  line: number;
+  confidence: 'exact' | 'likely';
+  reason: string;
+}
+
+export interface SourceDiscoveryResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  candidates?: SourceCandidate[];
+  /** Batch-mode results, one entry per requested selector. */
+  results?: Array<{ selector: string; candidates: SourceCandidate[] }>;
+  searchedFiles?: number;
+  truncated?: boolean;
+  error?: string;
+}
+
+export interface SeoFieldCapability {
+  /** False when no safe literal source location exists for this field. */
+  editable: boolean;
+  /** The literal source value the adapter will compare against when saving. */
+  value: string;
+  /** Plain-language explanation shown beside a field that cannot be saved. */
+  reason?: string;
+}
+
+export interface SeoCapabilitiesRequest extends ClientMessage {
+  requestId: string;
+  filePath: string;
+}
+
+export interface SeoCapabilitiesResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  filePath?: string;
+  fields?: Record<SeoField, SeoFieldCapability>;
+  error?: string;
+}
+
+export interface SectionDiscoveryRequest extends ClientMessage {
+  requestId: string;
+  route: string;
+  selector: string;
+  itemCount: number;
+  containerTag?: string;
+  itemTags?: string[];
+  hintedFilePath?: string;
+}
+
+export interface SectionRegionCandidate {
+  id: string;
+  filePath: string;
+  sourcePath: string;
+  line: number;
+  confidence: 'exact' | 'likely';
+  containerTag?: string;
+  itemTags?: string[];
+  itemValues?: string[][];
+  reason: string;
+  items: SectionRegionItem[];
+}
+
+export interface SectionDiscoveryResponse extends ClientMessage {
+  requestId: string;
+  success: boolean;
+  candidates?: SectionRegionCandidate[];
+  searchedFiles?: number;
   error?: string;
 }
 

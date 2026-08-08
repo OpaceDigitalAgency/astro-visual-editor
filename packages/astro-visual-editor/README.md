@@ -11,25 +11,88 @@ A development-only visual editor for Astro with text editing, SEO fields,
 section templates, real drag-and-drop, a reviewable change ledger and validated
 source transactions.
 
-The current public beta is `0.1.0-beta.4`. It is published through npm trusted
-GitHub OIDC with provenance and has passed a clean Astro 7.1.6 registry install
-and production build.
-
-Beta 4 adds an owner-facing Editability Setup with a guided, reviewed policy
-workflow.
+Beta 6 introduces zero-step editing — enable the editor on an unannotated
+Astro page and unique literal text becomes editable immediately while safe
+structural matches become live drag-reorderable sections — alongside a
+Divi/Elementor-style editing model: a Page structure tree enumerating every
+group, row, section and block with its lock state, a quiet rendered canvas
+with one labelled toolbar per pointed-at element, double-click in-place text
+editing, drag-and-drop with a landing-edge preview, JSON/YAML array
+reordering, plain-language lock explanations, durable session restore and
+full SEO field editing with per-field source capability checks. Published
+through npm trusted GitHub OIDC with provenance.
 
 It uses Astro's native Dev Toolbar and `astro:server:setup` communication. It
 does not ship an editor client or write endpoint in production.
 
 Built by [Opace Astro developers](https://opace.agency/services/web-design/astro-development/).
 
-| Mode     | Included workflow                                                        |
-| -------- | ------------------------------------------------------------------------ |
-| Text     | Select rendered content, preview the replacement and queue it            |
-| Sections | Add templates, delete, move or pointer-drag inside declared regions      |
-| SEO      | Edit title, description, keywords, canonical, Open Graph and robots      |
-| Review   | Inspect mixed changes, undo/redo, commit once and conflict-check reverts |
-| Setup    | Inventory visible content and review project-owned allow/deny policy     |
+| Mode    | Included workflow                                                       |
+| ------- | ----------------------------------------------------------------------- |
+| Builder | Select rendered content or named sections and edit directly on canvas   |
+| Page    | Edit title, description, keywords, canonical, Open Graph and robots     |
+| Changes | Inspect mixed changes, undo/redo, save once and conflict-check restores |
+| Locks   | Lock or unlock an element/section directly on the rendered page         |
+
+## See it in action
+
+Zero-setup editing on a completely plain Astro page — no data attributes, no
+regions, no configuration — with sections auto-inferred and one selected:
+
+![Zero-setup editing on a plain Astro page: auto-inferred sections with a selected section toolbar and inspector](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/shot-zero-step.png)
+
+The progressive-disclosure builder — quiet canvas at rest, one full toolbar
+on the selected block, persistent lock chips on locked content:
+
+![The visual builder with a selected block toolbar, a locked chip and the docked inspector](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/shot-builder.png)
+
+The SEO form with all seven fields capability-checked against their real
+source, and the review tray where every change waits for one validated save:
+
+![The SEO form with all seven fields prefilled from the page's real source values](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/shot-seo.png)
+
+![The review tray showing a queued text edit and a section reorder with before/after values](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/shot-review.png)
+
+The [repository demo](https://github.com/OpaceDigitalAgency/astro-visual-editor#try-the-repository-demo)
+ships three fixtures: **Simple demo** (the annotated happy path), **Complex
+sources** (layout, components, JSON and a Content Collection in one
+multi-file batch) and **Plain (zero setup)** (an unannotated page edited
+entirely by inference). The demo also bundles `@astrojs/sitemap` and real
+head markup so SEO editing is proven against a conventional Astro site.
+
+## Roadmap and requests
+
+Zero-step editing covers conventional Astro pages today. Planned for the
+next betas, roughly in order:
+
+- **Dynamic and collection routes** — inferring the owning content file for
+  `[slug]` pages and Content Collections without any mapping.
+- **Repeated-text disambiguation** — safe automatic resolution when the same
+  string appears in several files (i18n locales, repeated CTAs).
+- **Client islands** — mapping text rendered by React/Vue/Svelte islands back
+  to their component source.
+- **Full design control** — Elementor/Divi-grade style editing rather than
+  today's read-only Design tab: typography (family, size, weight, line
+  height), spacing, colours, backgrounds, borders and shadows, edited on the
+  canvas and written back only where the owning CSS or Astro style source
+  can be proven safely.
+- **Light and dark mode** — theme switching for the editor panel, plus
+  light/dark variants in the bundled demos and planned starter themes.
+- **Structured data** — schema.org/JSON-LD editing alongside the existing SEO
+  fields in the Page tab.
+- **Live re-inference** — automatically re-running zero-step resolution when
+  HMR introduces new content mid-session.
+- **Images and assets** — replacing images from the canvas with source-safe
+  asset handling.
+
+Want one of these sooner, or something we have not planned?
+
+[![Request a change](https://img.shields.io/badge/Request%20a%20change-%E2%86%92-6c2eb9?style=for-the-badge)](https://github.com/OpaceDigitalAgency/astro-visual-editor/issues/new/choose)
+
+Bug reports and questions are welcome in
+[GitHub Issues](https://github.com/OpaceDigitalAgency/astro-visual-editor/issues);
+[SUPPORT.md](https://github.com/OpaceDigitalAgency/astro-visual-editor/blob/main/SUPPORT.md)
+lists every support route.
 
 ## Install
 
@@ -56,21 +119,47 @@ export default defineConfig({
 
 Run `astro dev`, open the Dev Toolbar and choose **Visual Editor**.
 
-## Included modes
+## Familiar visual-builder workflow
 
-- **Text:** click or focus (`Alt+Enter`) rendered text, preview and queue it.
-- **Sections:** add from templates, delete and reorder with drag, buttons or
-  keyboard controls.
-- **SEO:** title, description, keywords, canonical, Open Graph and robots.
-- **Review:** mixed-change ledger, individual removal, undo/redo, clear,
-  idempotent commit and conflict-protected revert.
+- **Builder content:** every discovered text boundary appears when the editor opens;
+  click or focus (`Alt+Enter`) rendered text. Desktop selection
+  stays outlined on the page and opens an element-named inspector with
+  **Content**, **Design** and **Advanced** tabs. Typing previews and auto-queues
+  locally after a short pause; there is no Queue button. Mobile retains a
+  focused dialog.
+- **Builder sections:** blue named groups and teal named section handles are
+  active immediately. Persistent badges say **Editable**, **Locked** or
+  **Protected**. Source-owned rows and blocks have their own neutral handles and
+  persistent drag dots; click the dots to expose settings, lock/unlock, move
+  and delete where the validated source region supports them. Add from templates
+  in the inspector.
+- **Page:** title, description, keywords, canonical, Open Graph and robots.
+- **Changes:** compact mixed-change tray with individual removal, undo/redo,
+  discard, idempotent save and conflict-protected restore. A rejected save keeps
+  every local draft, explains the issue without raw selectors and can save the
+  independently valid changes while retaining the failed item for correction.
 
-The queue recovers through Astro HMR/navigation and stays isolated per browser
+The Content tab contains the source-safe editable value. Locked content shows a
+clear state card instead of an editable-looking disabled field. Design reports the
+actual rendered typography and spacing, but does not pretend it can write an
+unresolved CSS/style owner. Advanced identifies the exact source file, field
+and page selector and explains protected source ownership when needed.
+
+The local unsaved set recovers through Astro HMR/navigation and stays isolated per browser
 tab. The workbench collapses to compact Pick mode on desktop or mobile. Icon
 controls provide visible hover/focus tooltips, and dialogs close with Cancel,
 Escape or a backdrop click.
 
-## Reliable source mapping
+## Automatic and explicit source mapping
+
+Unresolved rendered text remains source-protected. The underlying discovery
+engine can search supported files with syntax-aware parsers and retains exact
+file, line and structured-path candidates for advanced project tooling.
+Repeated Astro literals receive separate stale-checked node locators, so the
+editor never guesses from global text.
+
+Explicit annotations remain useful when a project wants to publish its source
+ownership directly:
 
 Annotate the owning file and give important elements stable browser IDs:
 
@@ -88,6 +177,20 @@ JSON, JSONC and YAML require an exact path:
 </h1>
 ```
 
+Explicit source annotations may also explain their provenance and identify
+known shared routes. The editor displays that context before queueing an edit:
+
+```astro
+<h1
+  data-astro-edit-file="src/data/home.json"
+  data-astro-edit-path="hero.title"
+  data-astro-edit-origin="a direct JSON import"
+  data-astro-edit-shared-routes="/,/pricing"
+>
+  {home.hero.title}
+</h1>
+```
+
 Selector and route mappings are also supported:
 
 ```js
@@ -101,16 +204,15 @@ visualEditor({
 });
 ```
 
-## Editability Setup
+## Direct canvas locks
 
-The settings control opens a local owner-only inventory of visible content.
-Each item is labelled editable, blocked, unresolved or structurally unsafe and
-shows the source reason. Owners can review element or selector-group allow/deny
-rules, confirm an unresolved source file/path, inspect the exact JSON diff and
-save `astro-visual-editor.policy.json` in the project root. Choosing a
-permission opens that review immediately. Cancelling clearly marks the choice
-as unsaved, while saving returns directly to normal editing. Labelled **Back to
-editor** controls remain visible throughout setup.
+Ordinary editing has no separate permission setup screen. Hierarchy colours
+identify groups, sections and content levels, while visible badges and
+lock/shield controls identify **Editable**, **Locked** and **Protected** states.
+Hover an element or section and click its lock icon, or use the same Lock/Unlock
+action in the selected-item inspector. That single owner action is
+server-validated and persisted to
+`astro-visual-editor.policy.json` with expected-hash conflict protection.
 
 Saved policy survives reloads and other checkouts because it is a normal
 Git-reviewable project file. Allow rules never bypass explicit ignore markers,
@@ -120,6 +222,20 @@ able to change it; network-exposed development servers cannot manage policy.
 
 ## Persistent section regions
 
+Declared and saved section regions are active as soon as the editor opens.
+Clicking a section opens its contextual Builder inspector automatically; its
+toolbar exposes only operations the source adapter can safely perform. The
+candidate supports contiguous Astro component/element children and complete
+JSON/JSONC or YAML array items. Structured candidates must match rendered child
+values in order. Source blocks and structured items are hash-checked before
+every reorder; ambiguous structure stays protected.
+
+Each mapped row or block region reorders only its own direct source-owned
+children. A successful structural save resets the local baseline; a later
+order-only source difference is rebased only when the same stable IDs remain.
+
+Projects can still declare a region directly:
+
 ```astro
 <div data-astro-edit-region="homepage" data-astro-edit-file="src/pages/index.astro">
   <section data-section="hero">...</section>
@@ -128,10 +244,10 @@ able to change it; network-exposed development servers cannot manage policy.
 </div>
 ```
 
-Sections must be contiguous direct children with unique stable IDs. This is a
-deliberate safety contract: arbitrary component structure is never rewritten.
-Existing sections drag only within their declared region. Add before/after
-inserts validated templates; arbitrary page-wide and cross-region drops are not
+Mapped or declared sections must resolve to contiguous direct source children
+or a complete structured array with unique item identities. Existing sections
+drag only within their region. Add before/after inserts validated templates for
+Astro-backed regions; arbitrary page-wide and cross-region drops are not
 supported.
 
 Custom templates use `{{id}}`:
@@ -157,6 +273,12 @@ visualEditor({
 
 Literal Astro head elements are updated/inserted and compiler-validated.
 Markdown/MDX SEO updates use YAML frontmatter.
+
+When a route delegates its head to a layout, each editable field must be
+exposed as a unique literal route prop: `title`, `description`, `keywords`,
+`canonical`, `ogTitle`, `ogDescription` and `robots`. The adapter refuses a
+missing, computed or ambiguous prop instead of guessing which shared layout
+source should change.
 
 ## Safety
 
@@ -186,6 +308,7 @@ interface AstroVisualEditorOptions {
   selectorMappings?: Record<string, string>;
   allowedExtensions?: Array<'.astro' | '.md' | '.mdx' | '.json' | '.jsonc' | '.yaml' | '.yml'>;
   sectionTemplates?: SectionTemplate[];
+  demoPages?: Array<{ id: string; label: string; path: string; description: string }>;
   maxChanges?: number;
   maxTextLength?: number;
   maxRequestBytes?: number;
@@ -200,19 +323,26 @@ interface AstroVisualEditorOptions {
 }
 ```
 
+`demoPages` is an optional local-demo route switcher. It is intended for test
+fixtures and is not application navigation.
+
 `allowUnsafeSourceText` and `allowRemoteDev` are expert escape hatches and are
 both disabled by default.
 
 ## Current boundaries
 
 - Local `astro dev` only; no authenticated production CMS.
-- Complex expressions/shared data need explicit file/path mapping.
+- Exact rendered values can be discovered in Astro, Markdown/frontmatter,
+  JSON/JSONC and YAML; ambiguous candidates require owner confirmation.
 - Unstructured MDX body expressions are refused.
-- Section operations require declared Astro regions.
+- Section setup can map contiguous Astro children and complete JSON/JSONC or
+  YAML arrays. Markdown body heading reordering and filtered, merged or
+  transformed subsets are not inferred automatically.
 - No arbitrary page-wide or cross-region section drops.
 - Checksummed local receipt history survives a complete dev-server restart and
   refuses unsafe restore when the record or saved file no longer matches.
-- Source tracing remains deliberately bounded to explicit, validated mappings.
+- If rendered output cannot be reversed to one validated source target, the
+  editor refuses the write instead of guessing.
 
 Documentation and support:
 

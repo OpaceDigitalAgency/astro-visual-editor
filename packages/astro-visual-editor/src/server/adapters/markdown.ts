@@ -1,5 +1,10 @@
 import { parseDocument } from 'yaml';
-import type { SeoEditorChange, SeoField, TextEditorChange } from '../../shared/types.js';
+import type {
+  SeoEditorChange,
+  SeoField,
+  SeoFieldCapability,
+  TextEditorChange,
+} from '../../shared/types.js';
 import { applyRanges, pathParts, uniqueRange } from './shared.js';
 
 interface Frontmatter {
@@ -33,6 +38,25 @@ function updateFrontmatter(
 }
 
 export function applyMarkdownText(source: string, change: TextEditorChange): string {
+  if (change.sourcePath?.startsWith('markdown:body:')) {
+    const offset = Number(change.sourcePath.slice('markdown:body:'.length));
+    if (
+      !Number.isSafeInteger(offset) ||
+      source.slice(offset, offset + change.oldText.length) !== change.oldText
+    ) {
+      throw new Error(
+        `The confirmed Markdown source mapping is stale for ${change.filePath}. Run source discovery again.`,
+      );
+    }
+    return applyRanges(source, [
+      {
+        start: offset,
+        end: offset + change.oldText.length,
+        replacement: change.newText,
+        label: `${change.filePath} Markdown body`,
+      },
+    ]);
+  }
   if (change.sourcePath) {
     const path = pathParts(change.sourcePath.replace(/^frontmatter\./u, ''));
     return updateFrontmatter(source, (document) => {
@@ -62,6 +86,24 @@ const seoPaths: Record<SeoField, Array<string>> = {
   ogDescription: ['openGraph', 'description'],
   robots: ['robots'],
 };
+
+/**
+ * Frontmatter keys can always be added, replaced or removed, so every field is
+ * editable. The reported values come from the file rather than the rendered
+ * page so a layout that decorates the title cannot cause a stale-value refusal.
+ */
+export function describeMarkdownSeoCapabilities(
+  source: string,
+): Record<SeoField, SeoFieldCapability> {
+  const block = frontmatter(source);
+  const document = block ? parseDocument(block.body) : undefined;
+  const fields = {} as Record<SeoField, SeoFieldCapability>;
+  for (const field of Object.keys(seoPaths) as SeoField[]) {
+    const current = document?.errors.length ? undefined : document?.getIn(seoPaths[field], true);
+    fields[field] = { editable: true, value: String(current ?? '') };
+  }
+  return fields;
+}
 
 export function applyMarkdownSeo(source: string, change: SeoEditorChange): string {
   return updateFrontmatter(source, (document) => {

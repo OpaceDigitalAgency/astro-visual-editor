@@ -1,0 +1,33 @@
+---
+// Zero-step acceptance fixture: deliberately NO editor annotations, no
+// fileMappings entry, no policy rules. Everything the editor offers here
+// must come from automatic discovery and inference alone.
+const features = ['Fast static builds', 'Island architecture....', 'Zero JavaScript by default'];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Plain unannotated page</title>
+    <meta name="description" content="No editor annotations anywhere on this page." />
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>A completely ordinary page</h1>
+        <p>This paragraph has no data attributes, no regions, no sections.</p>
+      </section>
+      <section>
+        <h2>Why plain pages matter</h2>
+        <p>Editors must earn their access from the source, not from labels.</p>
+      </section>
+      <section>
+        <h2>Feature list</h2>
+        <ul>
+          {features.map((feature) => <li>{feature}</li>)}
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

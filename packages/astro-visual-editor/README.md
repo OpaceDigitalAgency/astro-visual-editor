@@ -34,6 +34,32 @@ Built by [Opace Astro developers](https://opace.agency/services/web-design/astro
 | Changes | Inspect mixed changes, undo/redo, save once and conflict-check restores |
 | Locks   | Lock or unlock an element/section directly on the rendered page         |
 
+## See it in action
+
+Zero-setup editing on a completely plain Astro page — no data attributes, no
+regions, no configuration — with sections auto-inferred and one selected:
+
+![Zero-setup editing on a plain Astro page: auto-inferred sections with a selected section toolbar and inspector](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/shot-zero-step.png)
+
+The progressive-disclosure builder — quiet canvas at rest, one full toolbar
+on the selected block, persistent lock chips on locked content:
+
+![The visual builder with a selected block toolbar, a locked chip and the docked inspector](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/shot-builder.png)
+
+The SEO form with all seven fields capability-checked against their real
+source, and the review tray where every change waits for one validated save:
+
+![The SEO form with all seven fields prefilled from the page's real source values](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/shot-seo.png)
+
+![The review tray showing a queued text edit and a section reorder with before/after values](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/shot-review.png)
+
+The [repository demo](https://github.com/OpaceDigitalAgency/astro-visual-editor#try-the-repository-demo)
+ships three fixtures: **Simple demo** (the annotated happy path), **Complex
+sources** (layout, components, JSON and a Content Collection in one
+multi-file batch) and **Plain (zero setup)** (an unannotated page edited
+entirely by inference). The demo also bundles `@astrojs/sitemap` and real
+head markup so SEO editing is proven against a conventional Astro site.
+
 ## Roadmap and requests
 
 Zero-step editing covers conventional Astro pages today. Planned for the

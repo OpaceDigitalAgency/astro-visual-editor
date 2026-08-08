@@ -35,6 +35,33 @@ a wider website project, see the <a href="https://opace.agency/services/web-desi
 | Changes         | One mixed text, SEO and section tray with undo, redo, save and guarded restore |
 | Safety boundary | Local development only; no editor client or write endpoint in production       |
 
+## See it in action
+
+**Zero-setup editing.** A completely plain Astro page — no data attributes, no
+regions, no configuration — with sections auto-inferred, one selected and its
+full toolbar and inspector open:
+
+![Zero-setup editing on a plain Astro page: auto-inferred sections with a selected section toolbar and inspector](./.github/assets/shot-zero-step.png)
+
+**Progressive-disclosure builder.** The rendered page stays quiet until you
+interact: faint boundaries at rest, one labelled tag on hover, one full
+toolbar on the selected block. Locked content shows a persistent lock chip
+with a one-click explanation:
+
+![The visual builder with a selected block toolbar, a locked chip and the docked inspector](./.github/assets/shot-builder.png)
+
+**SEO editing.** Title, description, keywords, canonical URL, Open Graph
+fields and robots directives in one form, each field capability-checked
+against its real source before it is offered:
+
+![The SEO form with all seven fields prefilled from the page's real source values](./.github/assets/shot-seo.png)
+
+**Reviewable changes.** Every text, SEO and structural edit lands in one
+ledger with plain-language before/after summaries; nothing touches source
+until you save the reviewed batch:
+
+![The review tray showing a queued text edit and a section reorder with before/after values](./.github/assets/shot-review.png)
+
 ## What it does
 
 - Work with zero setup on conventional Astro sites: enable the editor on an
@@ -210,6 +237,41 @@ npm run dev --workspace astro-visual-editor-demo -- --host 127.0.0.1 --port 4322
 
 Open [http://127.0.0.1:4322/](http://127.0.0.1:4322/), expand Astro's developer
 toolbar and select **Astro Visual Editor**.
+
+### The three demo pages
+
+The workbench's route switcher jumps between three fixtures, each proving a
+different level of the source-attribution ladder:
+
+| Demo                   | Route               | What it proves                                                                                                                                                                                                                               |
+| ---------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Simple demo**        | `/`                 | The annotated happy path: a landing page whose sections carry explicit `data-astro-edit-*` attributes, a declared section region, template insertion and the full text/SEO/reorder workflow.                                                 |
+| **Complex sources**    | `/fixtures/complex` | Multi-source attribution: one page fed by a shared layout, imported components, a JSON data file and a Content Collection entry — every value editable with its own file, path and validation trail, saved together in one multi-file batch. |
+| **Plain (zero setup)** | `/fixtures/plain`   | Zero-step editing: a page with no data attributes, no regions and no configuration. Text with a single literal source occurrence becomes editable and safe structural matches become drag-reorderable sections, entirely by inference.       |
+
+Start with **Plain (zero setup)** to see what the editor does on a site it has
+never been told about, then use **Complex sources** to see how far the source
+trail reaches when a page mixes layouts, components and structured data.
+
+### Bundled SEO tooling
+
+The demo is set up as a conventional SEO-ready Astro site so the editor is
+proven against realistic head markup, not a toy:
+
+- **@astrojs/sitemap** runs alongside the visual editor in
+  [`demo/astro.config.mjs`](./demo/astro.config.mjs), demonstrating that the
+  editor coexists with standard Astro integrations.
+- The fixtures render real `<title>`, meta description, keywords, canonical,
+  Open Graph and robots tags — the same seven fields the **Page** tab edits.
+- Each SEO field is capability-checked per page: the editor inspects the
+  owning source (literal head elements, frontmatter or delegated layout
+  props) and only offers fields it can prove it can write back safely.
+- The complex fixture delegates metadata to a layout through literal route
+  props, exercising the delegated-prop editing path documented under
+  [Page](#page).
+
+Structured-data (schema.org/JSON-LD) editing is on the
+[roadmap](#roadmap-and-requests).
 
 Suggested review path:
 

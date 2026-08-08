@@ -2546,6 +2546,9 @@ export default defineToolbarApp({
       const block = candidate.closest<HTMLElement>('[data-astro-ve-section-active="true"]');
       const blockWasDraggable = block?.draggable === true;
       if (block) block.draggable = false;
+      // Snapshot the restore baseline locally: the shared variable is reset
+      // by clearSelection, which other handlers may trigger mid-edit.
+      const inlineOriginal = editingOriginalText;
       document
         .querySelectorAll<HTMLElement>('.astro-ve-element-controls:not([data-pinned="true"])')
         .forEach((bar) => bar.remove());
@@ -2561,7 +2564,7 @@ export default defineToolbarApp({
       const controller = new AbortController();
       const finish = (restoreOriginal: boolean): void => {
         controller.abort();
-        if (restoreOriginal) candidate.textContent = editingOriginalText;
+        if (restoreOriginal) candidate.textContent = inlineOriginal;
         candidate.removeAttribute('contenteditable');
         delete candidate.dataset.astroVeInlineEditing;
         if (block && blockWasDraggable) block.draggable = true;
@@ -3685,6 +3688,10 @@ export default defineToolbarApp({
     function onDocumentKeydown(event: KeyboardEvent): void {
       if (!active) return;
       if (event.key === 'Escape' && editing && !textDialog.open) {
+        // Inline editing owns Escape: this capture-phase handler would
+        // otherwise clear the selection (and the restore baseline) before
+        // the element's own handler can revert the text.
+        if (editing.dataset.astroVeInlineEditing === 'true') return;
         event.preventDefault();
         clearSelection();
         return;

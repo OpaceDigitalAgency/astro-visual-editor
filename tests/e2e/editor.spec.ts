@@ -1148,6 +1148,17 @@ test('rewinds every save in the session with Restore session start', async ({ pa
       .poll(async () => readFile(demoSource, 'utf8'))
       .toContain('Second session edit for the rewind test.');
 
+    // A brand-new tab must reconnect to the same undo trail: the client
+    // identity is durable, so closing a tab never orphans the rewind.
+    const freshTab = await page.context().newPage();
+    await freshTab.goto('/');
+    const fresh = await enableEditor(freshTab);
+    await fresh.workbench.getByRole('button', { name: /Open changes tray/ }).click();
+    await expect(
+      fresh.workbench.getByRole('button', { name: 'Restore session start' }),
+    ).toBeEnabled();
+    await freshTab.close();
+
     await page.waitForTimeout(1_000);
     await waitForWorkbenchButtonEnabled(page, /Open changes tray/);
     current = await enableEditor(page);

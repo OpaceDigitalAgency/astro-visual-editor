@@ -175,11 +175,12 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 }
 
 function getClientId(): string {
-  let id = sessionStorage.getItem(SESSION_CLIENT);
-  if (!id) {
-    id = crypto.randomUUID();
-    sessionStorage.setItem(SESSION_CLIENT, id);
-  }
+  // localStorage, not sessionStorage: closing the tab must not orphan the
+  // undo trail. The sessionStorage read migrates identities minted before
+  // this change so an in-flight session keeps its history.
+  let id = localStorage.getItem(SESSION_CLIENT) ?? sessionStorage.getItem(SESSION_CLIENT);
+  if (!id) id = crypto.randomUUID();
+  localStorage.setItem(SESSION_CLIENT, id);
   return id;
 }
 
@@ -432,7 +433,10 @@ export default defineToolbarApp({
     let previewTimeoutId: number | undefined;
     let receiptPollId: number | undefined;
     let pendingRequestId = sessionStorage.getItem(SESSION_PENDING) ?? undefined;
-    let lastReceiptId = sessionStorage.getItem(SESSION_RECEIPT) ?? undefined;
+    let lastReceiptId =
+      localStorage.getItem(SESSION_RECEIPT) ??
+      sessionStorage.getItem(SESSION_RECEIPT) ??
+      undefined;
     let sessionRestoreAvailable = false;
     let sessionRestoreFiles: string[] = [];
     let savedHistory: HistoryEntry[] = [];
@@ -663,7 +667,7 @@ export default defineToolbarApp({
       'aria-labelledby': 'ave-session-restore-title',
       'aria-describedby': 'ave-session-restore-help',
     });
-    sessionRestoreDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Undo this session</p><h2 id="ave-session-restore-title">Restore how this session started?</h2><p id="ave-session-restore-help" class="field-help">Every file saved during this session goes back to how it was before your first save. The restore is refused if anything was changed outside this editor, so other work is never lost.</p><ul class="session-restore-files"></ul><div class="dialog-actions"><button class="secondary cancel-session-restore" type="button">Keep my changes</button><button class="danger confirm-session-restore" type="button">Restore session start</button></div></div>`;
+    sessionRestoreDialog.innerHTML = `<div class="dialog-body"><p class="eyebrow">Undo this session</p><h2 id="ave-session-restore-title">Restore how this session started?</h2><p id="ave-session-restore-help" class="field-help">Every file saved with this editor goes back to how it was before your first save, even across page reloads and closed tabs. The restore is refused if anything was changed outside this editor, so other work is never lost.</p><ul class="session-restore-files"></ul><div class="dialog-actions"><button class="secondary cancel-session-restore" type="button">Keep my changes</button><button class="danger confirm-session-restore" type="button">Restore session start</button></div></div>`;
 
     canvas.append(
       style,
@@ -777,7 +781,7 @@ export default defineToolbarApp({
       renderHistoryPanel(historyList, savedHistory, (entry) => {
         if (saveInFlight) return;
         lastReceiptId = entry.receiptId;
-        sessionStorage.setItem(SESSION_RECEIPT, entry.receiptId);
+        localStorage.setItem(SESSION_RECEIPT, entry.receiptId);
         historyDialog.close();
         requestRevert();
       });
@@ -3505,7 +3509,7 @@ export default defineToolbarApp({
         history.record(serializableQueue());
         if (queue.size === 0) sessionStorage.removeItem(SESSION_QUEUE);
         lastReceiptId = response.receiptId;
-        if (lastReceiptId) sessionStorage.setItem(SESSION_RECEIPT, lastReceiptId);
+        if (lastReceiptId) localStorage.setItem(SESSION_RECEIPT, lastReceiptId);
         if (queue.size > 0)
           showMessage(
             `Saved ${response.changeCount ?? 0} other change${response.changeCount === 1 ? '' : 's'}. The change that needs attention is still here.`,
@@ -3870,7 +3874,7 @@ export default defineToolbarApp({
       saveInFlight = false;
       if (response.success) {
         lastReceiptId = undefined;
-        sessionStorage.removeItem(SESSION_RECEIPT);
+        localStorage.removeItem(SESSION_RECEIPT);
         showMessage(
           `Restored ${response.files?.length ?? 0} source file${response.files?.length === 1 ? '' : 's'}.`,
           'success',
@@ -3898,7 +3902,7 @@ export default defineToolbarApp({
         sessionRestoreAvailable = false;
         sessionRestoreFiles = [];
         lastReceiptId = undefined;
-        sessionStorage.removeItem(SESSION_RECEIPT);
+        localStorage.removeItem(SESSION_RECEIPT);
         showMessage(
           `Restored ${response.files?.length ?? 0} file${response.files?.length === 1 ? '' : 's'} to how this session started.`,
           'success',

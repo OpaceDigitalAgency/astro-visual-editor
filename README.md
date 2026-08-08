@@ -473,7 +473,7 @@ interface AstroVisualEditorOptions {
   maxRequestBytes?: number; // 1,000,000
   maxSourceFileBytes?: number; // 5,000,000
   requestTimeoutMs?: number; // 15,000
-  receiptTtlMs?: number; // 10 minutes
+  receiptTtlMs?: number; // 24 hours
   historyLimit?: number; // 50
   allowUnsafeSourceText?: boolean;
   allowRemoteDev?: boolean;

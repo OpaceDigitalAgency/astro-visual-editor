@@ -139,7 +139,9 @@ const defaults: NormalizedOptions = {
   maxRequestBytes: 1_000_000,
   maxSourceFileBytes: 5_000_000,
   requestTimeoutMs: 15_000,
-  receiptTtlMs: 10 * 60_000,
+  // A day, matching the session-restore window: an owner who saves, walks
+  // away and regrets it after lunch can still step back.
+  receiptTtlMs: 24 * 60 * 60_000,
   historyLimit: 50,
   allowUnsafeSourceText: false,
   allowRemoteDev: false,

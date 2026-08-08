@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -270,5 +271,63 @@ describe('TransactionManager', () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 5));
     expect(await new TransactionManager(root, src, options).history()).toEqual([]);
+  });
+
+  it('remaps JSON text edits queued against pre-reorder array indices', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ave-transaction-'));
+    const src = join(root, 'src');
+    await mkdir(join(src, 'data'), { recursive: true });
+    const dataFile = join(src, 'data', 'page.json');
+    const items = [
+      { label: 'Layout', value: 'Shared navigation' },
+      { label: 'Component', value: 'Reusable hero' },
+      { label: 'Data', value: 'Direct JSON' },
+    ];
+    await writeFile(dataFile, `${JSON.stringify({ evidence: items }, null, 2)}\n`);
+    const key = (item: (typeof items)[number]): string =>
+      createHash('sha256').update(JSON.stringify(item)).digest('hex').slice(0, 20);
+    const manager = new TransactionManager(root, src, normalizeOptions());
+    // The text edit targets evidence.1 (Component) as rendered before the
+    // reorder moved that entry to position 0. Both must land.
+    const response = await manager.save({
+      clientId: 'tab',
+      requestId: 'reorder-and-edit',
+      changes: [
+        {
+          kind: 'sections',
+          id: 'reorder',
+          filePath: 'src/data/page.json',
+          route: '/',
+          regionId: 'cards',
+          sourcePath: 'json:array:evidence',
+          before: [
+            { id: 'card-0', sourceKey: key(items[0]!) },
+            { id: 'card-1', sourceKey: key(items[1]!) },
+            { id: 'card-2', sourceKey: key(items[2]!) },
+          ],
+          after: [
+            { id: 'card-1', sourceKey: key(items[1]!) },
+            { id: 'card-0', sourceKey: key(items[0]!) },
+            { id: 'card-2', sourceKey: key(items[2]!) },
+          ],
+        },
+        {
+          kind: 'text',
+          id: 'edit',
+          filePath: 'src/data/page.json',
+          route: '/',
+          sourcePath: 'evidence.1.value',
+          oldText: 'Reusable hero',
+          newText: 'Reusable hero, updated',
+        },
+      ],
+    });
+    expect(response.success).toBe(true);
+    const saved = JSON.parse(await readFile(dataFile, 'utf8')) as {
+      evidence: Array<{ label: string; value: string }>;
+    };
+    expect(saved.evidence.map((item) => item.label)).toEqual(['Component', 'Layout', 'Data']);
+    expect(saved.evidence[0]!.value).toBe('Reusable hero, updated');
+    expect(saved.evidence[1]!.value).toBe('Shared navigation');
   });
 });

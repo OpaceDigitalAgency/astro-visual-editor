@@ -69,6 +69,47 @@ function operationPriority(change: EditorChange): number {
   return 2;
 }
 
+/**
+ * A structured-array reorder changes the index every sibling text edit was
+ * queued against, because the rendered page addresses array entries by
+ * position (`evidence.0.value`). The entries themselves move intact, so a
+ * batch that reorders and edits the same array is safe as long as each text
+ * path is remapped through the reorder's own permutation. Without this, the
+ * adapter's stale-value check correctly refuses the batch — safe, but it
+ * rejects an entirely reasonable user action.
+ */
+function remapStructuredTextPaths(changes: EditorChange[]): EditorChange[] {
+  const remaps: Array<{ arrayPath: string; map: Map<number, number> }> = [];
+  for (const change of changes) {
+    if (change.kind !== 'sections') continue;
+    const match = change.sourcePath?.match(/^(?:json|yaml):array:(.+)$/u);
+    if (!match) continue;
+    const map = new Map<number, number>();
+    change.before.forEach((item, oldIndex) => {
+      if (!item.sourceKey) return;
+      const newIndex = change.after.findIndex((entry) => entry.sourceKey === item.sourceKey);
+      if (newIndex >= 0) map.set(oldIndex, newIndex);
+    });
+    remaps.push({ arrayPath: match[1]!, map });
+  }
+  if (remaps.length === 0) return changes;
+  return changes.map((change) => {
+    if (change.kind !== 'text' || !change.sourcePath) return change;
+    let sourcePath = change.sourcePath;
+    for (const { arrayPath, map } of remaps) {
+      const prefix = `${arrayPath}.`;
+      if (!sourcePath.startsWith(prefix)) continue;
+      const [head, ...tail] = sourcePath.slice(prefix.length).split('.');
+      const oldIndex = Number(head);
+      if (!Number.isInteger(oldIndex)) continue;
+      const newIndex = map.get(oldIndex);
+      if (newIndex === undefined || newIndex === oldIndex) continue;
+      sourcePath = [arrayPath, String(newIndex), ...tail].join('.');
+    }
+    return sourcePath === change.sourcePath ? change : { ...change, sourcePath };
+  });
+}
+
 function safeTempPath(fullPath: string): string {
   return join(dirname(fullPath), `.astro-visual-editor-${randomUUID()}.tmp`);
 }
@@ -455,11 +496,13 @@ export class TransactionManager {
       );
       snapshots.set(snapshot.fullPath, snapshot);
       let next = snapshot.source;
-      const sorted = [...fileChanges].sort((a, b) => {
-        const priority = operationPriority(a) - operationPriority(b);
-        if (priority !== 0 || a.kind !== 'text' || b.kind !== 'text') return priority;
-        return snapshot.source.indexOf(b.oldText) - snapshot.source.indexOf(a.oldText);
-      });
+      const sorted = remapStructuredTextPaths(
+        [...fileChanges].sort((a, b) => {
+          const priority = operationPriority(a) - operationPriority(b);
+          if (priority !== 0 || a.kind !== 'text' || b.kind !== 'text') return priority;
+          return snapshot.source.indexOf(b.oldText) - snapshot.source.indexOf(a.oldText);
+        }),
+      );
       for (const change of sorted) {
         try {
           next = await applyChangeWithAdapter(next, snapshot.extension, change, this.options);

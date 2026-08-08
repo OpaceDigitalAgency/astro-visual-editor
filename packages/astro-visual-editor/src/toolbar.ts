@@ -482,6 +482,7 @@ export default defineToolbarApp({
           <ol class="navigator-tree"></ol>
         </nav>
         <section class="selection-inspector" aria-label="Selected element settings" hidden>
+          <button class="navigator-return" type="button">${icon('structure')}<span>Back to page structure</span></button>
           <div class="selection-summary">
             <span class="selection-kicker">Selected element</span>
             <strong class="selection-name">Text</strong>
@@ -2459,10 +2460,16 @@ export default defineToolbarApp({
         return;
       }
       if (event.target instanceof Element) {
+        if (event.target.closest('[data-astro-ve-ui]') || event.target.closest('astro-dev-toolbar'))
+          return;
         const section = event.target.closest<HTMLElement>(
           '[data-section][data-astro-ve-section-active="true"]',
         );
-        if (!section || event.target.closest('[data-astro-ve-ui]')) return;
+        if (!section) {
+          // Clicking empty canvas deselects and returns to the structure tree.
+          if (editing) clearSelection();
+          return;
+        }
         event.preventDefault();
         event.stopPropagation();
         openSectionInspector(section);
@@ -2741,7 +2748,33 @@ export default defineToolbarApp({
         });
         button.addEventListener('pointerenter', () => updateSectionHover(section));
         button.addEventListener('pointerleave', () => updateSectionHover(null));
-        item.append(button);
+        const row = createElement('div', { class: 'navigator-row' });
+        row.append(button);
+        if (protection.state === 'unlocked') {
+          const siblings = directSections(editableRegion(section) ?? section);
+          const position = siblings.indexOf(section);
+          const label = sectionControlLabel(section);
+          const up = createElement('button', {
+            type: 'button',
+            class: 'navigator-move',
+            'aria-label': `Move ${label} up`,
+            title: `Move ${label} up`,
+          });
+          up.innerHTML = icon('chevron-up');
+          up.disabled = position <= 0;
+          up.addEventListener('click', () => moveSection(section, -1));
+          const down = createElement('button', {
+            type: 'button',
+            class: 'navigator-move',
+            'aria-label': `Move ${label} down`,
+            title: `Move ${label} down`,
+          });
+          down.innerHTML = icon('chevron-down');
+          down.disabled = position < 0 || position >= siblings.length - 1;
+          down.addEventListener('click', () => moveSection(section, 1));
+          row.append(up, down);
+        }
+        item.append(row);
         const nestedRegions = allRegions.filter(
           (region) =>
             region.parentElement?.closest('[data-astro-ve-section-active="true"]') === section,
@@ -3520,6 +3553,9 @@ export default defineToolbarApp({
       clearSelection();
     });
     cancelSelectionButton.addEventListener('click', clearSelection);
+    panel
+      .querySelector<HTMLButtonElement>('.navigator-return')
+      ?.addEventListener('click', clearSelection);
     resetSelectionButton.addEventListener('click', () => {
       if (!editing) return;
       const selector = selectorFor(editing);

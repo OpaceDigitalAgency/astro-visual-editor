@@ -76,6 +76,18 @@ export const toolbarStyles = String.raw`
   .navigator-state[data-protection="protected"] { color: #e45b67; }
   .navigator-state .ave-icon { width: 13px; height: 13px; }
   .navigator-empty { padding: 10px; color: #858d95; border: 1px dashed #3b4147; border-radius: 8px; font-size: 11px; text-align: center; }
+  .navigator-row { display: flex; align-items: center; gap: 2px; }
+  .navigator-row .navigator-item-button { flex: 1 1 auto; }
+  .navigator-move { display: inline-grid; place-items: center; flex: 0 0 auto; width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 0; color: #aaa4b1; background: transparent; border: 1px solid transparent; border-radius: 5px; cursor: pointer; opacity: 0; transition: opacity .1s ease; }
+  .navigator-move .ave-icon { width: 14px; height: 14px; }
+  .navigator-row:hover .navigator-move, .navigator-row:focus-within .navigator-move { opacity: 1; }
+  .navigator-move:hover:not(:disabled), .navigator-move:focus-visible { color: #fff; background: #34313c; border-color: #56515f; }
+  .navigator-move:focus-visible { outline: 2px solid var(--ave-focus); outline-offset: -2px; }
+  .navigator-move:disabled { cursor: default; opacity: 0; }
+  .navigator-return { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 42px; padding: 8px 14px; color: #cfcbd6; background: #1f1e24; border: 0; border-bottom: 1px solid var(--ave-border); cursor: pointer; font-size: 11px; font-weight: 760; text-align: left; }
+  .navigator-return .ave-icon { width: 15px; height: 15px; color: #ff82b5; }
+  .navigator-return:hover, .navigator-return:focus-visible { color: #fff; background: #2a2830; outline: none; }
+  .navigator-return:focus-visible { outline: 2px solid var(--ave-focus); outline-offset: -2px; }
   .selection-inspector { min-height: 0; display: none; overflow: auto; background: #24232a; scrollbar-gutter: stable; }
   .selection-summary { display: grid; gap: 2px; padding: 12px 14px; background: #1f1e24; border-bottom: 1px solid var(--ave-border); }
   .selection-kicker { color: #9f9aa8; font-size: 9px; font-weight: 760; letter-spacing: .08em; text-transform: uppercase; }

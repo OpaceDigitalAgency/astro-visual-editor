@@ -27,7 +27,23 @@ async function enableEditor(page: import('@playwright/test').Page) {
   const toolbar = page.locator('astro-dev-toolbar').last();
   const workbench = toolbar.locator('.workbench');
   if (!(await workbench.isVisible().catch(() => false))) {
-    await toolbar.getByRole('button', { name: 'Visual Editor' }).click();
+    const opener = toolbar.getByRole('button', { name: 'Visual Editor', exact: true });
+    await opener.click();
+    // WebKit's synthesized pointer click can miss Astro's auto-hiding
+    // toolbar hit-box; fall back to a programmatic toggle. Activation shows
+    // the workbench on desktop but only the picker on mobile.
+    const deadline = Date.now() + 2_000;
+    let opened = false;
+    while (!opened && Date.now() < deadline) {
+      opened =
+        (await workbench.isVisible().catch(() => false)) ||
+        (await toolbar
+          .locator('.picker[data-open="true"]')
+          .isVisible()
+          .catch(() => false));
+      if (!opened) await page.waitForTimeout(100);
+    }
+    if (!opened) await opener.evaluate((element: HTMLElement) => element.click());
   }
   return { toolbar, workbench };
 }
@@ -1001,6 +1017,11 @@ test('double-click edits text in place; Escape restores, Enter keeps and queues'
 
   await lead.dblclick();
   await expect(lead).toHaveAttribute('contenteditable', /plaintext-only|true/u);
+  // The caret must be a collapsed point, never a whole-text selection: an
+  // immediate Backspace removes exactly one character, not the block.
+  const lengthBefore = (await lead.textContent())!.length;
+  await page.keyboard.press('Backspace');
+  await expect.poll(async () => (await lead.textContent())!.length).toBe(lengthBefore - 1);
   await page.keyboard.type('ZZZ ');
   await page.keyboard.press('Escape');
   await expect(lead).toHaveText(original);

@@ -25,5 +25,14 @@ export default defineConfig({
     timeout: 60_000,
     reuseExistingServer: portOverridden ? false : !process.env.CI,
   },
-  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    // Safari's engine handles contenteditable focus/selection differently
+    // enough that the riskiest interaction gets its own WebKit run.
+    {
+      name: 'webkit-inline',
+      use: { browserName: 'webkit' },
+      grep: /double-click edits text in place/u,
+    },
+  ],
 });

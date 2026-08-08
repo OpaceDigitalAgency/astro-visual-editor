@@ -2505,6 +2505,14 @@ export default defineToolbarApp({
       if (text) {
         event.preventDefault();
         event.stopPropagation();
+        // The second click of a double-click enters inline editing directly:
+        // relying on the separate dblclick event is engine-dependent (WebKit
+        // suppresses it after a cancelled click), and re-running the whole
+        // editor-open reads as lag.
+        if (event.detail > 1) {
+          if (selectionProtection(text).state === 'unlocked') startInlineEdit(text, event);
+          return;
+        }
         openTextEditor(text);
         return;
       }
@@ -2540,10 +2548,10 @@ export default defineToolbarApp({
       if (!candidate || selectionProtection(candidate).state !== 'unlocked') return;
       event.preventDefault();
       event.stopPropagation();
-      startInlineEdit(candidate);
+      startInlineEdit(candidate, event);
     }
 
-    function startInlineEdit(candidate: HTMLElement): void {
+    function startInlineEdit(candidate: HTMLElement, pointerEvent?: MouseEvent): void {
       if (editing !== candidate) openTextEditor(candidate);
       if (candidate.dataset.astroVeInlineEditing === 'true') return;
       const block = candidate.closest<HTMLElement>('[data-astro-ve-section-active="true"]');
@@ -2561,9 +2569,44 @@ export default defineToolbarApp({
       } catch {
         candidate.contentEditable = 'true';
       }
-      // Keep the caret/word selection the double-click produced: builders
-      // place the caret where the user pointed, they do not select-all.
       candidate.focus({ preventScroll: true });
+      // Place the caret explicitly at the pointed-at spot (end of text as
+      // the fallback) — after the click's focus churn the browser's own
+      // caret position is undefined, and Safari can leave the whole element
+      // selected, so one keystroke would replace everything.
+      const caretRange = (() => {
+        const doc = document as Document & {
+          caretRangeFromPoint?: (x: number, y: number) => Range | null;
+          caretPositionFromPoint?: (
+            x: number,
+            y: number,
+          ) => { offsetNode: Node; offset: number } | null;
+        };
+        if (pointerEvent) {
+          if (typeof doc.caretRangeFromPoint === 'function') {
+            const range = doc.caretRangeFromPoint(pointerEvent.clientX, pointerEvent.clientY);
+            if (range && candidate.contains(range.startContainer)) {
+              range.collapse(true);
+              return range;
+            }
+          } else if (typeof doc.caretPositionFromPoint === 'function') {
+            const position = doc.caretPositionFromPoint(pointerEvent.clientX, pointerEvent.clientY);
+            if (position && candidate.contains(position.offsetNode)) {
+              const range = document.createRange();
+              range.setStart(position.offsetNode, position.offset);
+              range.collapse(true);
+              return range;
+            }
+          }
+        }
+        const range = document.createRange();
+        range.selectNodeContents(candidate);
+        range.collapse(false);
+        return range;
+      })();
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(caretRange);
       const controller = new AbortController();
       const finish = (restoreOriginal: boolean): void => {
         controller.abort();

@@ -181,13 +181,13 @@ rendered-text editing inside Astro's own Dev Toolbar. Stacki currently ships
 a visual style panel that this package does not yet have — see
 [Roadmap](#roadmap-and-requests).
 
-| | This package | Stacki | Headless-CMS tools (Keystatic, Sitepins, TinaCMS, …) |
-| --- | --- | --- | --- |
-| Where you edit | In-browser, on the rendered page, via the Dev Toolbar | Separate desktop app | Separate admin UI or hosted studio |
-| Writes to `.astro` source directly | Yes | Yes, via its own page model | No — content records only |
-| Zero-config on an unannotated page | Yes | No | No |
-| Style/design editing | Not yet (roadmap) | Yes | No |
-| External account or hosting required | No | No (GitHub CLI optional) | Usually yes |
+|                                      | This package                                          | Stacki                      | Headless-CMS tools (Keystatic, Sitepins, TinaCMS, …) |
+| ------------------------------------ | ----------------------------------------------------- | --------------------------- | ---------------------------------------------------- |
+| Where you edit                       | In-browser, on the rendered page, via the Dev Toolbar | Separate desktop app        | Separate admin UI or hosted studio                   |
+| Writes to `.astro` source directly   | Yes                                                   | Yes, via its own page model | No — content records only                            |
+| Zero-config on an unannotated page   | Yes                                                   | No                          | No                                                   |
+| Style/design editing                 | Not yet (roadmap)                                     | Yes                         | No                                                   |
+| External account or hosting required | No                                                    | No (GitHub CLI optional)    | Usually yes                                          |
 
 ## Roadmap and requests
 

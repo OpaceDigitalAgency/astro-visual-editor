@@ -14,6 +14,7 @@ development toolbar.
 
 [Product page](https://opace.agency/tools/astro/visual-editor/) ·
 [Install](#install) · [Try the demo](#try-the-repository-demo) ·
+[How this compares](#how-this-compares) ·
 [Configuration](#configuration) · [Security](./SECURITY.md) ·
 [Contributing](./CONTRIBUTING.md) ·
 [Opace open-source portfolio](https://github.com/OpaceDigitalAgency/OpaceDigitalAgency)
@@ -49,6 +50,13 @@ toolbar on the selected block. Locked content shows a persistent lock chip
 with a one-click explanation:
 
 ![The visual builder with a selected block toolbar, a locked chip and the docked inspector](./.github/assets/shot-builder.png)
+
+**Page structure navigator.** Every group, section, row and block on the
+page, Elementor-style: click any item to select and scroll to it on the
+canvas, drag or use move controls to reorder, and see lock state at a
+glance without opening the rendered page's own toolbar:
+
+![The Page structure navigator tree showing nested groups, sections, rows and blocks with a selected paragraph highlighted on the canvas](./.github/assets/shot-navigator.png)
 
 **SEO editing.** Title, description, keywords, canonical URL, Open Graph
 fields and robots directives in one form, each field capability-checked
@@ -157,22 +165,51 @@ This package provides:
 
 It adds no production route, editor client or public write endpoint.
 
+## How this compares
+
+Most "Astro CMS" tools solve a different problem: they give a hosted or
+admin-panel UI for editing structured content records (Keystatic, Sitepins,
+Writenex, Sveltia, Decap), or overlay a hosted headless CMS on top of a live
+preview (Sanity, Netlify Visual Editor, TinaCMS). None of them write directly
+to `.astro` source, and most need an external account or hosting.
+
+The closest actual peer is [Stacki](https://github.com/flowtricks/stacki), a
+free, open-source **desktop app** that also edits Astro projects locally with
+no CMS backend. It reaches that goal through a different mechanism: a
+component/props palette in a separate Electron app, rather than click-any-
+rendered-text editing inside Astro's own Dev Toolbar. Stacki currently ships
+a visual style panel that this package does not yet have — see
+[Roadmap](#roadmap-and-requests).
+
+| | This package | Stacki | Headless-CMS tools (Keystatic, Sitepins, TinaCMS, …) |
+| --- | --- | --- | --- |
+| Where you edit | In-browser, on the rendered page, via the Dev Toolbar | Separate desktop app | Separate admin UI or hosted studio |
+| Writes to `.astro` source directly | Yes | Yes, via its own page model | No — content records only |
+| Zero-config on an unannotated page | Yes | No | No |
+| Style/design editing | Not yet (roadmap) | Yes | No |
+| External account or hosting required | No | No (GitHub CLI optional) | Usually yes |
+
 ## Roadmap and requests
 
 Zero-step editing covers conventional Astro pages today. Planned for the
 next betas, roughly in order:
 
+- **Full design control** — Elementor/Divi-grade style editing rather than
+  today's read-only Design tab: typography (family, size, weight, line
+  height), spacing, colours, backgrounds, borders and shadows, edited on the
+  canvas and written back only where the owning CSS or Astro style source
+  can be proven safely. The nearest open-source peer (Stacki) already ships
+  a style panel; closing this gap is the top priority.
+- **Typed component insertion** — a form-driven way to add a whole component
+  instance and configure its typed props (in the spirit of reading a
+  component's declared prop types and generating matching form fields),
+  alongside today's literal-text and structured-path editing.
 - **Dynamic and collection routes** — inferring the owning content file for
   `[slug]` pages and Content Collections without any mapping.
 - **Repeated-text disambiguation** — safe automatic resolution when the same
   string appears in several files (i18n locales, repeated CTAs).
 - **Client islands** — mapping text rendered by React/Vue/Svelte islands back
   to their component source.
-- **Full design control** — Elementor/Divi-grade style editing rather than
-  today's read-only Design tab: typography (family, size, weight, line
-  height), spacing, colours, backgrounds, borders and shadows, edited on the
-  canvas and written back only where the owning CSS or Astro style source
-  can be proven safely.
 - **Light and dark mode** — theme switching for the editor panel, plus
   light/dark variants in the bundled demos and planned starter themes.
 - **Structured data** — schema.org/JSON-LD editing alongside the existing SEO
@@ -181,6 +218,9 @@ next betas, roughly in order:
   HMR introduces new content mid-session.
 - **Images and assets** — replacing images from the canvas with source-safe
   asset handling.
+- **Client-accessible deployed editing** — an authenticated, SSR-hosted mode
+  that writes through the Git provider API instead of the local filesystem,
+  for non-technical editors on a deployed site rather than only `npm run dev`.
 
 Want one of these sooner, or something we have not planned?
 

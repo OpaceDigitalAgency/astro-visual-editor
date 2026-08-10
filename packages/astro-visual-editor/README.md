@@ -77,6 +77,15 @@ Toolbar. Stacki already ships a style panel this package does not yet have —
 see Roadmap below. Full comparison in the
 [repository README](https://github.com/OpaceDigitalAgency/astro-visual-editor#how-this-compares).
 
+**Is it a CMS?** No — there is no content store. It edits your existing
+`.astro`, Markdown, JSON and YAML source files in place, reviewable as an
+ordinary Git diff, and can coexist with any CMS. **Do I still need Sanity,
+Netlify Visual Editor or TinaCMS?** Those provide hosted editing of
+CMS-managed content for non-technical publishers; this edits the source
+itself during local development. Many teams would use one of each. More
+comparisons (Stacki, Keystatic, Sitepins, Decap, Sveltia) in the
+[repository FAQ](https://github.com/OpaceDigitalAgency/astro-visual-editor#frequently-asked-comparisons).
+
 ## Roadmap and requests
 
 Zero-step editing covers conventional Astro pages today. Planned for the

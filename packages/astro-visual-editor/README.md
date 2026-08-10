@@ -46,6 +46,11 @@ on the selected block, persistent lock chips on locked content:
 
 ![The visual builder with a selected block toolbar, a locked chip and the docked inspector](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/shot-builder.png)
 
+The Page structure navigator — every group, section, row and block,
+Elementor-style, with click-to-select and drag or move-control reordering:
+
+![The Page structure navigator tree showing nested groups, sections, rows and blocks with a selected paragraph highlighted on the canvas](https://raw.githubusercontent.com/OpaceDigitalAgency/astro-visual-editor/main/.github/assets/shot-navigator.png)
+
 The SEO form with all seven fields capability-checked against their real
 source, and the review tray where every change waits for one validated save:
 
@@ -60,22 +65,44 @@ multi-file batch) and **Plain (zero setup)** (an unannotated page edited
 entirely by inference). The demo also bundles `@astrojs/sitemap` and real
 head markup so SEO editing is proven against a conventional Astro site.
 
+## How this compares
+
+Most "Astro CMS" tools (Keystatic, Sitepins, Writenex, Sveltia, Sanity,
+Netlify Visual Editor, TinaCMS) edit structured content records through a
+separate admin UI or hosted studio, not `.astro` source. The closest actual
+peer is [Stacki](https://github.com/flowtricks/stacki), a free open-source
+desktop app that also edits Astro projects locally with no CMS backend, via
+a component/props palette rather than click-any-text editing inside the Dev
+Toolbar. Stacki already ships a style panel this package does not yet have —
+see Roadmap below. Full comparison in the
+[repository README](https://github.com/OpaceDigitalAgency/astro-visual-editor#how-this-compares).
+
+**Is it a CMS?** No — there is no content store. It edits your existing
+`.astro`, Markdown, JSON and YAML source files in place, reviewable as an
+ordinary Git diff, and can coexist with any CMS. **Do I still need Sanity,
+Netlify Visual Editor or TinaCMS?** Those provide hosted editing of
+CMS-managed content for non-technical publishers; this edits the source
+itself during local development. Many teams would use one of each. More
+comparisons (Stacki, Keystatic, Sitepins, Decap, Sveltia) in the
+[repository FAQ](https://github.com/OpaceDigitalAgency/astro-visual-editor#frequently-asked-comparisons).
+
 ## Roadmap and requests
 
 Zero-step editing covers conventional Astro pages today. Planned for the
 next betas, roughly in order:
 
+- **Full design control** — Elementor/Divi-grade style editing rather than
+  today's read-only Design tab. The nearest open-source peer already ships a
+  style panel; closing this gap is the top priority.
+- **Typed component insertion** — a form-driven way to add and configure a
+  whole component instance from its typed props, alongside today's literal-
+  text and structured-path editing.
 - **Dynamic and collection routes** — inferring the owning content file for
   `[slug]` pages and Content Collections without any mapping.
 - **Repeated-text disambiguation** — safe automatic resolution when the same
   string appears in several files (i18n locales, repeated CTAs).
 - **Client islands** — mapping text rendered by React/Vue/Svelte islands back
   to their component source.
-- **Full design control** — Elementor/Divi-grade style editing rather than
-  today's read-only Design tab: typography (family, size, weight, line
-  height), spacing, colours, backgrounds, borders and shadows, edited on the
-  canvas and written back only where the owning CSS or Astro style source
-  can be proven safely.
 - **Light and dark mode** — theme switching for the editor panel, plus
   light/dark variants in the bundled demos and planned starter themes.
 - **Structured data** — schema.org/JSON-LD editing alongside the existing SEO
@@ -84,6 +111,9 @@ next betas, roughly in order:
   HMR introduces new content mid-session.
 - **Images and assets** — replacing images from the canvas with source-safe
   asset handling.
+- **Client-accessible deployed editing** — an authenticated, SSR-hosted mode
+  writing through the Git provider API for non-technical editors, not just
+  local `npm run dev`.
 
 Want one of these sooner, or something we have not planned?
 

@@ -8,8 +8,8 @@
     "demo/src/data/complex-page.json": "e63a9bec45bd0231521f77c78c8e24e35a9bd04374b2602dd6e69107be16da39",
     "demo/src/layouts/DemoLayout.astro": "f99c53eb35aea92c93cbd16ac4bc59a28d0abfaf0658a1072fb94b039a7e9e75",
     "demo/src/pages/fixtures/complex.astro": "60210fee742c6d17f2e817482e6e87a926a3ddbc15179039ab5c3d13c8641b9d",
-    "demo/src/pages/fixtures/article.astro": "e11687bbf53f3b78824290105a02e533e4f96c784947ec0c48e7d45e4ebb0bfa",
-    "demo/src/pages/index.astro": "1ebeea2dd8b7e5ff8fd198028e07bfa67555e712305039008e4935acf91c61db",
+    "demo/src/pages/fixtures/article.astro": "5a2f87962971d45ed2045fedabf9227dec503f26f2da7896efb3d333b2815e48",
+    "demo/src/pages/index.astro": "1c54b0db12161cb7274dbf0015e2075fd31194286cbcf30b3b380f1683f35444",
     "demo/src/pages/fixtures/plain.astro": "678eb35c6dcc5b7ee0591b94b622012466c78a9722e4dd13477e64db3e726798"
   }
 }

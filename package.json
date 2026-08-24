@@ -8,6 +8,7 @@
     "demo"
   ],
   "scripts": {
+    "brand:sync": "node scripts/sync-brand-assets.mjs",
     "build": "npm run build --workspace @opacedev/astro-visual-editor",
     "check": "npm run check --workspace @opacedev/astro-visual-editor && npm run check --workspace astro-visual-editor-demo",
     "check:production-isolation": "node scripts/check-production-isolation.mjs",

@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- Replaced every product icon consumer with one canonical transparent 512px
+  logo, including the Astro Dev Toolbar, demo favicon and GitHub artwork.
+
 ## 0.1.0-beta.6 - 2026-08-08
 
 ### Added

@@ -1,4 +1,4 @@
-import { rm, mkdir } from 'node:fs/promises';
+import { copyFile, mkdir, rm } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { build } from 'esbuild';
@@ -7,6 +7,7 @@ const execute = promisify(execFile);
 
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });
+await mkdir('dist/assets', { recursive: true });
 
 await Promise.all([
   build({
@@ -36,3 +37,8 @@ await execute(process.execPath, [
   '--project',
   'tsconfig.build.json',
 ]);
+
+await copyFile(
+  'src/assets/astro-visual-editor-logo.png',
+  'dist/assets/astro-visual-editor-logo.png',
+);

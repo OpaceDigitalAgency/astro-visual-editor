@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
   <title id="title">Astro Visual Editor by Opace</title>
   <desc id="desc">A dark product card showing the Astro Visual Editor change ledger for text, section, and SEO updates.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
       <stop stop-color="#0d0f10"/>
       <stop offset="1" stop-color="#171a1b"/>
     </linearGradient>
@@ -10,7 +10,8 @@
       <feGaussianBlur stdDeviation="48"/>
     </filter>
   </defs>
-  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <g transform="translate(40 5)">
   <g opacity=".09" stroke="#fff">
     <path d="M0 72h1200M0 144h1200M0 216h1200M0 288h1200M0 360h1200M0 432h1200M0 504h1200M0 576h1200"/>
     <path d="M72 0v630M144 0v630M216 0v630M288 0v630M360 0v630M432 0v630M504 0v630M576 0v630M648 0v630M720 0v630M792 0v630M864 0v630M936 0v630M1008 0v630M1080 0v630M1152 0v630"/>
@@ -57,4 +58,5 @@
     <text x="249" y="450" fill="#111415" font-family="Arial, sans-serif" font-size="12" font-weight="800">Commit 3 changes</text>
   </g>
   <text x="56" y="574" fill="#f5f0e9" font-family="Arial, sans-serif" font-size="17" font-weight="700">opace.agency/tools/astro/visual-editor/</text>
+  </g>
 </svg>

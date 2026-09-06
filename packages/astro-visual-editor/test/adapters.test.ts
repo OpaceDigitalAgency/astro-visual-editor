@@ -540,3 +540,119 @@ describe('source adapters', () => {
     expect(await readFile(page, 'utf8')).toBe('<p><strong>Structured copy</strong></p>');
   });
 });
+
+describe('non-ASCII source offsets', () => {
+  it('replaces Astro text that follows umlauts, ß and emoji without shifting the range', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(
+      page,
+      `<h1 data-astro-edit-id="title">Grüße aus Hohenstein</h1>
+<p data-astro-edit-id="lead">Ärzte, Öffnungszeiten & Straße 🚀 — bitte prüfen.</p>
+<p data-astro-edit-id="tail">Letzter Absatz</p>`,
+    );
+    await applyChangeBatch(
+      root,
+      src,
+      [
+        {
+          kind: 'text',
+          id: 'tail',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          selector: '[data-astro-edit-id="tail"]',
+          oldText: 'Letzter Absatz',
+          newText: 'Geänderter Schlussabsatz über Umlaute',
+        },
+        {
+          kind: 'text',
+          id: 'lead',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          selector: '[data-astro-edit-id="lead"]',
+          oldText: 'Ärzte, Öffnungszeiten & Straße 🚀 — bitte prüfen.',
+          newText: 'Ärztinnen, Öffnungszeiten und Straße 🚀 — geprüft.',
+        },
+      ],
+      normalizeOptions(),
+    );
+    expect(await readFile(page, 'utf8')).toBe(
+      `<h1 data-astro-edit-id="title">Grüße aus Hohenstein</h1>
+<p data-astro-edit-id="lead">Ärztinnen, Öffnungszeiten und Straße 🚀 — geprüft.</p>
+<p data-astro-edit-id="tail">Geänderter Schlussabsatz über Umlaute</p>`,
+    );
+  });
+
+  it('updates SEO head elements that follow non-ASCII markup', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(
+      page,
+      `<html lang="de"><head><!-- Übersicht über die Seitenköpfe --><title>Alter Titel für Ärzte</title><meta name="description" content="Größte Praxis im Taunus" /></head><body><p>Hallo Welt</p></body></html>`,
+    );
+    await applyChangeBatch(
+      root,
+      src,
+      [
+        {
+          kind: 'seo',
+          id: 'seo',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          before: {
+            ...emptySeo,
+            title: 'Alter Titel für Ärzte',
+            description: 'Größte Praxis im Taunus',
+          },
+          after: {
+            ...emptySeo,
+            title: 'Neuer Titel für Zahnärzte',
+            description: 'Größte Zahnarztpraxis im Taunus',
+          },
+        },
+      ],
+      normalizeOptions(),
+    );
+    const result = await readFile(page, 'utf8');
+    expect(result).toContain('<title>Neuer Titel für Zahnärzte</title>');
+    expect(result).toContain('content="Größte Zahnarztpraxis im Taunus"');
+    expect(result).toContain('<!-- Übersicht über die Seitenköpfe -->');
+    expect(result).toContain('<p>Hallo Welt</p></body></html>');
+  });
+
+  it('reorders sections whose preceding markup contains umlauts', async () => {
+    const { root, src } = await project();
+    const page = join(src, 'pages', 'index.astro');
+    await writeFile(
+      page,
+      `<header><h1>Grüße äöü ß</h1></header>
+<main data-astro-edit-region="home">
+  <section data-section="hero"><h1>Über uns</h1></section>
+  <section data-section="features"><h2>Leistungen für Ärzte</h2></section>
+</main>`,
+    );
+    await applyChangeBatch(
+      root,
+      src,
+      [
+        {
+          kind: 'sections',
+          id: 'sections',
+          filePath: 'src/pages/index.astro',
+          route: '/',
+          regionId: 'home',
+          before: [{ id: 'hero' }, { id: 'features' }],
+          after: [{ id: 'features' }, { id: 'hero' }],
+        },
+      ],
+      normalizeOptions(),
+    );
+    expect(await readFile(page, 'utf8')).toBe(
+      `<header><h1>Grüße äöü ß</h1></header>
+<main data-astro-edit-region="home">
+  <section data-section="features"><h2>Leistungen für Ärzte</h2></section>
+  <section data-section="hero"><h1>Über uns</h1></section>
+</main>`,
+    );
+  });
+});

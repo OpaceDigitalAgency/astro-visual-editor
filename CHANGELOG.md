@@ -4,6 +4,19 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- Fixed every Astro source write on files containing non-ASCII characters
+  (umlauts, ß, typographic dashes, emoji, …). `@astrojs/compiler` reports
+  UTF-8 byte offsets, but the adapters and zero-step discovery sliced the
+  source as a JavaScript string, so any text, SEO or section edit located
+  after the first multi-byte character was refused ("Cannot locate the start
+  of <…>", "not a literal text node") or written to the wrong range. All
+  compiler calls now go through `parseAstroSource()`, which converts the
+  offsets to string indices once, directly after parsing.
+
 ## 0.1.0-beta.7 - 2026-08-24
 
 ### Changed

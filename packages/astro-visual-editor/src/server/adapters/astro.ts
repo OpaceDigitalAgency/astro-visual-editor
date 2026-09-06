@@ -1,4 +1,4 @@
-import { parse, transform } from '@astrojs/compiler';
+import { transform } from '@astrojs/compiler';
 import type {
   SectionDescriptor,
   SectionTemplate,
@@ -15,6 +15,7 @@ import {
   type SourceRange,
   uniqueRange,
 } from './shared.js';
+import { parseAstroSource } from './astro-parse.js';
 import { createHash } from 'node:crypto';
 
 interface PositionPoint {
@@ -119,7 +120,7 @@ function nodeStartOffset(source: string, node: AstroNode): number {
 }
 
 async function parseAstro(source: string): Promise<AstroNode> {
-  const result = await parse(source, { position: true });
+  const result = await parseAstroSource(source);
   return result.ast as unknown as AstroNode;
 }
 

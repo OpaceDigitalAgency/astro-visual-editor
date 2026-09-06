@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { extname, relative, resolve, sep } from 'node:path';
-import { parse as parseAstro } from '@astrojs/compiler';
+import { parseAstroSource as parseAstro } from './adapters/astro-parse.js';
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
 import { parseDocument } from 'yaml';
 import type { NormalizedOptions } from '../options.js';
@@ -64,7 +64,7 @@ function walkAstro(node: AstroNode, visit: (node: AstroNode) => void): void {
 }
 
 async function astroMatches(source: string, text: string): Promise<Match[]> {
-  const parsed = await parseAstro(source, { position: true });
+  const parsed = await parseAstro(source);
   const target = normalize(text);
   const matches: Match[] = [];
   walkAstro(parsed.ast as unknown as AstroNode, (node) => {
@@ -506,7 +506,7 @@ export async function resolveAstroRegionItems(
   source: string,
   sourcePath: string,
 ): Promise<Array<{ id: string; sourceKey: string }>> {
-  const parsed = await parseAstro(source, { position: true });
+  const parsed = await parseAstro(source);
   const container = locateChildrenContainer(parsed.ast as unknown as AstroNode, sourcePath);
   if (!container) throw new Error('The saved section mapping no longer exists in its Astro file.');
   return significantChildren(container).map((child) => {
@@ -521,7 +521,7 @@ async function astroRegionCandidates(
   itemCount: number,
   confidence: 'exact' | 'likely',
 ): Promise<SectionRegionCandidate[]> {
-  const parsed = await parseAstro(source, { position: true });
+  const parsed = await parseAstro(source);
   const candidates: SectionRegionCandidate[] = [];
   const occurrences = new Map<string, number>();
   walkAstro(parsed.ast as unknown as AstroNode, (node) => {
